@@ -1,0 +1,55 @@
+Requerimientos para framework de aplicaciones YUBOX sobre ESP32
+---------------------------------------------------------------
+
+Interfaz web
+------------
+- Basada en JQuery+Bootstrap últimas versiones
+- Interfaz debe SIEMPRE pedir autenticación
+- Single Page Application, debe cargar HTML base una sola vez, interactuar vía AJAX, WebSockets
+  |- Investigar si vale la pena usar React.js para desarrollo (NO CoreUI, muy pesado)
+- Variables guardadas vía biblioteca Preferences.h
+
+WiFi
+----
+- Debe de soportarse modo hostAP, el cual debe estar activo SIEMPRE, incluso si ya se conectó a otra red
+- Nombre de red HostAP por omisión debe ser único por chip, posiblemente generado vía MAC
+- Soporte de múltiples redes descubiertas, debe conectarse a la mejor posible por omisión
+- Administración Web de conexiones Wifi (ingresar clave, olvidar red, modo autenticación enterprise)
+  \- ver celular para ejemplo de interfaz administración
+- Integración MDNS para localizar aparato en red WiFi, debe publicar existencia de puerto 80 HTTP
+- Envío de muestras a recolector vía HTTP/HTTPS/MQTT como sea soportado, payload urlencoded (form) o JSON
+
+OTA
+---
+- Soporte de actualizar firmware a partir de upload vía interfaz administrativa
+- Soporte de actualizar firmware mandando a YUBOX a pedir firmware a un URL conocido externo
+  |- verificación periódica de actualizaciones sin intervención humana
+
+NTP y reloj
+-----------
+- Programa debe arrancar incluso si no hay NTP. Si una hora es obligatoria, el procesamiento debe estar detenido hasta que se consiga una hora
+- Interfaz debe permitir configurar un servidor NTP (por omisión pool.ntp.org)
+- Interfaz debe permitir configurar zona horaria como offset GMT (por omisión GMT-5 Ecuador)
+- Como fallback, si se tiene una conexión Wifi con acceso al exterior, una petición HTTPS de HEAD puede devolver una cabecera Date: que puede parsearse para tener una fecha y hora inicial GMT.
+- Última hora válida (NTP o HTTP) debe almacenarse regularmente como preferencia (flash) para reducir error en caso de reseteo y conexión internet no disponible
+- Soporte opcional reloj RTC en lugar de preferencia flash
+
+GSM/GPRS
+--------
+- Soporte opcional para módulo GSM SIM800L para enviar muestras/OTA/NTP
+  |- Usar pila TCP/IP de módulo GSM para HTTP o TCP/IP en bruto
+  |- Configurar APN y username/clave vía web en caso necesario
+  |- Consulta de estado SIM y de red celular desde interfaz web
+  |- Segunda fuente de NTP vía pila TCP/IP, véase NTP más arriba
+
+Aplicación y sensores
+---------------------
+- Identificación de aparato frente a colector datos debe poderse configurar vía web
+- Investigar si MQTT puede redirigirse a través de websocket en YUBOX/ESP32, necesario en entorno restrictivo como la ESPOL
+- Debe desarrollarse para cada aplicación su integración con la interfaz web de configuración
+
+Gráficos
+--------
+- Incluir chart.js si se tiene requerimiento de gráficos
+- Datos en tiempo real usando websockets, actualizar HTML+gráficos
+
