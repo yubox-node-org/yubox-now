@@ -23,15 +23,15 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul class="navbar-nav mr-auto">
-            <li class="nav-item active">
-              <a class="nav-link" href="?screen=lector">Lector de muestras</a>
+          <ul class="navbar-nav mr-auto nav" role="tablist" id="yuboxMainTab">
+            <li class="nav-item">
+              <a class="nav-link active" id="lector-tab" data-toggle="tab" role="tab" aria-controls="lector" aria-selected="true" href="#lector">Lector de muestras</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="?screen=wifi">WIFI</a>
+              <a class="nav-link" id="wifi-tab" data-toggle="tab" role="tab" aria-controls="wifi" aria-selected="false" href="#wifi">WIFI</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="?screen=mqtt">Envío de datos</a>
+              <a class="nav-link" id="mqtt-tab" data-toggle="tab" role="tab" aria-controls="mqtt" aria-selected="false" href="#mqtt">Envío de datos</a>
             </li>
           </ul>
         </div>
@@ -47,165 +47,173 @@
           </button>
         </div>
         {/if}
-        {if $screen eq 'wifi'}
-        <form method="POST">
-          <div class="form-group row">
-            <label for="wlanmac" class="col-sm-2 col-form-label">Dirección MAC:</label>
-            <div class="col-sm-10">
-              <input type="text" readonly class="form-control-plaintext" id="wlanmac" name="wlanmac" value="{$WLANMAC|escape:html}">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="wifi">Redes visibles:</label>
-            <select name="wifi" id="wifi" class="form-control">
-              {html_options options=$wifilist}
-            </select>
-          </div>
-          <div class="form-group row">
-            <legend class="col-form-label col-sm-4 pt-0">Modo de autenticación: </legend>
-            <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-              <label class="btn btn-secondary active">
-                <input type="radio" name="key_mgmt" id="WPA-PSK" value="WPA-PSK" autocomplete="off" checked>WPA-PSK
-              </label>
-              <label class="btn btn-secondary">
-                <input type="radio" name="key_mgmt" id="WPA-EAP" value="WPA-EAP" autocomplete="off" >WPA-EAP
-              </label>
-              <label class="btn btn-secondary">
-                <input type="radio" name="key_mgmt" id="NONE" value="NONE" autocomplete="off" >NONE
-              </label>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="psk">Clave para la red:</label>
-            <input type="password" id="psk" name="psk" class="form-control" {literal}pattern=".{8,}"{/literal}/>
-          </div>
-          <div class="form-group">
-            <label for="identity">Identidad EAP:</label>
-            <input type="text" id="identity" name="identity" class="form-control"/>
-          </div>
-          <div class="form-group">
-            <label for="password">Contraseña EAP:</label>
-            <input type="password" id="password" name="password" class="form-control"/>
-          </div>
-          <div class="form-group">
-          </div>
-          <button type="submit" class="btn btn-primary" name="apply">Configurar red WIFI</button>
-          <button type="submit" class="btn btn-danger" name="hostap" formnovalidate>Resetear a HOSTAP</button>
-        </form>
-        {/if}
-        {if $screen eq 'mqtt'}
-        <form method="POST">
-          <div class="form-group">
-            <label for="clientid">Identidad MQTT para envío de datos:</label>
-            <input type="text" id="clientid" name="clientid" class="form-control"
-              placeholder="edificio-principal" aria-describedby="clientidAyuda"
-              value="{$clientid|escape:html}" {literal}pattern="^([\w-]){1,23}$"{/literal} required/>
-            <small id="clientidAyuda" class="form-text text-muted">Identificador de medidor frente a servidor de recolección, alfanumérico maś guión hasta 23 caracteres</small>
-          </div>
-          <div class="form-group">
-            <div class="row">
-              <legend class="col-form-label col-sm-4 pt-0">Transporte MQTT: </legend>
-              <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-                <label class="btn btn-secondary {if $transport eq 'websockets'}active{/if}">
-                  <input type="radio" name="transport" id="websockets" value="websockets" autocomplete="off" {if $transport eq 'websockets'}checked{/if}>Websockets (puerto 443)
-                </label>
-                <label class="btn btn-secondary {if $transport eq 'tcp'}active{/if}">
-                  <input type="radio" name="transport" id="tcp" value="tcp" autocomplete="off" {if $transport eq 'tcp'}checked{/if}>TCP/IP (puerto 1883)
-                </label>
-              </div>
-            </div>
-            <small class="form-text text-muted">Verifique que el puerto usado por el transporte esté permitido en el firewall.</small>
-          </div>
-          <button type="submit" class="btn btn-primary" name="apply">Actualizar</button>
-        </form>
-        {/if}
-        {if $screen eq 'lector'}
-        <form method="POST">
-          <div class="form-group">
-            <label for="interval">Intervalo de muestreo (segundos):</label>
-            <input type="number" id="interval" name="interval" class="form-control"
-              placeholder="edificio-principal" aria-describedby="intervalAyuda"
-              value="{$interval|escape:html}" {literal}pattern="^[\d]+$"{/literal} required/>
-            <small id="intervalAyuda" class="form-text text-muted">Cada intervalo, el muestreador enviará una muestra al servidor de recolección de muestras.</small>
-          </div>
-          <div class="form-group row">
-            <legend class="col-form-label col-sm-4 pt-0">Modo primario de medición: </legend>
-            <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-              <label class="btn btn-secondary {if $mode eq 'AC'}active{/if}">
-                <input type="radio" name="mode" id="AC" value="AC" autocomplete="off" {if $mode eq 'AC'}checked{/if}>AC (Corriente alterna)
-              </label>
-              <label class="btn btn-secondary {if $mode eq 'DC'}active{/if}">
-                <input type="radio" name="mode" id="DC" value="DC" autocomplete="off" {if $mode eq 'DC'}checked{/if}>DC (Corriente Directa)
-              </label>
-            </div>
-          </div>
-          <div class="form-group row">
-            <legend class="col-form-label col-sm-4 pt-0">Uso de canales AC: </legend>
-            <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-              <label class="btn btn-secondary {if $acmode eq 'voltamp'}active{/if}">
-                <input type="radio" name="acmode" id="voltamp" value="voltamp" autocomplete="off" {if $acmode eq 'voltamp'}checked{/if}>Voltaje + Corriente
-              </label>
-              <label class="btn btn-secondary {if $acmode eq 'amponly'}active{/if}">
-                <input type="radio" name="acmode" id="amponly" value="amponly" autocomplete="off" {if $acmode eq 'amponly'}checked{/if}>Sólo Corriente
-              </label>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="rmsvoltage">Voltaje RMS a asumir para cálculo de potencia:</label>
-            <input type="number" id="rmsvoltage" name="rmsvoltage" class="form-control"
-              placeholder="edificio-principal" aria-describedby="rmsvoltageAyuda"
-              value="{$rmsvoltage|escape:html}" {literal}pattern="^[\d]+$"{/literal}/>
-            <small id="rmsvoltageAyuda" class="form-text text-muted">Este valor de voltaje se usa para calcular la potencia de cada canal de corriente.</small>
-          </div>
-          <div id="mapa-canal-aviso" class="alert alert-warning d-none" role="alert"></div>
-          <div class="form-group">
-            <input type="hidden" name="voltampchans" id="voltampchans" value="{$voltampchans|escape:html}" />
-            <input type="hidden" name="ampchans" id="ampchans" value="{$ampchans|escape:html}" />
-            <input type="hidden" name="bias" id="bias" value="{$bias|escape:html}" />
-            <input type="hidden" name="scale" id="scale" value="{$scale|escape:html}" />
+        <div class="tab-content" id="yuboxMainTabContent">
+            <div id="lector" role="tabpanel" aria-labelledby="lector-tab" class="tab-pane fade show active">
 
-            <div class="card">
-              <h4 class="card-header">Mapa de canales:</h4>
-              <div class="card-body row">
-                <div class="canales-col col-sm-4">
-                  <div id="chans-disponibles" class="card">
-                    <h5 class="card-header">Disponibles</h5>
-                    <ul class="list-group list-group-flush">
-                      {* Los items que representan cada canal serán duplicados movidos vía javascript *}
-                      <li draggable="true" class="list-group-item form-inline">
-                        <span></span>
-                        <input class="form-control form-control-sm" pattern="[+-]?\d+(\.\d+)?" type="text" name="minval" placeholder="0" size="6" />-
-                        <input class="form-control form-control-sm" pattern="[+-]?\d+(\.\d+)?" type="text" name="maxval" placeholder="0" size="6"/>
-                        <div class="text-muted" id="rms"></div>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <div class="canales-col col-sm-4">
-                  <div id="chans-voltaje" class="card">
-                    <h5 class="card-header">Voltaje</h5>
-                    <ul class="list-group list-group-flush">
-                      {* A llenar vía javascript *}
-                    </ul>
-                  </div>
-                </div>
-                <div class="canales-col col-sm-4">
-                  <div id="chans-corriente" class="card">
-                    <h5 class="card-header">Corriente</h5>
-                    <ul class="list-group list-group-flush">
-                      {* A llenar vía javascript *}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div class="card-footer text-muted">
-                Arrastre y suelte canales para asignar o liberar
-              </div>
+                <form method="POST">
+                    <div class="form-group">
+                      <label for="interval">Intervalo de muestreo (segundos):</label>
+                      <input type="number" id="interval" name="interval" class="form-control"
+                        placeholder="edificio-principal" aria-describedby="intervalAyuda"
+                        value="{$interval|escape:html}" {literal}pattern="^[\d]+$"{/literal} required/>
+                      <small id="intervalAyuda" class="form-text text-muted">Cada intervalo, el muestreador enviará una muestra al servidor de recolección de muestras.</small>
+                    </div>
+                    <div class="form-group row">
+                      <legend class="col-form-label col-sm-4 pt-0">Modo primario de medición: </legend>
+                      <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+                        <label class="btn btn-secondary {if $mode eq 'AC'}active{/if}">
+                          <input type="radio" name="mode" id="AC" value="AC" autocomplete="off" {if $mode eq 'AC'}checked{/if}>AC (Corriente alterna)
+                        </label>
+                        <label class="btn btn-secondary {if $mode eq 'DC'}active{/if}">
+                          <input type="radio" name="mode" id="DC" value="DC" autocomplete="off" {if $mode eq 'DC'}checked{/if}>DC (Corriente Directa)
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-group row">
+                      <legend class="col-form-label col-sm-4 pt-0">Uso de canales AC: </legend>
+                      <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+                        <label class="btn btn-secondary {if $acmode eq 'voltamp'}active{/if}">
+                          <input type="radio" name="acmode" id="voltamp" value="voltamp" autocomplete="off" {if $acmode eq 'voltamp'}checked{/if}>Voltaje + Corriente
+                        </label>
+                        <label class="btn btn-secondary {if $acmode eq 'amponly'}active{/if}">
+                          <input type="radio" name="acmode" id="amponly" value="amponly" autocomplete="off" {if $acmode eq 'amponly'}checked{/if}>Sólo Corriente
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="rmsvoltage">Voltaje RMS a asumir para cálculo de potencia:</label>
+                      <input type="number" id="rmsvoltage" name="rmsvoltage" class="form-control"
+                        placeholder="edificio-principal" aria-describedby="rmsvoltageAyuda"
+                        value="{$rmsvoltage|escape:html}" {literal}pattern="^[\d]+$"{/literal}/>
+                      <small id="rmsvoltageAyuda" class="form-text text-muted">Este valor de voltaje se usa para calcular la potencia de cada canal de corriente.</small>
+                    </div>
+                    <div id="mapa-canal-aviso" class="alert alert-warning d-none" role="alert"></div>
+                    <div class="form-group">
+                      <input type="hidden" name="voltampchans" id="voltampchans" value="{$voltampchans|escape:html}" />
+                      <input type="hidden" name="ampchans" id="ampchans" value="{$ampchans|escape:html}" />
+                      <input type="hidden" name="bias" id="bias" value="{$bias|escape:html}" />
+                      <input type="hidden" name="scale" id="scale" value="{$scale|escape:html}" />
+
+                      <div class="card">
+                        <h4 class="card-header">Mapa de canales:</h4>
+                        <div class="card-body row">
+                          <div class="canales-col col-sm-4">
+                            <div id="chans-disponibles" class="card">
+                              <h5 class="card-header">Disponibles</h5>
+                              <ul class="list-group list-group-flush">
+                                {* Los items que representan cada canal serán duplicados movidos vía javascript *}
+                                <li draggable="true" class="list-group-item form-inline">
+                                  <span></span>
+                                  <input class="form-control form-control-sm" pattern="[+-]?\d+(\.\d+)?" type="text" name="minval" placeholder="0" size="6" />-
+                                  <input class="form-control form-control-sm" pattern="[+-]?\d+(\.\d+)?" type="text" name="maxval" placeholder="0" size="6"/>
+                                  <div class="text-muted" id="rms"></div>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                          <div class="canales-col col-sm-4">
+                            <div id="chans-voltaje" class="card">
+                              <h5 class="card-header">Voltaje</h5>
+                              <ul class="list-group list-group-flush">
+                                {* A llenar vía javascript *}
+                              </ul>
+                            </div>
+                          </div>
+                          <div class="canales-col col-sm-4">
+                            <div id="chans-corriente" class="card">
+                              <h5 class="card-header">Corriente</h5>
+                              <ul class="list-group list-group-flush">
+                                {* A llenar vía javascript *}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="card-footer text-muted">
+                          Arrastre y suelte canales para asignar o liberar
+                        </div>
+                      </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" name="apply">Actualizar</button>
+                  </form>
+
             </div>
-          </div>
-          <button type="submit" class="btn btn-primary" name="apply">Actualizar</button>
-        </form>
-        {/if}
+            <div id="wifi" role="tabpanel" aria-labelledby="wifi-tab" class="tab-pane fade">
+
+                <form method="POST">
+                    <div class="form-group row">
+                      <label for="wlanmac" class="col-sm-2 col-form-label">Dirección MAC:</label>
+                      <div class="col-sm-10">
+                        <input type="text" readonly class="form-control-plaintext" id="wlanmac" name="wlanmac" value="{$WLANMAC|escape:html}">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="wifi">Redes visibles:</label>
+                      <select name="wifi" id="wifi" class="form-control">
+                        {html_options options=$wifilist}
+                      </select>
+                    </div>
+                    <div class="form-group row">
+                      <legend class="col-form-label col-sm-4 pt-0">Modo de autenticación: </legend>
+                      <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+                        <label class="btn btn-secondary active">
+                          <input type="radio" name="key_mgmt" id="WPA-PSK" value="WPA-PSK" autocomplete="off" checked>WPA-PSK
+                        </label>
+                        <label class="btn btn-secondary">
+                          <input type="radio" name="key_mgmt" id="WPA-EAP" value="WPA-EAP" autocomplete="off" >WPA-EAP
+                        </label>
+                        <label class="btn btn-secondary">
+                          <input type="radio" name="key_mgmt" id="NONE" value="NONE" autocomplete="off" >NONE
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="psk">Clave para la red:</label>
+                      <input type="password" id="psk" name="psk" class="form-control" {literal}pattern=".{8,}"{/literal}/>
+                    </div>
+                    <div class="form-group">
+                      <label for="identity">Identidad EAP:</label>
+                      <input type="text" id="identity" name="identity" class="form-control"/>
+                    </div>
+                    <div class="form-group">
+                      <label for="password">Contraseña EAP:</label>
+                      <input type="password" id="password" name="password" class="form-control"/>
+                    </div>
+                    <div class="form-group">
+                    </div>
+                    <button type="submit" class="btn btn-primary" name="apply">Configurar red WIFI</button>
+                    <button type="submit" class="btn btn-danger" name="hostap" formnovalidate>Resetear a HOSTAP</button>
+                  </form>
+
+            </div>
+            <div id="mqtt" role="tabpanel" aria-labelledby="mqtt-tab" class="tab-pane fade">
+
+                <form method="POST">
+                    <div class="form-group">
+                      <label for="clientid">Identidad MQTT para envío de datos:</label>
+                      <input type="text" id="clientid" name="clientid" class="form-control"
+                        placeholder="edificio-principal" aria-describedby="clientidAyuda"
+                        value="{$clientid|escape:html}" {literal}pattern="^([\w-]){1,23}$"{/literal} required/>
+                      <small id="clientidAyuda" class="form-text text-muted">Identificador de medidor frente a servidor de recolección, alfanumérico maś guión hasta 23 caracteres</small>
+                    </div>
+                    <div class="form-group">
+                      <div class="row">
+                        <legend class="col-form-label col-sm-4 pt-0">Transporte MQTT: </legend>
+                        <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+                          <label class="btn btn-secondary {if $transport eq 'websockets'}active{/if}">
+                            <input type="radio" name="transport" id="websockets" value="websockets" autocomplete="off" {if $transport eq 'websockets'}checked{/if}>Websockets (puerto 443)
+                          </label>
+                          <label class="btn btn-secondary {if $transport eq 'tcp'}active{/if}">
+                            <input type="radio" name="transport" id="tcp" value="tcp" autocomplete="off" {if $transport eq 'tcp'}checked{/if}>TCP/IP (puerto 1883)
+                          </label>
+                        </div>
+                      </div>
+                      <small class="form-text text-muted">Verifique que el puerto usado por el transporte esté permitido en el firewall.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary" name="apply">Actualizar</button>
+                  </form>
+
+            </div>
+        </div>
       </div>
     </main>
   </body>
