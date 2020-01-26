@@ -8,6 +8,9 @@ $(document).ready(function () {
         console.log(e.target);
         yuboxMostrarAlertText('primary', 'Se ha mostrado el tab '+e.target.id);
     });
+
+    // Mostrar el tab preparado por omisión como activo
+    $('ul#yuboxMainTab a.set-active').removeClass('set-active').tab('show');
 });
 
 function yuboxMostrarAlertText(alertstyle, text)
