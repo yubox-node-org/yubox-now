@@ -27,10 +27,10 @@
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mr-auto nav" role="tablist" id="yuboxMainTab">
             <li class="nav-item">
-              <a class="nav-link active" id="lector-tab" data-toggle="tab" role="tab" aria-controls="lector" aria-selected="true" href="#lector">Lector de muestras</a>
+              <a class="nav-link" id="lector-tab" data-toggle="tab" role="tab" aria-controls="lector" aria-selected="true" href="#lector">Lector de muestras</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" id="wifi-tab" data-toggle="tab" role="tab" aria-controls="wifi" aria-selected="false" href="#wifi">WIFI</a>
+              <a class="nav-link active" id="wifi-tab" data-toggle="tab" role="tab" aria-controls="wifi" aria-selected="false" href="#wifi">WIFI</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" id="mqtt-tab" data-toggle="tab" role="tab" aria-controls="mqtt" aria-selected="false" href="#mqtt">Envío de datos</a>
@@ -50,7 +50,7 @@
         </div>
 
         <div class="tab-content" id="yuboxMainTabContent">
-            <div id="lector" role="tabpanel" aria-labelledby="lector-tab" class="tab-pane fade show active">
+            <div id="lector" role="tabpanel" aria-labelledby="lector-tab" class="tab-pane fade">
 
                 <form method="POST">
                     <div class="form-group">
@@ -139,7 +139,7 @@
                   </form>
 
             </div>
-            <div id="wifi" role="tabpanel" aria-labelledby="wifi-tab" class="tab-pane fade">
+            <div id="wifi" role="tabpanel" aria-labelledby="wifi-tab" class="tab-pane fade show active">
 
                 <form method="POST">
                     <div class="form-group row">
