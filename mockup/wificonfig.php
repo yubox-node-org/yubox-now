@@ -9,7 +9,7 @@ if (!isset($_SERVER['PATH_INFO'])) {
 }
 
 switch ($_SERVER['PATH_INFO']) {
-    case '/mac':
+    case '/info':
         $output = $retval = NULL;
         exec('/usr/sbin/ifconfig eth0', $output, $retval);
         if ($retval != 0) {
@@ -18,10 +18,13 @@ switch ($_SERVER['PATH_INFO']) {
             exit();
         }
         $regs = NULL;
-        foreach ($output as $s) if (preg_match('/ether (\S+)/', $s, $regs)) {
-            print json_encode($regs[1]);
-            break;
+        $info = array();
+        foreach ($output as $s) {
+            if (preg_match('/ether (\S+)/', $s, $regs)) {
+                $info['MAC'] = $regs[1];
+            }
         }
+        print json_encode($info);
         break;
     case '/scan':
         sleep(2);   // Simular retraso en escaneo
