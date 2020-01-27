@@ -17,6 +17,15 @@ $(document).ready(function () {
 
 function setupWiFiTab()
 {
+    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    var data = {
+        'wifiscan-template':
+            wifipane.find('table#wifiscan > tbody > tr.template')
+            .removeClass('template')
+            .detach()
+    }
+    wifipane.data(data);
+
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 
         // Información sobre la MAC (y red conectada?)
@@ -42,7 +51,28 @@ function scanWifiNetworks()
     $.get(yuboxAPI('wificonfig')+'/scan')
     .done(function (data) {
         data.sort(function (a, b) { return b.rssi - a.rssi; });
-        console.log(data);
+
+        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+        var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
+        tbody_wifiscan.empty();
+        data.forEach(function (net) {
+            var tr_wifiscan = wifipane.data('wifiscan-template').clone();
+
+            var desc_authmode = [
+                '(ninguno)',
+                'WEP',
+                'WPA-PSK',
+                'WPA2-PSK',
+                'WPA-WPA2-PSK',
+                'WPA2-ENTERPRISE'
+            ];
+
+            tr_wifiscan.children('td#rssi').text(net.rssi);
+            tr_wifiscan.children('td#ssid').text(net.ssid);
+            tr_wifiscan.children('td#auth').text((net.authmode >= 0 && net.authmode < desc_authmode.length) ? desc_authmode[net.authmode] : '(desconocido)');
+
+            tbody_wifiscan.append(tr_wifiscan);
+        });
 
         // Volver a escanear redes si el tab sigue activo al recibir respuesta
         if ($('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {

@@ -149,10 +149,23 @@
                       </div>
                     </div>
                     <div class="form-group">
-                      <label for="wifi">Redes visibles:</label>
-                      <select name="wifi" id="wifi" class="form-control">
-                        {html_options options=$wifilist}
-                      </select>
+                      <table id="wifiscan" class="table table-sm table-hover">
+                        <caption>Redes visibles</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">RSSI</th>
+                            <th scope="col">SSID</th>
+                            <th scope="col">Auth.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr class="template">
+                            <td id="rssi">?</td>
+                            <td id="ssid">?</td>
+                            <td id="auth">?</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                     <div class="form-group row">
                       <legend class="col-form-label col-sm-4 pt-0">Modo de autenticación: </legend>
