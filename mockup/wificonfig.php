@@ -39,7 +39,7 @@ switch ($_SERVER['PATH_INFO']) {
                     'ssid'      =>  sprintf('RED-PRUEBA-%02d', $i),
                     'channel'   =>  rand(0, 11),
                     'rssi'      =>  rand(-100, 0),
-                    'authmode'  =>  rand(0, 6),
+                    'authmode'  =>  rand(0, 5),
                 );
             }
         }
