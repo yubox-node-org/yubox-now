@@ -41,6 +41,7 @@ function scanWifiNetworks()
 
     $.get(yuboxAPI('wificonfig')+'/scan')
     .done(function (data) {
+        data.sort(function (a, b) { return b.rssi - a.rssi; });
         console.log(data);
 
         // Volver a escanear redes si el tab sigue activo al recibir respuesta
