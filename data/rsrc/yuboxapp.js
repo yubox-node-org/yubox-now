@@ -39,6 +39,13 @@ function setupWiFiTab()
 
         scanWifiNetworks();
     });
+
+    $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody').on('click', 'tr', function(e) {
+        // TODO: quitar esto e inicializar diálogo modal antes de mostrar
+        console.log(e);
+
+        $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials').modal({ focus: true });
+    });
 }
 
 function scanWifiNetworks()

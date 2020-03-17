@@ -141,63 +141,73 @@
             </div>
             <div id="wifi" role="tabpanel" aria-labelledby="wifi-tab" class="tab-pane fade">
 
-                <form method="POST">
-                    <div class="form-group row">
-                      <label for="wlanmac" class="col-sm-2 col-form-label">Dirección MAC:</label>
-                      <div class="col-sm-10">
-                        <input type="text" readonly class="form-control-plaintext" id="wlanmac" name="wlanmac" value="xx:xx:xx:xx:xx">
+              <div class="form-group row">
+                <label for="wlanmac" class="col-sm-2 col-form-label">Dirección MAC:</label>
+                <div class="col-sm-10">
+                  <input type="text" readonly class="form-control-plaintext" id="wlanmac" name="wlanmac" value="xx:xx:xx:xx:xx">
+                </div>
+              </div>
+              <div class="form-group">
+                <table id="wifiscan" class="table table-sm table-hover">
+                  <caption>Redes visibles</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">RSSI</th>
+                      <th scope="col">SSID</th>
+                      <th scope="col">Auth.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="template">
+                      <td id="rssi">?</td>
+                      <td id="ssid">?</td>
+                      <td id="auth">?</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="modal fade" id="wifi-credentials" tabindex="-1" role="dialog" aria-labelledby="wifi-credentials-title" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                  <div class="modal-content">
+                    <div class="modal-header">
+
+                      <!-- Título con nombre de red a usar -->
+                      <h5 class="modal-title" id="wifi-credentials-title">(nombre-de-red)</h5>
+                      <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                      </button>
+
+                    </div>
+                    <div class="modal-body">
+
+                      <div class="form-group row">
+                        <legend class="col-form-label col-sm-4 pt-0">Modo de autenticación: </legend>
+                        <div class="col-sm-8">
+                          <input type="text" readonly class="form-control-plaintext" id="key_mgmt" value="NONE|WPA-PSK|WPA-EAP" />
+                        </div>
                       </div>
-                    </div>
-                    <div class="form-group">
-                      <table id="wifiscan" class="table table-sm table-hover">
-                        <caption>Redes visibles</caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">RSSI</th>
-                            <th scope="col">SSID</th>
-                            <th scope="col">Auth.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr class="template">
-                            <td id="rssi">?</td>
-                            <td id="ssid">?</td>
-                            <td id="auth">?</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <div class="form-group row">
-                      <legend class="col-form-label col-sm-4 pt-0">Modo de autenticación: </legend>
-                      <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-                        <label class="btn btn-secondary active">
-                          <input type="radio" name="key_mgmt" id="WPA-PSK" value="WPA-PSK" autocomplete="off" checked>WPA-PSK
-                        </label>
-                        <label class="btn btn-secondary">
-                          <input type="radio" name="key_mgmt" id="WPA-EAP" value="WPA-EAP" autocomplete="off" >WPA-EAP
-                        </label>
-                        <label class="btn btn-secondary">
-                          <input type="radio" name="key_mgmt" id="NONE" value="NONE" autocomplete="off" >NONE
-                        </label>
+                      <div class="form-group wifi-auth wifi-auth-psk">
+                        <label for="psk">Clave para la red:</label>
+                        <input type="password" id="psk" name="psk" class="form-control" {literal}pattern=".{8,}"{/literal}/>
                       </div>
+                      <div class="form-group wifi-auth wifi-auth-eap">
+                        <label for="identity">Identidad EAP:</label>
+                        <input type="text" id="identity" name="identity" class="form-control"/>
+                      </div>
+                      <div class="form-group wifi-auth wifi-auth-eap">
+                        <label for="password">Contraseña EAP:</label>
+                        <input type="password" id="password" name="password" class="form-control"/>
+                      </div>
+
                     </div>
-                    <div class="form-group">
-                      <label for="psk">Clave para la red:</label>
-                      <input type="password" id="psk" name="psk" class="form-control" {literal}pattern=".{8,}"{/literal}/>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" formnovalidate data-dismiss="modal">Cancelar</button>
+                      <button type="button" class="btn btn-primary" disabled>Conectar a WIFI</button>
                     </div>
-                    <div class="form-group">
-                      <label for="identity">Identidad EAP:</label>
-                      <input type="text" id="identity" name="identity" class="form-control"/>
-                    </div>
-                    <div class="form-group">
-                      <label for="password">Contraseña EAP:</label>
-                      <input type="password" id="password" name="password" class="form-control"/>
-                    </div>
-                    <div class="form-group">
-                    </div>
-                    <button type="submit" class="btn btn-primary" name="apply">Configurar red WIFI</button>
-                    <button type="submit" class="btn btn-danger" name="hostap" formnovalidate>Resetear a HOSTAP</button>
-                  </form>
+                  </div>
+                </div>
+              </div>
 
             </div>
             <div id="mqtt" role="tabpanel" aria-labelledby="mqtt-tab" class="tab-pane fade">
