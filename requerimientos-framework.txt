@@ -24,10 +24,12 @@ OTA
 - Soporte de actualizar firmware a partir de upload vía interfaz administrativa
 - Soporte de actualizar firmware mandando a YUBOX a pedir firmware a un URL conocido externo
   |- verificación periódica de actualizaciones sin intervención humana
+  |- bandera de si aplicar actualización una vez detectada que existe
 
 NTP y reloj
 -----------
 - Programa debe arrancar incluso si no hay NTP. Si una hora es obligatoria, el procesamiento debe estar detenido hasta que se consiga una hora
+  |- Interfaz administrativa debe estar disponible incluso en ausencia de NTP, sólo debe congelarse la funcionalidad que requiere hora real
 - Interfaz debe permitir configurar un servidor NTP (por omisión pool.ntp.org)
 - Interfaz debe permitir configurar zona horaria como offset GMT (por omisión GMT-5 Ecuador)
 - Como fallback, si se tiene una conexión Wifi con acceso al exterior, una petición HTTPS de HEAD puede devolver una cabecera Date: que puede parsearse para tener una fecha y hora inicial GMT.
