@@ -74,9 +74,25 @@ function scanWifiNetworks()
                 'WPA2-ENTERPRISE'
             ];
 
-            tr_wifiscan.children('td#rssi').text(net.rssi);
+            //tr_wifiscan.children('td#rssi').text(net.rssi);
+            var svg_wifi = tr_wifiscan.find('td#rssi > svg.wifipower');
+            var pwr = rssi2signalpercent(net.rssi);
+            svg_wifi.removeClass('at-least-20 at-least-40 at-least-60 at-least-80');
+            if (pwr >= 80)
+                svg_wifi.addClass('at-least-80');
+            else if (pwr >= 60)
+                svg_wifi.addClass('at-least-60');
+            else if (pwr >= 40)
+                svg_wifi.addClass('at-least-40');
+            else if (pwr >= 20)
+                svg_wifi.addClass('at-least-20');
+            tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+pwr+'%');
+
             tr_wifiscan.children('td#ssid').text(net.ssid);
-            tr_wifiscan.children('td#auth').text((net.authmode >= 0 && net.authmode < desc_authmode.length) ? desc_authmode[net.authmode] : '(desconocido)');
+            tr_wifiscan.children('td#auth').text(
+                (net.authmode >= 0 && net.authmode < desc_authmode.length)
+                ? desc_authmode[net.authmode]
+                : '(desconocido)');
 
             tbody_wifiscan.append(tr_wifiscan);
         });
@@ -86,6 +102,15 @@ function scanWifiNetworks()
             setTimeout(scanWifiNetworks, 5 * 1000);
         }
     });
+}
+
+function rssi2signalpercent(rssi)
+{
+    // El YUBOX ha reportado hasta ahora valores de RSSI de entre -100 hasta 0.
+    // Se usa esto para calcular el porcentaje de fuerza de señal
+    if (rssi > 0) rssi = 0;
+    if (rssi < -100) rssi = -100;
+    return rssi + 100;
 }
 
 function yuboxAPI(s)

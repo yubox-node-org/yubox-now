@@ -1,3 +1,16 @@
 div.yubox-alert-template {
     display: none;
 }
+
+/* Estilos usados para mostrar la intensidad de la señal WiFi */
+svg.wifipower > rect {
+    fill: #cce5ff;
+}
+
+svg.wifipower.at-least-20 > rect.at-least-20,
+svg.wifipower.at-least-40 > rect.at-least-20, svg.wifipower.at-least-40 > rect.at-least-40,
+svg.wifipower.at-least-60 > rect.at-least-20, svg.wifipower.at-least-60 > rect.at-least-40, svg.wifipower.at-least-60 > rect.at-least-60,
+svg.wifipower.at-least-80 > rect.at-least-20, svg.wifipower.at-least-80 > rect.at-least-40, svg.wifipower.at-least-80 > rect.at-least-60, svg.wifipower.at-least-80 > rect.at-least-80
+{
+    fill: #004085;
+}
