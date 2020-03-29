@@ -7,10 +7,10 @@ svg.wifipower > rect {
     fill: #cce5ff;
 }
 
-svg.wifipower.at-least-20 > rect.at-least-20,
-svg.wifipower.at-least-40 > rect.at-least-20, svg.wifipower.at-least-40 > rect.at-least-40,
-svg.wifipower.at-least-60 > rect.at-least-20, svg.wifipower.at-least-60 > rect.at-least-40, svg.wifipower.at-least-60 > rect.at-least-60,
-svg.wifipower.at-least-80 > rect.at-least-20, svg.wifipower.at-least-80 > rect.at-least-40, svg.wifipower.at-least-80 > rect.at-least-60, svg.wifipower.at-least-80 > rect.at-least-80
+svg.wifipower.at-least-1bar > rect.at-least-1bar,
+svg.wifipower.at-least-2bars > rect.at-least-1bar, svg.wifipower.at-least-2bars > rect.at-least-2bars,
+svg.wifipower.at-least-3bars > rect.at-least-1bar, svg.wifipower.at-least-3bars > rect.at-least-2bars, svg.wifipower.at-least-3bars > rect.at-least-3bars,
+svg.wifipower.at-least-4bars > rect.at-least-1bar, svg.wifipower.at-least-4bars > rect.at-least-2bars, svg.wifipower.at-least-4bars > rect.at-least-3bars, svg.wifipower.at-least-4bars > rect.at-least-4bars
 {
     fill: #004085;
 }

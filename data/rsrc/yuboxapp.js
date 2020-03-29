@@ -76,15 +76,15 @@ function scanWifiNetworks()
 
             var svg_wifi = tr_wifiscan.find('td#rssi > svg.wifipower');
             var pwr = rssi2signalpercent(net.rssi);
-            svg_wifi.removeClass('at-least-20 at-least-40 at-least-60 at-least-80');
+            svg_wifi.removeClass('at-least-1bar at-least-2bars at-least-3bars at-least-4bars');
             if (pwr >= 80)
-                svg_wifi.addClass('at-least-80');
+                svg_wifi.addClass('at-least-4bars');
             else if (pwr >= 60)
-                svg_wifi.addClass('at-least-60');
+                svg_wifi.addClass('at-least-3bars');
             else if (pwr >= 40)
-                svg_wifi.addClass('at-least-40');
+                svg_wifi.addClass('at-least-2bars');
             else if (pwr >= 20)
-                svg_wifi.addClass('at-least-20');
+                svg_wifi.addClass('at-least-1bar');
             tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+pwr+'%');
 
             tr_wifiscan.children('td#ssid').text(net.ssid);
