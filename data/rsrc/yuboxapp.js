@@ -74,7 +74,6 @@ function scanWifiNetworks()
                 'WPA2-ENTERPRISE'
             ];
 
-            //tr_wifiscan.children('td#rssi').text(net.rssi);
             var svg_wifi = tr_wifiscan.find('td#rssi > svg.wifipower');
             var pwr = rssi2signalpercent(net.rssi);
             svg_wifi.removeClass('at-least-20 at-least-40 at-least-60 at-least-80');
@@ -89,10 +88,11 @@ function scanWifiNetworks()
             tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+pwr+'%');
 
             tr_wifiscan.children('td#ssid').text(net.ssid);
-            tr_wifiscan.children('td#auth').text(
+            tr_wifiscan.children('td#auth').attr('title',
                 (net.authmode >= 0 && net.authmode < desc_authmode.length)
                 ? desc_authmode[net.authmode]
                 : '(desconocido)');
+            tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
 
             tbody_wifiscan.append(tr_wifiscan);
         });
