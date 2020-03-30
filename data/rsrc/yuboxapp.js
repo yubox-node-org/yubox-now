@@ -42,9 +42,28 @@ function setupWiFiTab()
 
     $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody').on('click', 'tr', function(e) {
         // TODO: quitar esto e inicializar diálogo modal antes de mostrar
-        console.log(e);
+        var net = $(e.currentTarget).data();
+        //console.log(net);
 
-        $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials').modal({ focus: true });
+        var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+        dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
+        dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
+        dlg_wificred.find('div.form-group.wifi-auth').hide();
+        dlg_wificred.find('div.form-group.wifi-auth input').val('');
+        dlg_wificred.find('button[name=connect]').prop('disabled', true);
+        if (net.authmode == 5) {
+            // Autenticación WPA-ENTERPRISE
+            dlg_wificred.find('div.form-group.wifi-auth-eap').show();
+            // Todo: llenar credenciales existentes, si están disponibles
+        } else if (net.authmode > 0) {
+            // Autenticación con contraseña
+            dlg_wificred.find('div.form-group.wifi-auth-psk').show();
+            // Todo: llenar credenciales existentes, si están disponibles
+        } else {
+            // Red sin autenticación, activar directamente opción de conectar
+            dlg_wificred.find('button[name=connect]').prop('disabled', false);
+        }
+        dlg_wificred.modal({ focus: true });
     });
 }
 
@@ -65,15 +84,7 @@ function scanWifiNetworks()
         data.forEach(function (net) {
             var tr_wifiscan = wifipane.data('wifiscan-template').clone();
 
-            var desc_authmode = [
-                '(ninguno)',
-                'WEP',
-                'WPA-PSK',
-                'WPA2-PSK',
-                'WPA-WPA2-PSK',
-                'WPA2-ENTERPRISE'
-            ];
-
+            // Mostrar dibujo de intensidad de señal a partir de RSSI
             var svg_wifi = tr_wifiscan.find('td#rssi > svg.wifipower');
             var pwr = rssi2signalpercent(net.rssi);
             svg_wifi.removeClass('at-least-1bar at-least-2bars at-least-3bars at-least-4bars');
@@ -87,13 +98,13 @@ function scanWifiNetworks()
                 svg_wifi.addClass('at-least-1bar');
             tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+pwr+'%');
 
+            // Mostrar candado según si hay o no autenticación para la red
             tr_wifiscan.children('td#ssid').text(net.ssid);
             tr_wifiscan.children('td#auth').attr('title',
-                (net.authmode >= 0 && net.authmode < desc_authmode.length)
-                ? desc_authmode[net.authmode]
-                : '(desconocido)');
+                'Seguridad: ' + wifiauth_desc(net.authmode));
             tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
 
+            tr_wifiscan.data(net);
             tbody_wifiscan.append(tr_wifiscan);
         });
 
@@ -102,6 +113,22 @@ function scanWifiNetworks()
             setTimeout(scanWifiNetworks, 5 * 1000);
         }
     });
+}
+
+function wifiauth_desc(authmode)
+{
+    var desc_authmode = [
+        '(ninguna)',
+        'WEP',
+        'WPA-PSK',
+        'WPA2-PSK',
+        'WPA-WPA2-PSK',
+        'WPA2-ENTERPRISE'
+    ];
+
+    return (authmode >= 0 && authmode < desc_authmode.length)
+        ? desc_authmode[authmode]
+        : '(desconocida)';
 }
 
 function rssi2signalpercent(rssi)
