@@ -146,13 +146,13 @@ function yuboxAPI(s)
         : '/yubox-api/'+s;
 }
 
-function yuboxMostrarAlertText(alertstyle, text)
+function yuboxMostrarAlertText(alertstyle, text, timeout)
 {
     var content = $('<span/>').text(text);
-    return yuboxMostrarAlert(alertstyle, content);
+    return yuboxMostrarAlert(alertstyle, content, timeout);
 }
 
-function yuboxMostrarAlert(alertstyle, content)
+function yuboxMostrarAlert(alertstyle, content, timeout)
 {
     var al = $('main > div.container > div.alert.yubox-alert-template')
         .clone()
@@ -163,4 +163,10 @@ function yuboxMostrarAlert(alertstyle, content)
 
     $('main > div.container > div.yubox-alert').remove();
     $('main > div.container > div#yuboxMainTabContent').before(al);
+    if (timeout != undefined) {
+        setTimeout(function() {
+            al.remove();
+        }, timeout);
+    }
 }
+
