@@ -27,7 +27,7 @@ function setupWiFiTab()
     wifipane.data(data);
 
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-
+/*
         // Información sobre la MAC (y red conectada?)
         $.getJSON(yuboxAPI('wificonfig')+'/info')
         .done(function (data) {
@@ -36,7 +36,7 @@ function setupWiFiTab()
             // Mostrar los datos de la configuración actual
             wifipane.find('input#wlanmac').val(data.MAC);
         });
-
+*/
         scanWifiNetworks();
     });
 
@@ -76,7 +76,11 @@ function scanWifiNetworks()
 
     $.get(yuboxAPI('wificonfig')+'/scan')
     .done(function (data) {
-        data.sort(function (a, b) { return b.rssi - a.rssi; });
+        data.sort(function (a, b) {
+            if (a.connected) return -1;
+            if (b.connected) return 1;
+            return b.rssi - a.rssi;
+        });
 
         var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
         var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
@@ -100,6 +104,11 @@ function scanWifiNetworks()
 
             // Mostrar candado según si hay o no autenticación para la red
             tr_wifiscan.children('td#ssid').text(net.ssid);
+            if (net.connected) {
+                var sm_connlabel = $('<small class="form-text text-muted" />').text('Conectado');
+                tr_wifiscan.addClass('table-success');
+                tr_wifiscan.children('td#ssid').append(sm_connlabel);
+            }
             tr_wifiscan.children('td#auth').attr('title',
                 'Seguridad: ' + wifiauth_desc(net.authmode));
             tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();

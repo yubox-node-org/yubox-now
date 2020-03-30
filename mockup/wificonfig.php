@@ -27,10 +27,12 @@ switch ($_SERVER['PATH_INFO']) {
         print json_encode($info);
         break;
     case '/scan':
+        $gen = false;
         sleep(2);   // Simular retraso en escaneo
         if (file_exists('/tmp/wifiscan.json')) {
             $scan = json_decode(file_get_contents('/tmp/wifiscan.json'), TRUE);
         } else {
+            $gen = true;
             srand(time());
             $scan = array();
             for ($i = 0; $i < 20; $i++) {
@@ -40,6 +42,7 @@ switch ($_SERVER['PATH_INFO']) {
                     'channel'   =>  rand(0, 11),
                     'rssi'      =>  rand(-100, 0),
                     'authmode'  =>  rand(0, 5),
+                    'connected' =>  false,
                 );
             }
         }
@@ -48,6 +51,13 @@ switch ($_SERVER['PATH_INFO']) {
             if ($rssi > 0) $rssi = 0;
             if ($rssi < -100) $rssi = -100;
             $scan[$i]['rssi'] = $rssi;
+        }
+        if ($gen) {
+            $max = 0;
+            for ($i = 1; $i < count($scan); $i++) {
+                if ($scan[$i]['rssi'] > $scan[$max]['rssi']) $max = $i;
+            }
+            $scan[$max]['connected'] = true;
         }
         $json = json_encode($scan);
         file_put_contents('/tmp/wifiscan.json', $json);
