@@ -1,14 +1,4 @@
 $(document).ready(function () {
-    /*
-    // Mostrar que se puede capturar eventos de tab cambiado
-    // https://getbootstrap.com/docs/4.4/components/navs/#events
-    $('ul#yuboxMainTab a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-
-        // SÓLO UN EJEMPLO. Hay que hacer alguna otra cosa al cambiar de tab
-        console.log(e.target);
-        yuboxMostrarAlertText('primary', 'Se ha mostrado el tab '+e.target.id);
-    });
-    */
     setupWiFiTab();
 
     // Mostrar el tab preparado por omisión como activo
@@ -26,6 +16,7 @@ function setupWiFiTab()
     }
     wifipane.data(data);
 
+    // https://getbootstrap.com/docs/4.4/components/navs/#events
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 /*
         // Información sobre la MAC (y red conectada?)
@@ -41,9 +32,7 @@ function setupWiFiTab()
     });
 
     $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody').on('click', 'tr', function(e) {
-        // TODO: quitar esto e inicializar diálogo modal antes de mostrar
         var net = $(e.currentTarget).data();
-        //console.log(net);
 
         var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
         dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
