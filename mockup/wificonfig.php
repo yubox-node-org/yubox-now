@@ -1,4 +1,5 @@
 <?php
+define ('MOCKUP_WIFI', '/tmp/wifiscan.json');
 
 Header('Content-Type: application/json');
 
@@ -29,14 +30,14 @@ switch ($_SERVER['PATH_INFO']) {
     case '/scan':
         $gen = false;
         sleep(2);   // Simular retraso en escaneo
-        if (file_exists('/tmp/wifiscan.json')) {
-            $scan = json_decode(file_get_contents('/tmp/wifiscan.json'), TRUE);
+        if (file_exists(MOCKUP_WIFI)) {
+            $scan = json_decode(file_get_contents(MOCKUP_WIFI), TRUE);
         } else {
-            $gen = true;
+            $gen = FALSE;
             srand(time());
             $scan = array();
             for ($i = 0; $i < 20; $i++) {
-                $scan[] = array(
+                $mocknet = array(
                     'bssid'     =>  sprintf('00:11:00:11:00:%02x', $i),
                     'ssid'      =>  sprintf('RED-PRUEBA-%02d', $i),
                     'channel'   =>  rand(0, 11),
@@ -44,6 +45,12 @@ switch ($_SERVER['PATH_INFO']) {
                     'authmode'  =>  rand(0, 5),
                     'connected' =>  false,
                 );
+                if ($mocknet['authmode'] == 5) {
+                    $mocknet['identity'] = $mocknet['password'] = NULL;
+                } elseif ($mocknet['authmode'] > 0) {
+                    $mocknet['psk'] = NULL;
+                }
+                $scan[] = $mocknet;
             }
         }
         for ($i = 0; $i < count($scan); $i++) {
@@ -60,7 +67,7 @@ switch ($_SERVER['PATH_INFO']) {
             $scan[$max]['connected'] = true;
         }
         $json = json_encode($scan);
-        file_put_contents('/tmp/wifiscan.json', $json);
+        file_put_contents(MOCKUP_WIFI, $json);
         print $json;
         break;
     default:
@@ -68,4 +75,3 @@ switch ($_SERVER['PATH_INFO']) {
         print json_encode('Ruta no implementada');
         exit();
 }
-

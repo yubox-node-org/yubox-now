@@ -36,18 +36,24 @@ function setupWiFiTab()
 
         var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
         dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
+        dlg_wificred.find('input#ssid').val(net.ssid);
         dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
+        dlg_wificred.find('input#authmode').val(net.authmode);
         dlg_wificred.find('div.form-group.wifi-auth').hide();
         dlg_wificred.find('div.form-group.wifi-auth input').val('');
         dlg_wificred.find('button[name=connect]').prop('disabled', true);
         if (net.authmode == 5) {
             // Autenticación WPA-ENTERPRISE
             dlg_wificred.find('div.form-group.wifi-auth-eap').show();
-            // Todo: llenar credenciales existentes, si están disponibles
+            dlg_wificred.find('div.form-group.wifi-auth-eap input#identity')
+                .val((net.identity != null) ? net.identity : '');
+            dlg_wificred.find('div.form-group.wifi-auth-eap input#password')
+                .val((net.password != null) ? net.password : '');
         } else if (net.authmode > 0) {
             // Autenticación con contraseña
             dlg_wificred.find('div.form-group.wifi-auth-psk').show();
-            // Todo: llenar credenciales existentes, si están disponibles
+            dlg_wificred.find('div.form-group.wifi-auth-psk input#psk')
+                .val((net.psk != null) ? net.psk : '');
         } else {
             // Red sin autenticación, activar directamente opción de conectar
             dlg_wificred.find('button[name=connect]').prop('disabled', false);
