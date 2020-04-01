@@ -1,6 +1,12 @@
 Requerimientos para framework de aplicaciones YUBOX sobre ESP32
 ---------------------------------------------------------------
 
+General
+-------
+- De alguna manera volver componible la interfaz, de forma que se puedan almacenar fragmentos
+  de HTTP y Javascript y combinarlos a partir de múltiples proyectos en el archivo final
+  index.htm y yuboxapp.js que luego deben zipearse para SPIFFS
+
 Interfaz web
 ------------
 - Basada en JQuery+Bootstrap últimas versiones
