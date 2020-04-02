@@ -141,6 +141,7 @@ function setupWiFiTab()
         $.ajax(st)
         .done(function (data) {
             // Credenciales aceptadas, se espera a que se conecte
+            marcarRedDesconectandose();
             dlg_wificred.modal('hide');
         })
         .fail(function (e) {
@@ -156,6 +157,7 @@ function setupWiFiTab()
         });
     });
 
+    // Comportamiento de controles de diálogo de mostrar estado de red conectada
     var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
     dlg_wifiinfo.find('div.modal-footer button[name=forget]').click(function () {
         var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
@@ -167,6 +169,7 @@ function setupWiFiTab()
         $.ajax(st)
         .done(function (data) {
             // Credenciales aceptadas, se espera a que se conecte
+            marcarRedDesconectandose();
             dlg_wifiinfo.modal('hide');
         })
         .fail(function (e) {
@@ -337,6 +340,18 @@ function rssi2signalpercent(rssi)
     if (rssi < -100) rssi = -100;
     return rssi + 100;
 }
+
+function marcarRedDesconectandose(ssid)
+{
+    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    var tr_connected = wifipane.find('table#wifiscan > tbody > tr.table-success');
+    if (tr_connected.length <= 0) return;
+    if (ssid != null && tr_connected.data('ssid') != ssid) return;
+
+    tr_connected.removeClass('table-success').addClass('table-warning');
+    tr_connected.find('td#ssid > small.text-muted').text('Desconectándose');
+}
+
 
 function yuboxAPI(s)
 {
