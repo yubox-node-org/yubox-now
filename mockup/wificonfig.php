@@ -10,30 +10,171 @@ if (!isset($_SERVER['PATH_INFO'])) {
 }
 
 switch ($_SERVER['PATH_INFO']) {
-    case '/info':
-        $output = $retval = NULL;
-        exec('/usr/sbin/ifconfig eth0', $output, $retval);
-        if ($retval != 0) {
-            Header('HTTP/1.1 500 Internal Server Error');
-            print json_encode($output);
-            exit();
+    case '/connection':
+        // Manejo según el método HTTP requerido
+        $nets = array();
+        if (file_exists(MOCKUP_WIFI)) {
+            $nets = json_decode(file_get_contents(MOCKUP_WIFI), TRUE);
         }
-        $regs = NULL;
-        $info = array();
-        foreach ($output as $s) {
-            if (preg_match('/ether (\S+)/', $s, $regs)) {
-                $info['MAC'] = $regs[1];
+        switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':     // Información de conexión activa, si existe
+            $currnet = NULL;
+            foreach ($nets as $net) {
+                if ($net['connected']) {
+                    $currnet = $net;
+                    break;
+                }
             }
+            if (is_null($currnet)) {
+                Header('HTTP/1.1 404 Not Found');
+                break;
+            }
+            $info = array(
+                'ssid'      =>  $currnet['ssid'],
+                'bssid'     =>  $currnet['bssid'],
+                'connected' =>  TRUE,
+                'rssi'      =>  $currnet['rssi'],
+                'authmode'  =>  $currnet['authmode'],
+                //'frequency'
+                'mac'       =>  NULL,
+                'ipv4'      =>  NULL,
+                'gateway'   =>  NULL,
+                'netmask'   =>  NULL,
+                'dns'       =>  array(),
+                //'linkspeed'
+            );
+
+            // Sólo para mockup. Averiguar cuál interfaz reportar
+            $if = 'eth0';
+            $output = $retval = NULL;
+            exec('/usr/sbin/route -n', $output, $retval);
+            if ($retval != 0) {
+                Header('HTTP/1.1 500 Internal Server Error');
+                print json_encode($output);
+                exit();
+            }
+            foreach ($output as $s) {
+                $l = preg_split('/\s+/', $s);
+                if (count($l) < 8) continue;
+                if ($l[1] == 'Gateway') continue;
+                if ($l[1] != '0.0.0.0') {
+                    $info['gateway'] = $l[1];
+                    $if = $l[7];
+                    break;
+                }
+            }
+
+            foreach (file('/etc/resolv.conf') as $s) {
+                $l = preg_split('/\s+/', $s);
+                if ($l[0] == 'nameserver') $info['dns'][] = $l[1];
+            }
+
+            $output = $retval = NULL;
+            exec('/usr/sbin/ifconfig '.$if, $output, $retval);
+            if ($retval != 0) {
+                Header('HTTP/1.1 500 Internal Server Error');
+                print json_encode($output);
+                exit();
+            }
+            $regs = NULL;
+            foreach ($output as $s) {
+                if (preg_match('/ether (\S+)/', $s, $regs)) {
+                    $info['mac'] = $regs[1];
+                }
+                if (preg_match('/inet (\S+)\s+netmask (\S+)/', $s, $regs)) {
+                    $info['ipv4'] = $regs[1];
+                    $info['netmask'] = $regs[2];
+                }
+            }
+            print json_encode($info);
+            break;
+        case 'PUT':     // Conectar suministrando las credenciales
+            $hdrs = isset($_SERVER['CONTENT_TYPE']) ? explode('; ', $_SERVER['CONTENT_TYPE']) : array();
+            if (count($hdrs) <= 0 || $hdrs[0] != 'application/x-www-form-urlencoded') {
+                Header('HTTP/1.1 415 Unsupported Media Type');
+                break;
+            }
+            $data = file_get_contents('php://input');
+            $vars = NULL;
+            parse_str($data, $vars);
+            //print json_encode($vars);
+            // ssid authmode psk
+            // ssid authmode identity password
+            $idx = NULL;
+            for ($i = 0; $i < count($nets); $i++) {
+                if ($nets[$i]['ssid'] == $vars['ssid']) {
+                    $idx = $i;
+                    break;
+                }
+            }
+            $badauth = FALSE;
+            if (!is_null($idx)) {
+                if ($nets[$idx]['authmode'] != $vars['authmode']) {
+                    // Modo de autenticación incorrecto
+                    $badauth = TRUE;
+                } elseif ($nets[$idx]['authmode'] == 5) {
+                    $nets[$idx]['identity'] = $vars['identity'];
+                    $nets[$idx]['password'] = $vars['password'];
+                    if (!($vars['identity'] == 'gatito@gatitas.com' && $vars['password'] == 'michito')) {
+                        // Credenciales incorrectas WPA-ENTERPRISE
+                        $badauth = TRUE;
+                    }
+                } elseif ($nets[$idx]['authmode'] > 0) {
+                    $nets[$idx]['psk'] = $vars['psk'];
+                    if (!($vars['psk'] == 'gatitolindo')) {
+                        // Credenciales incorrectas WEP
+                        $badauth = TRUE;
+                    }
+                }
+            }
+
+            if (!is_null($idx)) {
+                for ($i = 0; $i < count($nets); $i++) {
+                    $nets[$i]['connected'] = FALSE;
+                    $nets[$i]['connfail'] = FALSE;
+                }
+                if ($badauth) {
+                    $nets[$idx]['connfail'] = TRUE;
+                } else {
+                    $nets[$idx]['connected'] = TRUE;
+                }
+                $json = json_encode($nets);
+                file_put_contents(MOCKUP_WIFI, $json);
+            }
+            Header('HTTP/1.1 202 Accepted');
+            print json_encode("Intentando conexión con credenciales...");
+
+            break;
+        case 'DELETE':  // Olvidar la conexión activa
+            foreach ($nets as &$net) {
+                if ($net['connected']) {
+                    $net['connected'] = FALSE;
+                    if ($net['authmode'] == 5) {
+                        $net['identity'] = $net['password'] = NULL;
+                    } elseif ($net['authmode'] > 0) {
+                        $net['psk'] = NULL;
+                    }
+                }
+            }
+            $json = json_encode($nets);
+            file_put_contents(MOCKUP_WIFI, $json);
+            Header('HTTP/1.1 204 No Content');
+            break;
+        default:
+            Header('HTTP/1.1 405 Method Not Allowed');
+            Header('Allow: GET, PUT, DELETE');
+            print json_encode("Unimplemented request method");
+            exit();
+            break;
         }
-        print json_encode($info);
         break;
-    case '/scan':
-        $gen = false;
+    case '/networks':
+        $gen = FALSE;
         sleep(2);   // Simular retraso en escaneo
         if (file_exists(MOCKUP_WIFI)) {
             $scan = json_decode(file_get_contents(MOCKUP_WIFI), TRUE);
         } else {
-            $gen = FALSE;
+            //$gen = TRUE;
             srand(time());
             $scan = array();
             for ($i = 0; $i < 20; $i++) {
@@ -43,7 +184,8 @@ switch ($_SERVER['PATH_INFO']) {
                     'channel'   =>  rand(0, 11),
                     'rssi'      =>  rand(-100, 0),
                     'authmode'  =>  rand(0, 5),
-                    'connected' =>  false,
+                    'connected' =>  FALSE,
+                    'connfail'  =>  FALSE,
                 );
                 if ($mocknet['authmode'] == 5) {
                     $mocknet['identity'] = $mocknet['password'] = NULL;
@@ -64,7 +206,8 @@ switch ($_SERVER['PATH_INFO']) {
             for ($i = 1; $i < count($scan); $i++) {
                 if ($scan[$i]['rssi'] > $scan[$max]['rssi']) $max = $i;
             }
-            $scan[$max]['connected'] = true;
+            $scan[$max]['connected'] = TRUE;
+            //$scan[$max]['connfail'] = TRUE;
         }
         $json = json_encode($scan);
         file_put_contents(MOCKUP_WIFI, $json);

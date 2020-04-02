@@ -31,35 +31,105 @@ function setupWiFiTab()
         scanWifiNetworks();
     });
 
+    // Qué hay que hacer al hacer clic en una fila que representa la red
     $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody').on('click', 'tr', function(e) {
         var net = $(e.currentTarget).data();
 
-        var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
-        dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
-        dlg_wificred.find('input#ssid').val(net.ssid);
-        dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
-        dlg_wificred.find('input#authmode').val(net.authmode);
-        dlg_wificred.find('div.form-group.wifi-auth').hide();
-        dlg_wificred.find('div.form-group.wifi-auth input').val('');
-        dlg_wificred.find('button[name=connect]').prop('disabled', true);
-        if (net.authmode == 5) {
-            // Autenticación WPA-ENTERPRISE
-            dlg_wificred.find('div.form-group.wifi-auth-eap').show();
-            dlg_wificred.find('div.form-group.wifi-auth-eap input#identity')
-                .val((net.identity != null) ? net.identity : '');
-            dlg_wificred.find('div.form-group.wifi-auth-eap input#password')
-                .val((net.password != null) ? net.password : '');
-        } else if (net.authmode > 0) {
-            // Autenticación con contraseña
-            dlg_wificred.find('div.form-group.wifi-auth-psk').show();
-            dlg_wificred.find('div.form-group.wifi-auth-psk input#psk')
-                .val((net.psk != null) ? net.psk : '');
+        if (net.connected) {
+            alert('DEBUG: diálogo para red conectada no implementado!');
         } else {
-            // Red sin autenticación, activar directamente opción de conectar
-            dlg_wificred.find('button[name=connect]').prop('disabled', false);
+            var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+            dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
+            dlg_wificred.find('input#ssid').val(net.ssid);
+            dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
+            dlg_wificred.find('input#authmode').val(net.authmode);
+            dlg_wificred.find('div.form-group.wifi-auth').hide();
+            dlg_wificred.find('div.form-group.wifi-auth input').val('');
+            dlg_wificred.find('button[name=connect]').prop('disabled', true);
+            if (net.authmode == 5) {
+                // Autenticación WPA-ENTERPRISE
+                dlg_wificred.find('div.form-group.wifi-auth-eap').show();
+                dlg_wificred.find('div.form-group.wifi-auth-eap input#identity')
+                    .val((net.identity != null) ? net.identity : '');
+                dlg_wificred.find('div.form-group.wifi-auth-eap input#password')
+                    .val((net.password != null) ? net.password : '')
+                    .change();
+            } else if (net.authmode > 0) {
+                // Autenticación con contraseña
+                dlg_wificred.find('div.form-group.wifi-auth-psk').show();
+                dlg_wificred.find('div.form-group.wifi-auth-psk input#psk')
+                    .val((net.psk != null) ? net.psk : '')
+                    .change();
+            } else {
+                // Red sin autenticación, activar directamente opción de conectar
+                dlg_wificred.find('button[name=connect]').prop('disabled', false);
+            }
+            dlg_wificred.modal({ focus: true });
         }
-        dlg_wificred.modal({ focus: true });
     });
+
+    // Comportamiento de controles de diálogo de ingresar credenciales red
+    var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+    dlg_wificred.find('div.form-group.wifi-auth-eap input')
+        .change(checkValidWifiCred_EAP)
+        .keypress(checkValidWifiCred_EAP)
+        .blur(checkValidWifiCred_EAP);
+    dlg_wificred.find('div.form-group.wifi-auth-psk input')
+        .change(checkValidWifiCred_PSK)
+        .keypress(checkValidWifiCred_PSK)
+        .blur(checkValidWifiCred_PSK);
+    dlg_wificred.find('div.modal-footer button[name=connect]').click(function () {
+        var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+        var st = {
+            url:    yuboxAPI('wificonfig')+'/connection',
+            method: 'PUT',
+            data:   {
+                ssid:       dlg_wificred.find('input#ssid').val(),
+                authmode:   parseInt(dlg_wificred.find('input#authmode').val())
+            }
+        };
+        if ( st.data.authmode == 5 ) {
+            // Autenticación WPA-ENTERPRISE
+            st.data.identity = dlg_wificred.find('div.form-group.wifi-auth-eap input#identity').val();
+            st.data.password = dlg_wificred.find('div.form-group.wifi-auth-eap input#password').val();
+        } else if ( st.data.authmode > 0 ) {
+            // Autenticación PSK
+            st.data.psk = dlg_wificred.find('div.form-group.wifi-auth-psk input#psk').val();
+        }
+        $.ajax(st)
+        .done(function (data) {
+            // Credenciales aceptadas, se espera a que se conecte
+            dlg_wificred.modal('hide');
+        })
+        .fail(function (e) {
+            console.log(e);
+        });
+    });
+
+/*
+"{\"url\":\"/yubox-mockup/wificonfig.php/connection\",\"data\":{\"a\":\"gato\",\"b\":\"perro\"},\"method\":\"PUT\"}"
+"{\"method\":\"DELETE\",\"url\":\"/yubox-mockup/wificonfig.php/connection\"}"
+$.ajax(st).done(function (data) { console.log('DONE', data); }).fail(function (e) { console.log('FAIL', e); });
+*/
+}
+
+function checkValidWifiCred_EAP()
+{
+    // Activar el botón de enviar credenciales si ambos valores son no-vacíos
+    var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+    var numLlenos = dlg_wificred
+        .find('div.form-group.wifi-auth-eap input')
+        .filter(function() { return ($(this).val() != ''); })
+        .length;
+    dlg_wificred.find('button[name=connect]').prop('disabled', !(numLlenos >= 2));
+}
+
+function checkValidWifiCred_PSK()
+{
+    // Activar el botón de enviar credenciales si la clave es de al menos 8 caracteres
+    var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+    var psk = dlg_wificred.find('div.form-group.wifi-auth-psk input#psk').val();
+    dlg_wificred.find('button[name=connect]').prop('disabled', !(psk.length >= 8));
 }
 
 function scanWifiNetworks()
@@ -69,11 +139,11 @@ function scanWifiNetworks()
         return;
     }
 
-    $.get(yuboxAPI('wificonfig')+'/scan')
+    $.get(yuboxAPI('wificonfig')+'/networks')
     .done(function (data) {
         data.sort(function (a, b) {
-            if (a.connected) return -1;
-            if (b.connected) return 1;
+            if (a.connected || a.connfail) return -1;
+            if (b.connected || b.connfail) return 1;
             return b.rssi - a.rssi;
         });
 
@@ -102,6 +172,10 @@ function scanWifiNetworks()
             if (net.connected) {
                 var sm_connlabel = $('<small class="form-text text-muted" />').text('Conectado');
                 tr_wifiscan.addClass('table-success');
+                tr_wifiscan.children('td#ssid').append(sm_connlabel);
+            } else if (net.connfail) {
+                var sm_connlabel = $('<small class="form-text text-muted" />').text('Ha fallado la conexión');
+                tr_wifiscan.addClass('table-danger');
                 tr_wifiscan.children('td#ssid').append(sm_connlabel);
             }
             tr_wifiscan.children('td#auth').attr('title',

@@ -197,7 +197,7 @@
                       </div>
                       <div class="form-group wifi-auth wifi-auth-psk">
                         <label for="psk">Contraseña:</label>
-                        <input type="password" id="psk" name="psk" class="form-control" pattern=".{8,}"/>
+                        <input type="password" id="psk" name="psk" maxlength="64" minlength="8" class="form-control" pattern=".{8,64}"/>
                       </div>
                       <div class="form-group wifi-auth wifi-auth-eap">
                         <label for="identity">Identidad EAP:</label>
