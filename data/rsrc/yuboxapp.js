@@ -102,7 +102,15 @@ function setupWiFiTab()
             dlg_wificred.modal('hide');
         })
         .fail(function (e) {
-            console.log(e);
+            var msg;
+            if (e.status == 0) {
+                msg = 'Fallo al contactar dispositivo';
+            } else if (e.responseJSON == undefined) {
+                msg = 'Tipo de dato no esperado en respuesta';
+            } else {
+                msg = e.responseJSON.msg;
+            }
+            yuboxDlgMostrarAlertText(dlg_wificred.find('div.modal-body'), 'danger', msg, 2000);
         });
     });
 
@@ -234,19 +242,29 @@ function yuboxMostrarAlertText(alertstyle, text, timeout)
 
 function yuboxMostrarAlert(alertstyle, content, timeout)
 {
-    var al = $('main > div.container > div.alert.yubox-alert-template')
+    yuboxDlgMostrarAlert('main > div.container', alertstyle, content, timeout);
+}
+
+function yuboxDlgMostrarAlertText(basesel, alertstyle, text, timeout)
+{
+    var content = $('<span/>').text(text);
+    return yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout);
+}
+
+function yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)
+{
+    var al = $(basesel).children('div.alert.yubox-alert-template')
         .clone()
         .removeClass('yubox-alert-template')
         .addClass('yubox-alert')
         .addClass('alert-'+alertstyle);
     al.find('button.close').before(content);
 
-    $('main > div.container > div.yubox-alert').remove();
-    $('main > div.container > div#yuboxMainTabContent').before(al);
+    $(basesel).children('div.yubox-alert').remove();
+    $(basesel).children('div.alert.yubox-alert-template').after(al);
     if (timeout != undefined) {
         setTimeout(function() {
             al.remove();
         }, timeout);
     }
 }
-

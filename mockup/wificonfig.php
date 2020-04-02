@@ -121,6 +121,15 @@ switch ($_SERVER['PATH_INFO']) {
                     }
                 } elseif ($nets[$idx]['authmode'] > 0) {
                     $nets[$idx]['psk'] = $vars['psk'];
+                    if ($vars['psk'] == 'errorerror') {
+                        // Esto es un mockup de error inmediato
+                        Header('HTTP/1.1 500 Internal Server Error');
+                        print json_encode(array(
+                            'success'   =>  FALSE,
+                            'msg'       =>  'Esto es un error de prueba.'
+                        ));
+                        exit();
+                    }
                     if (!($vars['psk'] == 'gatitolindo')) {
                         // Credenciales incorrectas WEP
                         $badauth = TRUE;
@@ -142,7 +151,10 @@ switch ($_SERVER['PATH_INFO']) {
                 file_put_contents(MOCKUP_WIFI, $json);
             }
             Header('HTTP/1.1 202 Accepted');
-            print json_encode("Intentando conexión con credenciales...");
+            print json_encode(array(
+                'success'   =>  TRUE,
+                'msg'       =>  'Intentando conexión con credenciales...'
+            ));
 
             break;
         case 'DELETE':  // Olvidar la conexión activa
