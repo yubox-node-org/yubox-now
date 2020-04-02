@@ -30,6 +30,13 @@ function setupWiFiTab()
             .done(function (data) {
                 var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
 
+                var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), data.rssi);
+                dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
+
+                dlg_wifiinfo.find('tr#auth > td > svg.wifiauth > path').hide();
+                dlg_wifiinfo.find('tr#auth > td > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
+                dlg_wifiinfo.find('tr#auth > td.text-muted').text(wifiauth_desc(data.authmode));
+
                 dlg_wifiinfo.find('h5#wifi-details-title').text(data.ssid);
                 dlg_wifiinfo.find('input#ssid').val(data.ssid);
                 dlg_wifiinfo.find('div#netinfo div#mac').text(data.mac);
@@ -213,22 +220,24 @@ function scanWifiNetworks()
         var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
         var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
         tbody_wifiscan.empty();
+        var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+        var ssid_visible = null;
+        if (dlg_wifiinfo.is(':visible')) {
+            ssid_visible = dlg_wifiinfo.find('input#ssid').val();
+        }
         data.forEach(function (net) {
             var tr_wifiscan = wifipane.data('wifiscan-template').clone();
 
             // Mostrar dibujo de intensidad de señal a partir de RSSI
-            var svg_wifi = tr_wifiscan.find('td#rssi > svg.wifipower');
-            var pwr = rssi2signalpercent(net.rssi);
-            svg_wifi.removeClass('at-least-1bar at-least-2bars at-least-3bars at-least-4bars');
-            if (pwr >= 80)
-                svg_wifi.addClass('at-least-4bars');
-            else if (pwr >= 60)
-                svg_wifi.addClass('at-least-3bars');
-            else if (pwr >= 40)
-                svg_wifi.addClass('at-least-2bars');
-            else if (pwr >= 20)
-                svg_wifi.addClass('at-least-1bar');
-            tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+pwr+'%');
+            var res = evaluarIntensidadRedWifi(tr_wifiscan.find('td#rssi > svg.wifipower'), net.rssi);
+            tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+res.pwr+' %');
+
+            // Verificar si se está mostrando la red activa en el diálogo
+            if (ssid_visible != null && ssid_visible == net.ssid) {
+                var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), net.rssi);
+                dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
+            }
+
 
             // Mostrar candado según si hay o no autenticación para la red
             tr_wifiscan.children('td#ssid').text(net.ssid);
@@ -265,6 +274,30 @@ function scanWifiNetworks()
         }
         mostrarReintentoScanWifi(msg);
     });
+}
+
+function evaluarIntensidadRedWifi(svg_wifi, rssi)
+{
+    var diagnostico;
+    var pwr = rssi2signalpercent(rssi);
+    svg_wifi.removeClass('at-least-1bar at-least-2bars at-least-3bars at-least-4bars');
+    if (pwr >= 80) {
+        svg_wifi.addClass('at-least-4bars');
+        diagnostico = 'Excelente';
+    } else if (pwr >= 60) {
+        svg_wifi.addClass('at-least-3bars');
+        diagnostico = 'Buena';
+    } else if (pwr >= 40) {
+        svg_wifi.addClass('at-least-2bars');
+        diagnostico = 'Regular';
+    } else if (pwr >= 20) {
+        svg_wifi.addClass('at-least-1bar');
+        diagnostico = 'Débil';
+    } else {
+        diagnostico = 'Nula';
+    }
+
+    return { pwr: pwr, diag: diagnostico };
 }
 
 function mostrarReintentoScanWifi(msg)
