@@ -96,6 +96,19 @@ function setupWiFiTab()
             // Autenticación PSK
             st.data.psk = dlg_wificred.find('div.form-group.wifi-auth-psk input#psk').val();
         }
+
+        // Puede ocurrir que la red ya no exista según el escaneo más reciente
+        var existe = (
+            $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody > tr')
+            .filter(function() { return ($(this).data('ssid') == st.data.ssid);  })
+            .length > 0);
+        if (!existe) {
+            dlg_wificred.modal('hide');
+            yuboxMostrarAlertText('warning', 'La red '+st.data.ssid+' ya no se encuentra disponible', 3000);
+            return;
+        }
+
+        // La red todavía existe en el último escaneo. Se intenta conectar.
         $.ajax(st)
         .done(function (data) {
             // Credenciales aceptadas, se espera a que se conecte
