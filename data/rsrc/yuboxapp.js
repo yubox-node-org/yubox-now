@@ -18,16 +18,6 @@ function setupWiFiTab()
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-/*
-        // Información sobre la MAC (y red conectada?)
-        $.getJSON(yuboxAPI('wificonfig')+'/info')
-        .done(function (data) {
-            var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
-
-            // Mostrar los datos de la configuración actual
-            wifipane.find('input#wlanmac').val(data.MAC);
-        });
-*/
         scanWifiNetworks();
     });
 
@@ -36,7 +26,39 @@ function setupWiFiTab()
         var net = $(e.currentTarget).data();
 
         if (net.connected) {
-            alert('DEBUG: diálogo para red conectada no implementado!');
+            $.getJSON(yuboxAPI('wificonfig')+'/connection')
+            .done(function (data) {
+                var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+
+                dlg_wifiinfo.find('h5#wifi-details-title').text(data.ssid);
+                dlg_wifiinfo.find('input#ssid').val(data.ssid);
+                dlg_wifiinfo.find('div#netinfo div#mac').text(data.mac);
+                dlg_wifiinfo.find('div#netinfo div#ipv4').text(data.ipv4);
+                dlg_wifiinfo.find('div#netinfo div#gateway').text(data.gateway);
+                dlg_wifiinfo.find('div#netinfo div#netmask').text(data.netmask);
+
+                var div_dns = dlg_wifiinfo.find('div#netinfo div#dns');
+                div_dns.empty();
+                for (var i = 0; i < data.dns.length; i++) {
+                    var c = $('<div class="col"/>').text(data.dns[i]);
+                    var r = $('<div class="row" />');
+                    r.append(c);
+                    div_dns.append(r);
+                }
+
+                dlg_wifiinfo.modal({ focus: true });
+            })
+            .fail(function (e) {
+                var msg;
+                if (e.status == 0) {
+                    msg = 'Fallo al contactar dispositivo';
+                } else if (e.responseJSON == undefined) {
+                    msg = 'Tipo de dato no esperado en respuesta';
+                } else {
+                    msg = e.responseJSON.msg;
+                }
+                yuboxMostrarAlertText('danger', msg, 2000);
+            });
         } else {
             var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
             dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
@@ -127,11 +149,31 @@ function setupWiFiTab()
         });
     });
 
-/*
-"{\"url\":\"/yubox-mockup/wificonfig.php/connection\",\"data\":{\"a\":\"gato\",\"b\":\"perro\"},\"method\":\"PUT\"}"
-"{\"method\":\"DELETE\",\"url\":\"/yubox-mockup/wificonfig.php/connection\"}"
-$.ajax(st).done(function (data) { console.log('DONE', data); }).fail(function (e) { console.log('FAIL', e); });
-*/
+    var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+    dlg_wifiinfo.find('div.modal-footer button[name=forget]').click(function () {
+        var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+        var st = {
+            url:    yuboxAPI('wificonfig')+'/connection',
+            method: 'DELETE'
+        };
+
+        $.ajax(st)
+        .done(function (data) {
+            // Credenciales aceptadas, se espera a que se conecte
+            dlg_wifiinfo.modal('hide');
+        })
+        .fail(function (e) {
+            var msg;
+            if (e.status == 0) {
+                msg = 'Fallo al contactar dispositivo';
+            } else if (e.responseJSON == undefined) {
+                msg = 'Tipo de dato no esperado en respuesta';
+            } else {
+                msg = e.responseJSON.msg;
+            }
+            yuboxDlgMostrarAlertText(dlg_wifiinfo.find('div.modal-body'), 'danger', msg, 2000);
+        });
+    });
 }
 
 function checkValidWifiCred_EAP()

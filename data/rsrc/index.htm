@@ -30,7 +30,7 @@
               <a class="nav-link" id="lector-tab" data-toggle="tab" role="tab" aria-controls="lector" aria-selected="true" href="#lector">Lector de muestras</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link set-active" id="wifi-tab" data-toggle="tab" role="tab" aria-controls="wifi" aria-selected="false" href="#wifi">WIFI</a>
+              <a class="nav-link set-active" id="wifi-tab" data-toggle="tab" role="tab" aria-controls="wifi" aria-selected="false" href="#wifi">Wi-Fi</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" id="mqtt-tab" data-toggle="tab" role="tab" aria-controls="mqtt" aria-selected="false" href="#mqtt">Envío de datos</a>
@@ -140,14 +140,7 @@
 
             </div>
             <div id="wifi" role="tabpanel" aria-labelledby="wifi-tab" class="tab-pane fade">
-<!--
-              <div class="form-group row">
-                <label for="wlanmac" class="col-sm-2 col-form-label">Dirección MAC:</label>
-                <div class="col-sm-10">
-                  <input type="text" readonly class="form-control-plaintext" id="wlanmac" name="wlanmac" value="xx:xx:xx:xx:xx">
-                </div>
-              </div>
--->
+
               <div class="form-group">
                 <table id="wifiscan" class="table table-borderless table-hover">
                   <caption>Redes visibles</caption>
@@ -173,6 +166,7 @@
                 </table>
               </div>
 
+              <!-- El siguiente es el diálogo que se usa para ingresar las credenciales de red Wi-Fi -->
               <div class="modal fade" id="wifi-credentials" tabindex="-1" role="dialog" aria-labelledby="wifi-credentials-title" aria-hidden="true">
                 <div class="modal-dialog" role="document">
                   <div class="modal-content">
@@ -218,6 +212,65 @@
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" name="cancel" formnovalidate data-dismiss="modal">Cancelar</button>
                       <button type="button" class="btn btn-primary" name="connect" disabled>Conectar a WIFI</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- El siguiente es el diálogo que se usa para mostrar detalles de la conexión activa -->
+              <div class="modal fade" id="wifi-details" tabindex="-1" role="dialog" aria-labelledby="wifi-details-title" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                  <div class="modal-content">
+                    <div class="modal-header">
+
+                      <!-- Título con nombre de red a usar -->
+                      <h5 class="modal-title" id="wifi-details-title">(nombre-de-red)</h5>
+                      <input type="hidden" name="ssid" id="ssid" value="(nombre-de-red)" />
+                      <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                      </button>
+
+                    </div>
+                    <div class="modal-body">
+                      <!-- El siguiente div se clona para mostrar una alerta vía yuboxMostrarAlert() -->
+                      <div class="alert alert-dismissible fade show yubox-alert-template" role="alert">
+                        <!-- Ubicación donde estará el contenido de la alerta -->
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                          <span aria-hidden="true">&times;</span>
+                        </button>
+                      </div>
+
+                      <div class="card" id="netinfo">
+                        <h5 class="card-header">Detalles de la red</h5>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col">Dirección MAC</div>
+                            <div class="col text-right" id="mac"></div>
+                          </div>
+                          <div class="row">
+                            <div class="col">Dirección IP</div>
+                            <div class="col text-right" id="ipv4"></div>
+                          </div>
+                          <div class="row">
+                            <div class="col">Gateway</div>
+                            <div class="col text-right" id="gateway"></div>
+                          </div>
+                          <div class="row">
+                            <div class="col">Máscara de subred</div>
+                            <div class="col text-right" id="netmask">255.255.255.255</div>
+                          </div>
+                          <div class="row">
+                            <div class="col">DNS</div>
+                            <div class="col text-right" id="dns">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" name="cancel" formnovalidate data-dismiss="modal">Cancelar</button>
+                      <button type="button" class="btn btn-danger" name="forget">Olvidar</button>
                     </div>
                   </div>
                 </div>
