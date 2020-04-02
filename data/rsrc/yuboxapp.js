@@ -253,6 +253,30 @@ function scanWifiNetworks()
         if ($('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
             setTimeout(scanWifiNetworks, 5 * 1000);
         }
+    })
+    .fail(function (e) {
+        var msg;
+        if (e.status == 0) {
+            msg = 'Fallo al contactar dispositivo para siguiente escaneo';
+        } else if (e.responseJSON == undefined) {
+            msg = 'Tipo de dato no esperado en respuesta';
+        } else {
+            msg = e.responseJSON.msg;
+        }
+        mostrarReintentoScanWifi(msg);
+    });
+}
+
+function mostrarReintentoScanWifi(msg)
+{
+    var btn = $('<button class="btn btn-primary float-right" />').text('Reintentar');
+    var al = yuboxMostrarAlert('danger',
+        $('<div class="clearfix"/>')
+        .append($('<span class="float-left" />').text(msg))
+        .append(btn));
+    btn.click(function () {
+        al.remove();
+        scanWifiNetworks();
     });
 }
 
@@ -297,7 +321,7 @@ function yuboxMostrarAlertText(alertstyle, text, timeout)
 
 function yuboxMostrarAlert(alertstyle, content, timeout)
 {
-    yuboxDlgMostrarAlert('main > div.container', alertstyle, content, timeout);
+    return yuboxDlgMostrarAlert('main > div.container', alertstyle, content, timeout);
 }
 
 function yuboxDlgMostrarAlertText(basesel, alertstyle, text, timeout)
@@ -322,4 +346,6 @@ function yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)
             al.remove();
         }, timeout);
     }
+
+    return al;
 }
