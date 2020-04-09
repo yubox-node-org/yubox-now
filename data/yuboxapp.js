@@ -9,6 +9,7 @@ function setupWiFiTab()
 {
     var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
     var data = {
+        'wifiscan-timer': null,
         'wifiscan-template':
             wifipane.find('table#wifiscan > tbody > tr.template')
             .removeClass('template')
@@ -18,7 +19,15 @@ function setupWiFiTab()
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        scanWifiNetworks();
+        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+        if (wifipane.data('wifiscan-timer') == null) wifipane.data('wifiscan-timer', setTimeout(scanWifiNetworks, 1));
+    });
+    $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('hide.bs.tab', function (e) {
+        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+        if (wifipane.data('wifiscan-timer') != null) {
+            clearTimeout(wifipane.data('wifiscan-timer'));
+            wifipane.data('wifiscan-timer', null)
+        }
     });
 
     // Qué hay que hacer al hacer clic en una fila que representa la red
@@ -214,13 +223,15 @@ function scanWifiNetworks()
 
     $.get(yuboxAPI('wificonfig')+'/networks')
     .done(function (data) {
+        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+        wifipane.data('wifiscan-timer', null);
+
         data.sort(function (a, b) {
             if (a.connected || a.connfail) return -1;
             if (b.connected || b.connfail) return 1;
             return b.rssi - a.rssi;
         });
 
-        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
         var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
         tbody_wifiscan.empty();
         var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
@@ -263,10 +274,13 @@ function scanWifiNetworks()
 
         // Volver a escanear redes si el tab sigue activo al recibir respuesta
         if ($('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
-            setTimeout(scanWifiNetworks, 5 * 1000);
+            wifipane.data('wifiscan-timer', setTimeout(scanWifiNetworks, 5 * 1000));
         }
     })
     .fail(function (e) {
+        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+        wifipane.data('wifiscan-timer', null);
+
         var msg;
         if (e.status == 0) {
             msg = 'Fallo al contactar dispositivo para siguiente escaneo';
@@ -312,7 +326,9 @@ function mostrarReintentoScanWifi(msg)
         .append(btn));
     btn.click(function () {
         al.remove();
-        scanWifiNetworks();
+
+        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+        if (wifipane.data('wifiscan-timer') == null) wifipane.data('wifiscan-timer', setTimeout(scanWifiNetworks, 1));
     });
 }
 
