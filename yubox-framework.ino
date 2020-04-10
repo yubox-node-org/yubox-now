@@ -12,9 +12,10 @@
 
 String mDNS_hostname;
 
-// TODO: esto debe reemplazarse por el mecanismo de cargar credenciales desde preferencias
-const char * wifi_ssid = "Claro_VILLACIS0000299908";
-const char * wifi_password = "6432411767344";
+const char * ns_nvram_yuboxframework_wifi = "YUBOX/WiFi";
+
+String wifi_ssid;
+String wifi_password;
 
 bool wifiInit = false;
 bool wifiConectado = false;
@@ -36,6 +37,21 @@ void setup()
   // y verlo en gtkterm. No es en lo absoluto necesaria como algoritmo requerido.
   delay(3000);
   Serial.begin(115200);
+
+  // TODO: quitar esto. Esto es sólo para inicializar NVRAM con credenciales antes de desarollo
+  Preferences * nvram = new Preferences;
+  nvram->begin(ns_nvram_yuboxframework_wifi, false);
+  uint32_t numNets = nvram->getUInt("net/n");
+  Serial.printf("DEVEL: número de redes guardadas: %u\r\n", numNets);
+  if (numNets > 0) {
+    int32_t selNet = nvram->getUInt("net/sel");
+    Serial.printf("Seleccionada la red conocida %d de %u\r\n", selNet, numNets);
+    wifi_ssid = nvram->getString("net/1/ssid");
+    wifi_password = nvram->getString("net/1/psk");
+  } else {
+    Serial.println("NO HAY REDES EN NVRAM. Sólo con HostAP");
+  }
+  delete nvram; nvram = NULL;
 
   Serial.println("Inicializando SPIFFS...");
   if (!SPIFFS.begin(true)){
@@ -86,7 +102,7 @@ void iniciarWifi(void)
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(mDNS_hostname.c_str());
-  WiFi.begin(wifi_ssid, wifi_password);
+  WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
 }
 
 void iniciarServiciosRed(void)
