@@ -44,7 +44,7 @@ function setupWiFiTab()
 
                 dlg_wifiinfo.find('tr#auth > td > svg.wifiauth > path').hide();
                 dlg_wifiinfo.find('tr#auth > td > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
-                dlg_wifiinfo.find('tr#auth > td.text-muted').text(wifiauth_desc(data.authmode));
+                dlg_wifiinfo.find('tr#auth > td.text-muted').text(wifiauth_desc(net.authmode));
 
                 dlg_wifiinfo.find('h5#wifi-details-title').text(data.ssid);
                 dlg_wifiinfo.find('input#ssid').val(data.ssid);

@@ -34,7 +34,8 @@ switch ($_SERVER['PATH_INFO']) {
                 'bssid'     =>  $currnet['bssid'],
                 'connected' =>  TRUE,
                 'rssi'      =>  $currnet['rssi'],
-                'authmode'  =>  $currnet['authmode'],
+                // El API de YUBOX no puede reportar aquí esto
+                //'authmode'  =>  $currnet['authmode'],
                 //'frequency'
                 'mac'       =>  NULL,
                 'ipv4'      =>  NULL,
