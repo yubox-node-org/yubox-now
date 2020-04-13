@@ -239,6 +239,7 @@ function scanWifiNetworks()
         if (dlg_wifiinfo.is(':visible')) {
             ssid_visible = dlg_wifiinfo.find('input#ssid').val();
         }
+        var max_rssi = null;
         data.forEach(function (net) {
             var tr_wifiscan = wifipane.data('wifiscan-template').clone();
 
@@ -248,8 +249,7 @@ function scanWifiNetworks()
 
             // Verificar si se está mostrando la red activa en el diálogo
             if (ssid_visible != null && ssid_visible == net.ssid) {
-                var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), net.rssi);
-                dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
+                if (max_rssi == null || max_rssi < net.rssi) max_rssi = net.rssi;
             }
 
 
@@ -271,6 +271,12 @@ function scanWifiNetworks()
             tr_wifiscan.data(net);
             tbody_wifiscan.append(tr_wifiscan);
         });
+
+        // Verificar si se está mostrando la red activa en el diálogo
+        if (ssid_visible != null && max_rssi != null) {
+            var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), max_rssi);
+            dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
+        }
 
         // Volver a escanear redes si el tab sigue activo al recibir respuesta
         if ($('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
