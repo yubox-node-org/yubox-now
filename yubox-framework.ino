@@ -155,7 +155,7 @@ void routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *r
 void setupHTTPRoutes_WiFi(AsyncWebServer & srv)
 {
   srv.on("/yubox-api/wificonfig/networks", HTTP_GET, routeHandler_yuboxAPI_wificonfig_networks_GET);
-  //srv.on("/yubox-api/wificonfig/connection", HTTP_GET, routeHandler_yuboxAPI_wificonfig_connection_GET);
+  srv.on("/yubox-api/wificonfig/connection", HTTP_GET, routeHandler_yuboxAPI_wificonfig_connection_GET);
   //srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, routeHandler_yuboxAPI_wificonfig_connection_PUT);
   //srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, routeHandler_yuboxAPI_wificonfig_connection_DELETE);
 }
@@ -238,7 +238,43 @@ void routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *reques
   response->print("]");
 
   request->send(response);
+}
 
+void routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request)
+{
+  wl_status_t currNetStatus = WiFi.status();
+  if (currNetStatus != WL_CONNECTED) {
+    request->send(404, "application/json", "{msg:\"No hay conexi\\u00f3nn actualmente activa\"}");
+    return;
+  }
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(10) + JSON_ARRAY_SIZE(3));
+
+  String temp_ssid = WiFi.SSID();
+  String temp_bssid = WiFi.BSSIDstr();
+  String temp_mac = WiFi.macAddress();
+  String temp_ipv4 = WiFi.localIP().toString();
+  String temp_gw = WiFi.gatewayIP().toString();
+  String temp_netmask = WiFi.subnetMask().toString();
+  String temp_dns[3];
+
+  json_doc["connected"] = true;
+  json_doc["rssi"] = WiFi.RSSI();
+  json_doc["ssid"] = temp_ssid.c_str();
+  json_doc["bssid"] = temp_bssid.c_str();
+  json_doc["mac"] = temp_mac.c_str();
+  json_doc["ipv4"] = temp_ipv4.c_str();
+  json_doc["gateway"] = temp_gw.c_str();
+  json_doc["netmask"] = temp_netmask.c_str();
+  JsonArray json_dns = json_doc.createNestedArray("dns");
+  for (auto i = 0; i < 3; i++) {
+    temp_dns[i] = WiFi.dnsIP(i).toString();
+    if (temp_dns[i] != "0.0.0.0") json_dns.add(temp_dns[i].c_str());
+  }
+
+  serializeJson(json_doc, *response);
+  request->send(response);
 }
 
 // TODO: clase definitiva debe cachear y llamar equivalente a esto una sola vez
