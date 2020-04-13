@@ -5,6 +5,9 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
+#include <string>
+#include <unordered_map>
+
 #define ARDUINOJSON_USE_LONG_LONG 1
 
 #include "AsyncJson.h"
@@ -157,8 +160,16 @@ void setupHTTPRoutes_WiFi(AsyncWebServer & srv)
   //srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, routeHandler_yuboxAPI_wificonfig_connection_DELETE);
 }
 
+std::unordered_map<std::string, String> cargarRedesConocidas(Preferences &);
+
 void routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
 {
+  // Cargar de NVRAM todas las redes conocidas, mapeando a su índice correspondiente
+  Preferences nvram;
+  nvram.begin(ns_nvram_yuboxframework_wifi, true);
+  std::unordered_map<std::string, String> redes = cargarRedesConocidas(nvram);
+  std::unordered_map<std::string, String>::iterator it;
+
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(10));
 
@@ -167,11 +178,18 @@ void routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *reques
   if (n == WIFI_SCAN_FAILED) {
     WiFi.scanNetworks(true);
   } else if (n > 0) {
+    String currNet = WiFi.SSID();
+    String currBssid = WiFi.BSSIDstr();
+    wl_status_t currNetStatus = WiFi.status();
+
     for (int i = 0; i < n; i++) {
       if (i > 0) response->print(",");
 
       String temp_bssid = WiFi.BSSIDstr(i);
       String temp_ssid = WiFi.SSID(i);
+      String temp_psk;
+      String temp_identity;
+      String temp_password;
 
       json_doc["bssid"] = temp_bssid.c_str();
       json_doc["ssid"] = temp_ssid.c_str();
@@ -182,11 +200,31 @@ void routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *reques
       // TODO: actualizar estado de bandera de conexión exitosa
       json_doc["connected"] = false;
       json_doc["connfail"] = false;
+      if (temp_ssid == currNet && temp_bssid == currBssid) {
+        if (currNetStatus == WL_CONNECTED) json_doc["connected"] = true;
+        if (currNetStatus == WL_CONNECT_FAILED) json_doc["connfail"] = true;
+      }
 
-      // TODO: asignar clave conocida desde NVRAM si está disponible
+      // Asignar clave conocida desde NVRAM si está disponible
       json_doc["psk"] = (char *)NULL;
       json_doc["identity"] = (char *)NULL;
       json_doc["password"] = (char *)NULL;
+      it = redes.find(temp_ssid.c_str());
+      if (it != redes.end()) {
+        String k;
+
+        k = it->second + "psk";
+        temp_psk = nvram.getString(k.c_str());
+        if (!temp_psk.isEmpty()) json_doc["psk"] = temp_psk.c_str();
+
+        k = it->second + "identity";
+        temp_identity = nvram.getString(k.c_str());
+        if (!temp_identity.isEmpty()) json_doc["identity"] = temp_identity.c_str();
+
+        k = it->second + "password";
+        temp_password = nvram.getString(k.c_str());
+        if (!temp_password.isEmpty()) json_doc["password"] = temp_password.c_str();
+      }
 
       serializeJson(json_doc, *response);
     }
@@ -201,6 +239,23 @@ void routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *reques
 
   request->send(response);
 
+}
+
+// TODO: clase definitiva debe cachear y llamar equivalente a esto una sola vez
+std::unordered_map<std::string, String> cargarRedesConocidas(Preferences & nvram)
+{
+  std::unordered_map<std::string, String> redes;
+  uint32_t numNets = nvram.getUInt("net/n");
+  char t1[64];
+  for (int i = 1; i <= numNets; i++) {
+    sprintf(t1, "net/%d/ssid", i);
+    String ssid = nvram.getString(t1);
+    std::string s_ssid = ssid.c_str();
+    sprintf(t1, "net/%d/", i);
+    redes[s_ssid] = t1;
+  }
+
+  return redes;
 }
 
 void setupMDNS(String & mdnsHostname)
