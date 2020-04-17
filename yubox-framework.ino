@@ -62,6 +62,8 @@ void setup()
     return;
   }
 
+  setupAsyncServerHTTP();
+
   wifiReconnectTimer = xTimerCreate(
     "wifiTimer",
     pdMS_TO_TICKS(2000),
@@ -71,6 +73,10 @@ void setup()
 
   WiFi.onEvent(WiFiEvent);
   iniciarWifi();
+
+  server.begin();
+
+  setupMDNS(mDNS_hostname);
 }
 
 void loop()
@@ -112,8 +118,6 @@ void iniciarServiciosRed(void)
 {
   if (wifiInit) return;
 
-  setupMDNS(mDNS_hostname);
-  setupAsyncServerHTTP();
 /*
   // NOTA: este es un bucle bloqueante. Debería implementárselo de otra manera.
   Serial.print("Pidiendo hora de red vía NTP...");
@@ -142,8 +146,6 @@ void setupAsyncServerHTTP(void)
   setupHTTPRoutes_WiFi(server);
 
   server.onNotFound(notFound);
-
-  server.begin();
 }
 
 
