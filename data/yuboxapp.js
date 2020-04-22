@@ -84,6 +84,7 @@ function setupWiFiTab()
             dlg_wificred.find('div.form-group.wifi-auth').hide();
             dlg_wificred.find('div.form-group.wifi-auth input').val('');
             dlg_wificred.find('button[name=connect]').prop('disabled', true);
+            dlg_wificred.find('input[name="pin"]#N').click();
             if (net.authmode == 5) {
                 // Autenticación WPA-ENTERPRISE
                 dlg_wificred.find('div.form-group.wifi-auth-eap').show();
@@ -123,7 +124,8 @@ function setupWiFiTab()
             method: 'PUT',
             data:   {
                 ssid:       dlg_wificred.find('input#ssid').val(),
-                authmode:   parseInt(dlg_wificred.find('input#authmode').val())
+                authmode:   parseInt(dlg_wificred.find('input#authmode').val()),
+                pin:        (dlg_wificred.find('input[name="pin"]:checked').val() == '1') ? 1 : 0
             }
         };
         if ( st.data.authmode == 5 ) {
