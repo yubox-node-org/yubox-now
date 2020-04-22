@@ -55,6 +55,7 @@ private:
 
   // Copia de las credenciales elegidas, para asegurar vida de cadenas
   YuboxWiFi_nvramrec _activeNetwork;
+  bool _tryActiveNetworkFirst;
 
   String _getWiFiMAC(void);
   void _loadOneNetworkFromNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
@@ -64,6 +65,7 @@ private:
   void _startWiFi(void);
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
+  void _connectToActiveNetwork(void);
   void _cbHandler_WiFiEvent(WiFiEvent_t event);
 
   void _setupHTTPRoutes(AsyncWebServer &);

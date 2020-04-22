@@ -65,7 +65,12 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
       _collectScannedNetworks();
       if (WiFi.status() != WL_CONNECTED) {
         Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
-        _chooseKnownScannedNetwork();
+        if (_tryActiveNetworkFirst) {
+          _tryActiveNetworkFirst = false;
+          _connectToActiveNetwork();
+        } else {
+          _chooseKnownScannedNetwork();
+        }
       } else {
         //
       }
@@ -219,26 +224,30 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
       esp_wifi_sta_wpa2_ent_disable();
 
       _activeNetwork = _savedNetworks[netIdx];
-
-      // Iniciar conexión a red elegida según credenciales
-      if (!_activeNetwork.identity.isEmpty()) {
-        // Autenticación WPA-Enterprise
-        esp_wifi_sta_wpa2_ent_set_identity((const unsigned char *)_activeNetwork.identity.c_str(), _activeNetwork.identity.length());
-        esp_wifi_sta_wpa2_ent_set_username((const unsigned char *)_activeNetwork.identity.c_str(), _activeNetwork.identity.length());
-        esp_wifi_sta_wpa2_ent_set_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
-        // TODO: ¿cuándo es realmente necesario el paso de abajo MSCHAPv2?
-        esp_wifi_sta_wpa2_ent_set_new_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
-        esp_wpa2_config_t wpa2_config = WPA2_CONFIG_INIT_DEFAULT();
-        esp_wifi_sta_wpa2_ent_enable(&wpa2_config);
-        WiFi.begin(_activeNetwork.ssid.c_str());
-      } else if (!_activeNetwork.psk.isEmpty()) {
-        // Autenticación con clave
-        WiFi.begin(_activeNetwork.ssid.c_str(), _activeNetwork.psk.c_str());
-      } else {
-        // Red abierta
-        WiFi.begin(_activeNetwork.ssid.c_str());
-      }
+      _connectToActiveNetwork();
     }
+  }
+}
+
+void YuboxWiFiClass::_connectToActiveNetwork(void)
+{
+  // Iniciar conexión a red elegida según credenciales
+  if (!_activeNetwork.identity.isEmpty()) {
+    // Autenticación WPA-Enterprise
+    esp_wifi_sta_wpa2_ent_set_identity((const unsigned char *)_activeNetwork.identity.c_str(), _activeNetwork.identity.length());
+    esp_wifi_sta_wpa2_ent_set_username((const unsigned char *)_activeNetwork.identity.c_str(), _activeNetwork.identity.length());
+    esp_wifi_sta_wpa2_ent_set_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
+    // TODO: ¿cuándo es realmente necesario el paso de abajo MSCHAPv2?
+    esp_wifi_sta_wpa2_ent_set_new_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
+    esp_wpa2_config_t wpa2_config = WPA2_CONFIG_INIT_DEFAULT();
+    esp_wifi_sta_wpa2_ent_enable(&wpa2_config);
+    WiFi.begin(_activeNetwork.ssid.c_str());
+  } else if (!_activeNetwork.psk.isEmpty()) {
+    // Autenticación con clave
+    WiFi.begin(_activeNetwork.ssid.c_str(), _activeNetwork.psk.c_str());
+  } else {
+    // Red abierta
+    WiFi.begin(_activeNetwork.ssid.c_str());
   }
 }
 
@@ -413,7 +422,126 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request)
 {
-  request->send(500, "application/json", "{\"msg\":\"No implementado\"}");
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+  AsyncWebParameter * p;
+  YuboxWiFi_nvramrec tempNetwork;
+  bool pinNetwork = false;
+  uint8_t authmode;
+
+  if (!clientError) {
+    if (!request->hasParam("ssid", true)) {
+      clientError = true;
+      responseMsg = "Se requiere SSID para conectarse";
+    } else {
+      p = request->getParam("ssid", true);
+      tempNetwork.ssid = p->value();
+    }
+  }
+  if (!clientError) {
+    if (request->hasParam("pin", true)) {
+      p = request->getParam("pin", true);
+      pinNetwork = (p->value() != "0");
+    }
+
+    if (!request->hasParam("authmode", true)) {
+      clientError = true;
+      responseMsg = "Se requiere modo de autenticación a usar";
+    } else {
+      p = request->getParam("authmode", true);
+      if (p->value().length() != 1) {
+        clientError = true;
+        responseMsg = "Modo de autenticación inválido";
+      } else if (!(p->value()[0] >= '0' && p->value()[0] <= '5')) {
+        clientError = true;
+        responseMsg = "Modo de autenticación inválido";
+      } else {
+        authmode = p->value().toInt();
+      }
+    }
+  }
+
+  if (!clientError) {
+    if (authmode == WIFI_AUTH_WPA2_ENTERPRISE) {
+      if (!clientError && !request->hasParam("identity", true)) {
+        clientError = true;
+        responseMsg = "Se requiere una identidad para esta red";
+      } else {
+        p = request->getParam("identity", true);
+        tempNetwork.identity = p->value();
+      }
+      if (!clientError && !request->hasParam("password", true)) {
+        clientError = true;
+        responseMsg = "Se requiere contraseña para esta red";
+      } else {
+        p = request->getParam("password", true);
+        tempNetwork.password = p->value();
+      }
+    } else if (authmode != WIFI_AUTH_OPEN) {
+      if (!request->hasParam("psk", true)) {
+        clientError = true;
+        responseMsg = "Se requiere contraseña para esta red";
+      } else {
+        p = request->getParam("psk", true);
+        if (p->value().length() < 8) {
+          clientError = true;
+          responseMsg = "Contraseña para esta red debe ser como mínimo de 8 caracteres";
+        } else {
+          tempNetwork.psk = p->value();
+        }
+      }
+    }
+  }
+
+  // Crear o actualizar las credenciales indicadas
+  if (!clientError) {
+    int idx = -1;
+
+    tempNetwork._dirty = true;
+    for (auto i = 0; i < _savedNetworks.size(); i++) {
+      if (_savedNetworks[i].ssid == tempNetwork.ssid) {
+        idx = i;
+        _savedNetworks[idx] = tempNetwork;
+        break;
+      }
+    }
+    if (idx == -1) {
+      idx = _savedNetworks.size();
+      _savedNetworks.push_back(tempNetwork);
+    }
+    _selNetwork = (pinNetwork) ? idx : -1;
+
+    // Mandar a guardar el vector modificado
+    _saveNetworksToNVRAM();
+    _tryActiveNetworkFirst = true;
+    _activeNetwork = tempNetwork;
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+  unsigned int httpCode = 202;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+
+  if (!clientError && !serverError) {
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_AP_STA);
+    if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+      Serial.println("DEBUG: Iniciando escaneo de redes WiFi (4)...");
+      WiFi.scanNetworks(true);
+    }
+  }
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request)
@@ -449,14 +577,14 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
     _saveNetworksToNVRAM();
   }
 
+  request->send(204);
+
   WiFi.disconnect(true);
   WiFi.mode(WIFI_AP_STA);
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
     Serial.println("DEBUG: Iniciando escaneo de redes WiFi (4)...");
     WiFi.scanNetworks(true);
   }
-
-  request->send(204);
 }
 
 
