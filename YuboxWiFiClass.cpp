@@ -271,6 +271,19 @@ void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx,
     sprintf(key, "net/%u/psk", idx); r.psk = nvram.getString(key);
     sprintf(key, "net/%u/identity", idx); r.identity = nvram.getString(key);
     sprintf(key, "net/%u/password", idx); r.password = nvram.getString(key);
+    r._dirty = false;
+}
+
+void YuboxWiFiClass::_saveNetworksToNVRAM(void)
+{
+  Preferences nvram;
+  nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+  nvram.putInt("net/sel", (_selNetwork == -1) ? 0 : _selNetwork + 1);
+  nvram.putUInt("net/n", _savedNetworks.size());
+  for (auto i = 0; i < _savedNetworks.size(); i++) {
+    if (!_savedNetworks[i]._dirty) continue;
+    _saveOneNetworkToNVRAM(nvram, i+1, _savedNetworks[i]);
+  }
 }
 
 #define NVRAM_PUTSTRING(nvram, k, s) \
@@ -284,14 +297,15 @@ void YuboxWiFiClass::_saveOneNetworkToNVRAM(Preferences & nvram, uint32_t idx, Y
     sprintf(key, "net/%u/psk", idx); NVRAM_PUTSTRING(nvram, key, r.psk);
     sprintf(key, "net/%u/identity", idx); NVRAM_PUTSTRING(nvram, key, r.identity);
     sprintf(key, "net/%u/password", idx); NVRAM_PUTSTRING(nvram, key, r.password);
+    r._dirty = false;
 }
 
 void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
 {
   srv.on("/yubox-api/wificonfig/networks", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET, this, std::placeholders::_1));
-  //srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
-  //srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
@@ -364,7 +378,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
 {
   wl_status_t currNetStatus = WiFi.status();
   if (currNetStatus != WL_CONNECTED) {
-    request->send(404, "application/json", "{msg:\"No hay conexi\\u00f3nn actualmente activa\"}");
+    request->send(404, "application/json", "{\"msg\":\"No hay conexi\\u00f3nn actualmente activa\"}");
     return;
   }
 
@@ -396,6 +410,56 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
   serializeJson(json_doc, *response);
   request->send(response);
 }
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request)
+{
+  request->send(500, "application/json", "{\"msg\":\"No implementado\"}");
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request)
+{
+  wl_status_t currNetStatus = WiFi.status();
+  if (currNetStatus != WL_CONNECTED) {
+    request->send(404, "application/json", "{\"msg\":\"No hay conexi\\u00f3nn actualmente activa\"}");
+    return;
+  }
+
+  // Buscar cuál índice de red guardada hay que eliminar
+  String ssid = WiFi.SSID();
+  int idx = -1;
+  for (auto i = 0; i < _savedNetworks.size(); i++) {
+    if (_savedNetworks[i].ssid == ssid) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx != -1) {
+    Serial.print("DEBUG: se eliminan credenciales de red: "); Serial.println(ssid);
+
+    // Manipular el vector de redes para compactar
+    if (_selNetwork == idx) _selNetwork = -1;
+    if (idx < _savedNetworks.size() - 1) {
+      // Copiar último elemento encima del que se elimina
+      _savedNetworks[idx] = _savedNetworks[_savedNetworks.size() - 1];
+      _savedNetworks[idx]._dirty = true;
+    }
+    _savedNetworks.pop_back();
+
+    // Mandar a guardar el vector modificado
+    _saveNetworksToNVRAM();
+  }
+
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP_STA);
+  if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+    Serial.println("DEBUG: Iniciando escaneo de redes WiFi (4)...");
+    WiFi.scanNetworks(true);
+  }
+
+  request->send(204);
+}
+
+
 
 
 YuboxWiFiClass YuboxWiFi;

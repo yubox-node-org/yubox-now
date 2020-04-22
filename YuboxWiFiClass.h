@@ -18,6 +18,9 @@ typedef struct {
 
   // Los siguientes parámetros son para monitorear resultado de conexión a red
   uint32_t numFails;
+
+  // Indicar si el registro tiene que escribirse a la NVRAM
+  bool _dirty;
 } YuboxWiFi_nvramrec;
 
 typedef struct {
@@ -57,6 +60,7 @@ private:
   void _loadOneNetworkFromNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
   void _saveOneNetworkToNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
   void _loadSavedNetworksFromNVRAM(void);
+  void _saveNetworksToNVRAM(void);
   void _startWiFi(void);
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
