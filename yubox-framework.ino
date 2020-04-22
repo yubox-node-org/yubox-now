@@ -36,6 +36,6 @@ void loop()
 
 void notFound(AsyncWebServerRequest *request)
 {
-  request->send(404, "application/json", "{msg:\"El recurso indicado no existe o no ha sido implementado\"}");
+  request->send(404, "application/json", "{\"msg\":\"El recurso indicado no existe o no ha sido implementado\"}");
 }
 
