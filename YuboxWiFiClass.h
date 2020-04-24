@@ -57,6 +57,9 @@ private:
   YuboxWiFi_nvramrec _activeNetwork;
   bool _tryActiveNetworkFirst;
 
+  // Timers asociados a llamadas de métodos
+  TimerHandle_t _timer_wifiDisconnectRescan;
+
   String _getWiFiMAC(void);
   void _loadOneNetworkFromNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
   void _saveOneNetworkToNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
@@ -66,6 +69,8 @@ private:
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
   void _connectToActiveNetwork(void);
+
+  // Callbacks y timers
   void _cbHandler_WiFiEvent(WiFiEvent_t event);
 
   void _setupHTTPRoutes(AsyncWebServer &);
@@ -85,9 +90,10 @@ public:
   // Para estas funciones, la plantilla {MAC} se reemplazará con la cadena hex de la MAC WiFi.
   void setMDNSHostname(String &);
   void setAPName(String &);
+
+  static void _cbHandler_wifiDisconnectRescan(TimerHandle_t);
 };
 
 extern YuboxWiFiClass YuboxWiFi;
 
 #endif
-

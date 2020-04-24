@@ -16,6 +16,13 @@ YuboxWiFiClass::YuboxWiFiClass(void)
 {
   String tpl = "YUBOX-{MAC}";
 
+  _timer_wifiDisconnectRescan = xTimerCreate(
+    "YuboxWiFiClass_wifiDisconnectRescan",
+    pdMS_TO_TICKS(2000),
+    pdFALSE,
+    0,
+    &YuboxWiFiClass::_cbHandler_wifiDisconnectRescan);
+
   _scannedNetworks_timestamp = 0;
   setMDNSHostname(tpl);
   setAPName(tpl);
@@ -535,12 +542,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
   request->send(response);
 
   if (!clientError && !serverError) {
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_AP_STA);
-    if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
-      Serial.println("DEBUG: Iniciando escaneo de redes WiFi (4)...");
-      WiFi.scanNetworks(true);
-    }
+    xTimerStart(_timer_wifiDisconnectRescan, 0);
   }
 }
 
@@ -579,16 +581,18 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
 
   request->send(204);
 
+  xTimerStart(_timer_wifiDisconnectRescan, 0);
+}
+
+void YuboxWiFiClass::_cbHandler_wifiDisconnectRescan(TimerHandle_t)
+{
   WiFi.disconnect(true);
   WiFi.mode(WIFI_AP_STA);
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
-    Serial.println("DEBUG: Iniciando escaneo de redes WiFi (4)...");
+    Serial.println("DEBUG: Iniciando escaneo de redes WiFi (3)...");
     WiFi.scanNetworks(true);
   }
 }
 
 
-
-
 YuboxWiFiClass YuboxWiFi;
-
