@@ -102,6 +102,7 @@ void YuboxWiFiClass::_startWiFi(void)
   Serial.println("DEBUG: Iniciando modo dual WiFi (AP+STA)...");
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(_apName.c_str());
+  WiFi.setAutoReconnect(false);
 
   if (!MDNS.begin(_mdnsName.c_str())) {
     Serial.println("ERROR: no se puede iniciar mDNS para anunciar hostname!");
