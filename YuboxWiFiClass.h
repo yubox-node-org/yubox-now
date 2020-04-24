@@ -55,7 +55,8 @@ private:
 
   // Copia de las credenciales elegidas, para asegurar vida de cadenas
   YuboxWiFi_nvramrec _activeNetwork;
-  bool _tryActiveNetworkFirst;
+  YuboxWiFi_nvramrec _trialNetwork;
+  bool _useTrialNetworkFirst;
 
   // Timers asociados a llamadas de métodos
   TimerHandle_t _timer_wifiDisconnectRescan;

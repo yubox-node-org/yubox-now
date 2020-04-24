@@ -72,8 +72,9 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
       _collectScannedNetworks();
       if (WiFi.status() != WL_CONNECTED) {
         Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
-        if (_tryActiveNetworkFirst) {
-          _tryActiveNetworkFirst = false;
+        if (_useTrialNetworkFirst) {
+          _activeNetwork = _trialNetwork;
+          _useTrialNetworkFirst = false;
           _connectToActiveNetwork();
         } else {
           _chooseKnownScannedNetwork();
@@ -334,7 +335,12 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
   String currNet = WiFi.SSID();
   String currBssid = WiFi.BSSIDstr();
   wl_status_t currNetStatus = WiFi.status();
+  if (currNet.isEmpty()) {
+    currNet = _activeNetwork.ssid;
+  }
+Serial.printf("Red actual es: %s [%s] status %d\r\n", currNet.c_str(), currBssid.c_str(), currNetStatus);
 
+  bool redVista = false;
   for (int i = 0; i < _scannedNetworks.size(); i++) {
     if (i > 0) response->print(",");
 
@@ -353,9 +359,10 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
     // TODO: actualizar estado de bandera de conexión exitosa
     json_doc["connected"] = false;
     json_doc["connfail"] = false;
-    if (temp_ssid == currNet && temp_bssid == currBssid) {
+    if (temp_ssid == currNet && ((currBssid.isEmpty() && !redVista) || temp_bssid == currBssid)) {
       if (currNetStatus == WL_CONNECTED) json_doc["connected"] = true;
-      if (currNetStatus == WL_CONNECT_FAILED) json_doc["connfail"] = true;
+      if (currNetStatus == WL_CONNECT_FAILED || currNetStatus == WL_DISCONNECTED) json_doc["connfail"] = true;
+      redVista = true;
     }
 
     // Asignar clave conocida desde NVRAM si está disponible
@@ -521,8 +528,8 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
 
     // Mandar a guardar el vector modificado
     _saveNetworksToNVRAM();
-    _tryActiveNetworkFirst = true;
-    _activeNetwork = tempNetwork;
+    _useTrialNetworkFirst = true;
+    _trialNetwork = tempNetwork;
   }
 
   if (!clientError && !serverError) {
