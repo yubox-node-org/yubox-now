@@ -1,0 +1,165 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+import sys
+import os
+import os.path
+import shutil
+import configparser
+import pystache
+
+if len(sys.argv) < 3:
+    sys.stderr.write('Uso: %s /data/template/dir1:/data/template/dir2:(...) module1 (module2 ...)\n' % (sys.argv[0],))
+    exit(1)
+
+# Construir lista de directorios a usar para HTML
+template_dirs = []
+for d in sys.argv[1].split(os.pathsep):
+    if not os.path.isdir(d):
+        sys.stderr.write('WARN: ruta %s no existe o no es un directorio, se ignora.\n' % (d,))
+    else:
+        template_dirs.append(os.path.realpath(d))
+print ('Se buscará contenido para ensamblar en los siguientes directorios:')
+for d in template_dirs:
+    print ('\t%s' % (d,))
+if len(template_dirs) <= 0:
+    sys.stderr.write('\nFATAL: ninguno de los directorios en la lista es usable!\n')
+    exit(1)
+
+# Recolectar contenido y módulos disponibles de la lista de directorios
+content = {}
+modules = {}
+modules_enabled = []
+module_active = None
+for d in template_dirs:
+    ls = os.listdir(d)
+    for fn in ls:
+        # Ruta absoluta al recurso a analizar
+        filepath = os.path.join(d, fn)
+
+        #print ('DEBUG: %s' % (filepath))
+        if os.path.isdir(filepath):
+            # Este directorio podría ser un módulo. Se lee si tiene un module.ini
+            #print ('DEBUG: verificando si existe module.ini en %s' % (filepath,))
+            module_ini = os.path.join(filepath, 'module.ini')
+            if os.path.isfile(module_ini):
+                # Hay un module.ini presente. Se lo abre para agregar configuración
+                config = configparser.ConfigParser()
+                config.read(module_ini)
+                if not fn in modules:
+                    modules[fn] = {
+                        'module_name': fn,
+                        'templates': {}
+                    }
+                modules[fn]['module_path'] = filepath
+
+                # Cada sección del module.ini define un archivo final para el cual
+                # definir claves y valores
+                for tpl in config.sections():
+                    if not tpl in modules[fn]['templates']:
+                        modules[fn]['templates'][tpl] = {
+                            'module_content': None
+                        }
+                    for key in config[tpl]:
+                        modules[fn]['templates'][tpl]['module_'+key] = config[tpl][key]
+
+                # Dentro del directorio, además del module.ini hay archivos con
+                # los nombres del archivo final. Si existen, son la fuente del
+                # contenido de module_content
+                lsmod = os.listdir(filepath)
+                for fnmod in lsmod:
+                    if fnmod == 'module.ini':
+                        continue
+                    if not fnmod in modules[fn]['templates']:
+                        modules[fn]['templates'][fnmod] = {
+                            'module_content': None
+                        }
+                    modules[fn]['templates'][fnmod]['module_content_path'] = os.path.join(filepath, fnmod)
+        elif fn.endswith('.mustache'):
+            # Este archivo es una plantilla. Se agrega al contenido para ser parseado.
+            target = fn[:-9]    # Se quita la extensión .mustache
+            if not target in content:
+                content[target] = {
+                    'target': target
+                }
+            content[target]['template_path'] = filepath
+        else:
+            # Este archivo es un archivo a copiar directamente
+            if not fn in content:
+                content[fn] = {
+                    'target': fn
+                }
+            content[fn]['source_path'] = filepath
+
+# Reporte antes de generación
+print ('\nINFO: Módulos disponibles y habilitados en proyecto:')
+#print (modules)
+for m in modules:
+    print ('\n\tMódulo: %s' % (modules[m]['module_name']))
+    print ('\tProvee contenido para las siguientes plantillas:')
+    for tpl in modules[m]['templates']:
+        print ('\t\t%s : %s' % (tpl, modules[m]['templates'][tpl]['module_content_path']))
+print ('\nINFO: Contenido a copiar y parsear en proyecto:')
+#print (content)
+for t in content:
+    print ('\n\tArchivo: %s' % (content[t]['target']))
+    if 'template_path' in content[t]:
+        print ('\tTipo: plantilla')
+        print ('\tRuta: %s' % (content[t]['template_path'],))
+    if 'source_path' in content[t]:
+        print ('\tTipo: archivo copiado')
+        print ('\tRuta: %s' % (content[t]['source_path'],))
+
+# Leer lista del resto de parámetros para habilitar módulos
+for i in range(2, len(sys.argv)):
+    mod = sys.argv[i]
+    if mod.startswith('+'):
+        mod = mod[1:]
+        module_active = mod
+    if not mod in modules:
+        sys.stderr.write('\nFATAL: módulo %s no existe en lista de módulos!\n' % (mod,))
+        exit(1)
+    modules_enabled.append(mod)
+if len(modules_enabled) <= 0:
+    sys.stderr.write('\nFATAL: no hay módulos habilitados para proyecto!\n')
+    exit(1)
+if module_active is None:
+    module_active = modules_enabled[0]
+# El código javascript busca la clase set-active para activar esta pestaña inicialmente
+print ('\nINFO: habilitando módulo %s como módulo inicialmente activo' % (module_active,))
+modules[module_active]['module_active'] = 'set-active'
+
+# Para cada módulo se carga el archivo en la variable module_content
+for m in modules:
+    for tpl in modules[m]['templates']:
+        print ('INFO: cargando %s:%s desde %s ...' % (m, tpl, modules[m]['templates'][tpl]['module_content_path']))
+        with open(modules[m]['templates'][tpl]['module_content_path'], 'r') as f:
+            modules[m]['templates'][tpl]['module_content'] = f.read()
+
+# Finalmente se genera el contenido
+if not os.path.isdir('data'):
+    print ('INFO: creando directorio data ...')
+    os.mkdir('data')
+for t in content:
+    if 'source_path' in content[t]:
+        print ('INFO: COPIANDO archivo %s hacia data/%s ...' % (content[t]['source_path'], t))
+        shutil.copy(content[t]['source_path'], os.path.join('data', t))
+    elif 'template_path' in content[t]:
+        print ('INFO: PARSEANDO archivo %s hacia data/%s ...' % (content[t]['template_path'], t))
+        with open(content[t]['template_path'], 'r') as f:
+            tpl_content = f.read()
+        tpl_context = {
+            'modules': []
+        }
+        for m in modules_enabled:
+            modrow = {}
+            for k in modules[m]:
+                if k.startswith('module_'):
+                    modrow[k] = modules[m][k]
+            if t in modules[m]['templates']:
+                for k in modules[m]['templates'][t]:
+                    modrow[k] = modules[m]['templates'][t][k]
+            tpl_context['modules'].append(modrow)
+        tpl_render = pystache.render(tpl_content, tpl_context)
+        with open(os.path.join('data', t), 'w') as f:
+            f.write(tpl_render)

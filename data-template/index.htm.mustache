@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="shortcut icon" type="image/png" href="favicon.ico" />
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="bootstrap-4.4.1.min.css" />
+    <link rel="stylesheet" href="yuboxapp.css" />
+
+    <script src="jquery-3.4.1.min.js"></script>
+    <script src="bootstrap-4.4.1b.min.js"></script><!-- Debería ser bootstrap-4.4.1.bundle.min.js pero SPIFFS admite máx 31 caracteres -->
+    <script src="yuboxapp.js"></script>
+
+    <title>YUBOX - Configuración</title>
+  </head>
+  <body>
+    <header>
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="https://yubox.com">YUBOX</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav mr-auto nav" role="tablist" id="yuboxMainTab">
+          {{#modules}}
+            <li class="nav-item">
+              <a class="nav-link {{module_active}}" id="{{module_name}}-tab" data-toggle="tab" role="tab" aria-controls="{{module_name}}" aria-selected="false" href="#{{module_name}}">{{module_desc}}</a>
+            </li>
+          {{/modules}}
+          </ul>
+        </div>
+      </nav>
+    </header>
+    <main role="main" style="padding-top: 15px;">
+      <div class="container">
+        <!-- El siguiente div se clona para mostrar una alerta vía yuboxMostrarAlert() -->
+        <div class="alert alert-dismissible fade show yubox-alert-template" role="alert">
+          <!-- Ubicación donde estará el contenido de la alerta -->
+          <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="tab-content" id="yuboxMainTabContent">
+        {{#modules}}
+            <div id="{{module_name}}" role="tabpanel" aria-labelledby="{{module_name}}-tab" class="tab-pane fade">
+{{{module_content}}}
+            </div>
+        {{/modules}}
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

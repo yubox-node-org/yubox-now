@@ -1,0 +1,59 @@
+$(document).ready(function () {
+{{#modules}}
+    {{#module_setupjs}}
+    {{{module_setupjs}}}();
+    {{/module_setupjs}}
+{{/modules}}
+
+    // Mostrar el tab preparado por omisión como activo
+    $('ul#yuboxMainTab a.set-active').removeClass('set-active').tab('show');
+});
+
+{{#modules}}
+{{{module_content}}}
+{{/modules}}
+
+function yuboxAPI(s)
+{
+    var mockup =  window.location.pathname.startsWith('/yubox-mockup/');
+    return mockup
+        ? '/yubox-mockup/'+s+'.php'
+        : '/yubox-api/'+s;
+}
+
+function yuboxMostrarAlertText(alertstyle, text, timeout)
+{
+    var content = $('<span/>').text(text);
+    return yuboxMostrarAlert(alertstyle, content, timeout);
+}
+
+function yuboxMostrarAlert(alertstyle, content, timeout)
+{
+    return yuboxDlgMostrarAlert('main > div.container', alertstyle, content, timeout);
+}
+
+function yuboxDlgMostrarAlertText(basesel, alertstyle, text, timeout)
+{
+    var content = $('<span/>').text(text);
+    return yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout);
+}
+
+function yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)
+{
+    var al = $(basesel).children('div.alert.yubox-alert-template')
+        .clone()
+        .removeClass('yubox-alert-template')
+        .addClass('yubox-alert')
+        .addClass('alert-'+alertstyle);
+    al.find('button.close').before(content);
+
+    $(basesel).children('div.yubox-alert').remove();
+    $(basesel).children('div.alert.yubox-alert-template').after(al);
+    if (timeout != undefined) {
+        setTimeout(function() {
+            al.remove();
+        }, timeout);
+    }
+
+    return al;
+}

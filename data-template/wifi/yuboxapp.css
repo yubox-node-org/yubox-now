@@ -1,7 +1,3 @@
-div.yubox-alert-template {
-    display: none;
-}
-
 /* Estilos usados para mostrar la intensidad de la señal WiFi */
 svg.wifipower > rect {
     fill: #cce5ff;
