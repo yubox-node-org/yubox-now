@@ -66,7 +66,7 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
 
 void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
 {
-    Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
+    //Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
     switch(event) {
     case SYSTEM_EVENT_SCAN_DONE:
       _collectScannedNetworks();
@@ -339,7 +339,6 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
   if (currNet.isEmpty()) {
     currNet = _activeNetwork.ssid;
   }
-Serial.printf("Red actual es: %s [%s] status %d\r\n", currNet.c_str(), currBssid.c_str(), currNetStatus);
 
   bool redVista = false;
   for (int i = 0; i < _scannedNetworks.size(); i++) {
