@@ -24,8 +24,13 @@ void setup()
     return;
   }
 
+  // Activar y agregar todas las rutas que requieren autenticación
+  YuboxWebAuth.setEnabled(true);	// <-- activar explícitamente la autenticación
+  AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");
+  YuboxWebAuth.addManagedHandler(&h);
+
   YuboxWiFi.begin(server);
-  server.serveStatic("/", SPIFFS, "/");
+  YuboxWebAuth.begin(server);
   server.onNotFound(notFound);
   server.begin();
 }

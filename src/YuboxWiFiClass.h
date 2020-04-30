@@ -9,6 +9,8 @@
 
 #include <vector>
 
+#include "YuboxWebAuthClass.h"
+
 typedef struct {
   // Los siguientes 4 parámetros se leen de la NVRAM al arranque
   String ssid;

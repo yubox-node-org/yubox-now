@@ -328,6 +328,8 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
 {
+  YUBOX_RUN_AUTH(request);
+  
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(10));
 
@@ -399,6 +401,8 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request)
 {
+  YUBOX_RUN_AUTH(request);
+  
   wl_status_t currNetStatus = WiFi.status();
   if (currNetStatus != WL_CONNECTED) {
     request->send(404, "application/json", "{\"msg\":\"No hay conexi\\u00f3nn actualmente activa\"}");
@@ -436,6 +440,8 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request)
 {
+  YUBOX_RUN_AUTH(request);
+  
   bool clientError = false;
   bool serverError = false;
   String responseMsg = "";
@@ -555,6 +561,8 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request)
 {
+  YUBOX_RUN_AUTH(request);
+  
   wl_status_t currNetStatus = WiFi.status();
   if (currNetStatus != WL_CONNECTED) {
     request->send(404, "application/json", "{\"msg\":\"No hay conexi\\u00f3nn actualmente activa\"}");
