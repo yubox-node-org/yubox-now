@@ -137,6 +137,7 @@ for m in modules:
             modules[m]['templates'][tpl]['module_content'] = f.read()
 
 # Finalmente se genera el contenido
+manifest = []
 if not os.path.isdir('data'):
     print ('INFO: creando directorio data ...')
     os.mkdir('data')
@@ -163,3 +164,7 @@ for t in content:
         tpl_render = pystache.render(tpl_content, tpl_context)
         with open(os.path.join('data', t), 'w') as f:
             f.write(tpl_render)
+    manifest.append(t)
+with open(os.path.join('data', 'manifest.txt'), 'w') as f:
+    for t in manifest:
+        f.write('%s\n' % t)
