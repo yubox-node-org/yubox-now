@@ -5,7 +5,10 @@ Header('Content-Type: application/json');
 
 if (!isset($_SERVER['PATH_INFO'])) {
     Header('HTTP/1.1 400 Bad Request');
-    print json_encode('Se requiere indicar ruta');
+    print json_encode(array(
+        'success'   =>  FALSE,
+        'msg'       =>  'Se requiere indicar ruta'
+    ));
     exit();
 }
 
@@ -176,7 +179,10 @@ switch ($_SERVER['PATH_INFO']) {
         default:
             Header('HTTP/1.1 405 Method Not Allowed');
             Header('Allow: GET, PUT, DELETE');
-            print json_encode("Unimplemented request method");
+            print json_encode(array(
+                'success'   =>  FALSE,
+                'msg'       =>  'Unimplemented request method'
+            ));
             exit();
             break;
         }
