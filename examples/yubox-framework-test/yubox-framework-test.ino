@@ -6,6 +6,7 @@
 #include <ESPAsyncWebServer.h>
 
 #include "YuboxWiFiClass.h"
+#include "YuboxOTAClass.h"
 
 AsyncWebServer server(80);
 
@@ -31,6 +32,7 @@ void setup()
 
   YuboxWiFi.begin(server);
   YuboxWebAuth.begin(server);
+  YuboxOTA.begin(server);
   server.onNotFound(notFound);
   server.begin();
 }
@@ -43,4 +45,3 @@ void notFound(AsyncWebServerRequest *request)
 {
   request->send(404, "application/json", "{\"msg\":\"El recurso indicado no existe o no ha sido implementado\"}");
 }
-
