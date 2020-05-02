@@ -1,5 +1,8 @@
 #include "untar.h"
 
+void (*tinyUntarWriteCallback)( unsigned char* buff, size_t buffsize );
+int (*tinyUntarReadCallback)( unsigned char* buff, size_t buffsize );
+
 char *empty_string = "";
 entry_callbacks_t *read_tar_callbacks = NULL;
 unsigned char *read_buffer = NULL;

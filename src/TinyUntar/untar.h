@@ -11,8 +11,8 @@
 #define GET_NUM_BLOCKS(filesize) (int)ceil((double)filesize / (double)TAR_BLOCK_SIZE)
 
 
-void (*tinyUntarWriteCallback)( unsigned char* buff, size_t buffsize );
-int (*tinyUntarReadCallback)( unsigned char* buff, size_t buffsize );
+extern void (*tinyUntarWriteCallback)( unsigned char* buff, size_t buffsize );
+extern int (*tinyUntarReadCallback)( unsigned char* buff, size_t buffsize );
 
 //fread(buffer, 1, TAR_BLOCK_SIZE, fp);
 
@@ -113,8 +113,8 @@ struct entry_callbacks_s
 typedef struct entry_callbacks_s entry_callbacks_t;
 
 
-void (*tar_error_logger)(const char* subject, ...);
-void (*tar_debug_logger)(const char* subject, ...);
+extern void (*tar_error_logger)(const char* subject, ...);
+extern void (*tar_debug_logger)(const char* subject, ...);
 void tar_setup(  entry_callbacks_t *callbacks, void *context_data );
 void tar_abort( const char* msgstr, int iserror);
 int read_tar_data_block();
