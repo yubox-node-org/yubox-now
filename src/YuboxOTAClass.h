@@ -4,12 +4,21 @@
 #include <ESPAsyncWebServer.h>
 #include "YuboxWebAuthClass.h"
 
+#include "uzlib/uzlib.h"
+
 class YuboxOTAClass
 {
+private:
   // Rechazar el resto de los fragmentos de upload si primera revisión falla
   bool _uploadRejected;
+
+  struct uzlib_uncomp _uzLib_decomp;
+  unsigned char * _gz_srcdata;
+  unsigned char * _gz_dstdata;
+  unsigned char * _gz_dict;
+  unsigned long _gz_actualExpandedSize;
+  bool _gz_headerParsed;
   
-private:
   void _setupHTTPRoutes(AsyncWebServer &);
 
   void _routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServerRequest *);
