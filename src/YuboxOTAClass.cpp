@@ -44,8 +44,6 @@ void YuboxOTAClass::begin(AsyncWebServer & srv)
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
     String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
-  int r;
-
   //Serial.printf("DEBUG: tgzupload_handleUpload filename=%s index=%d data=%p len=%d final=%d\r\n",
   //  filename.c_str(), index, data, len, final ? 1 : 0);
 
@@ -65,6 +63,13 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
   }
   
   if (_uploadRejected) return;
+
+  _handle_tgzOTAchunk(index, data, len, final);
+}
+
+void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final)
+{
+  int r;
 
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
