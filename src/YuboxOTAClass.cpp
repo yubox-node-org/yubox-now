@@ -61,11 +61,6 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
     if (!YuboxWebAuth.authenticate((request))) {
       // Credenciales incorrectas
       _uploadRejected = true;
-    } else if (len >= 2 && !(data[0] == 0x1f && data[1] == 0x8b)) {
-      // A pesar del nombre, los datos no parecen ser un .tar.gz válido
-      _uploadRejected = true;
-
-      // Por ahora no manejo el caso en el cual el primer segmento es de menos de 2 bytes
     }
   }
   
