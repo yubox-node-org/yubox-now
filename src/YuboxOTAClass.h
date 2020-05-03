@@ -32,7 +32,7 @@ private:
 
   // Datos requeridos para manejar el parseo tar
   entry_callbacks_t _tarCB;             // Callbacks a llamar en cabecera, datos, final de archivos
-  unsigned int _tar_offset;             // Offset al siguiente segmento a ofrecer a biblioteca tar
+  unsigned int _tar_available;          // Cantidad de bytes de datos expandidos que son válidos
   unsigned int _tar_emptyChunk;         // Número de bloques de 512 bytes llenos de ceros contiguos
   bool _tar_eof;                        // Bandera de si se llegó a fin normal de tar
 
