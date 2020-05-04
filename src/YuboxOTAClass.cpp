@@ -632,7 +632,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   if (!clientError && !serverError) {
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
-    xTimerStart(_timer_restartYUBOX, 0);
+    if (_tgzupload_foundFirmware) xTimerStart(_timer_restartYUBOX, 0);
   }
 
   _uploadRejected = false;
