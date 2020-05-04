@@ -110,6 +110,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_responseMsg = "";
     _tgzupload_currentOp = OTA_IDLE;
     _tgzupload_foundFirmware = false;
+    _tgzupload_canFlash = false;
   }
 
   // Agregar búfer recibido al búfer de entrada, notando si debe empezarse a parsear gzip
@@ -237,9 +238,27 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     }
   }
 
-  if (!_uploadRejected && _tar_eof) {
-    // TODO: condición de fin de datos subidos
+  if (_tar_eof) {
+    if (!_uploadRejected && _tgzupload_canFlash) {
+      // Finalizar operación de flash de firmware, si es necesaria
+      if (!Update.end()) {
+        _tgzupload_serverError = true;
+        _tgzupload_responseMsg = _updater_errstr(Update.getError());
+        _uploadRejected = true;
+      } else if (!Update.isFinished()) {
+        _tgzupload_serverError = true;
+        _tgzupload_responseMsg = "Actualización no ha podido finalizarse: ";
+        _tgzupload_responseMsg += _updater_errstr(Update.getError());
+        _uploadRejected = true;
+      }
+    }
+
+    if (_uploadRejected && _tgzupload_foundFirmware) {
+      // Abortar la operación de firmware si se estaba escribiendo
+      Update.abort();
+    }
   }
+
 
   if (_uploadRejected || final) {
     tar_abort("tar cleanup", 0);
@@ -370,16 +389,7 @@ int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_inde
     break;
   case OTA_FIRMWARE_FLASH:
     _tgzupload_currentOp = OTA_IDLE;
-    if (!Update.end()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _updater_errstr(Update.getError());
-      _uploadRejected = true;
-    } else if (!Update.isFinished()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = "Actualización no ha podido finalizarse: ";
-      _tgzupload_responseMsg += _updater_errstr(Update.getError());
-      _uploadRejected = true;
-    }
+    _tgzupload_canFlash = true;
     break;
   }
 

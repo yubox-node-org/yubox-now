@@ -44,6 +44,7 @@ private:
   // Operación de actualización en sí
   YuboxOTA_operationWithFile _tgzupload_currentOp;
   bool _tgzupload_foundFirmware;
+  bool _tgzupload_canFlash;
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
