@@ -40,6 +40,13 @@ YuboxOTAClass::YuboxOTAClass(void)
   _tarCB.data_cb = ::_tar_cb_gotEntryData;
   _tarCB.end_cb = ::_tar_cb_gotEntryEnd;
   tinyUntarReadCallback = ::_tar_cb_feedFromBuffer;
+
+  _timer_restartYUBOX = xTimerCreate(
+    "YuboxOTAClass_restartYUBOX",
+    pdMS_TO_TICKS(2000),
+    pdFALSE,
+    0,
+    &YuboxOTAClass::_cbHandler_restartYUBOX);
 }
 
 void YuboxOTAClass::begin(AsyncWebServer & srv)
@@ -625,6 +632,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   if (!clientError && !serverError) {
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
+    xTimerStart(_timer_restartYUBOX, 0);
   }
 
   _uploadRejected = false;
@@ -641,6 +649,12 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   serializeJson(json_doc, *response);
   request->send(response);
+}
+
+void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
+{
+  Serial.println("DEBUG: reiniciando luego de cargar firmware...");
+  ESP.restart();
 }
 
 YuboxOTAClass YuboxOTA;

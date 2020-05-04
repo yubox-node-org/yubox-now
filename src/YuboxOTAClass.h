@@ -50,6 +50,7 @@ private:
   bool _tgzupload_canFlash;
   File _tgzupload_rsrc;
   std::vector<String> _tgzupload_filelist;
+  TimerHandle_t _timer_restartYUBOX;
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
@@ -75,6 +76,8 @@ public:
   friend int _tar_cb_gotEntryHeader(header_translated_t *, int, void *);
   friend int _tar_cb_gotEntryData(header_translated_t *, int, void *, unsigned char *, int);
   friend int _tar_cb_gotEntryEnd(header_translated_t *, int, void *);
+
+  static void _cbHandler_restartYUBOX(TimerHandle_t);
 };
 
 extern YuboxOTAClass YuboxOTA;
