@@ -93,6 +93,8 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
+    _tgzupload_rawBytesReceived = 0;
+
     /* El valor de GZIP_BUFF_SIZE es suficiente para al menos dos fragmentos de datos entrantes.
      * Se descomprime únicamente TAR_BLOCK_SIZE a la vez para simplificar el código y para que
      * no ocurra que se acabe el búfer de datos de entrada antes de llenar el búfer de salida.
@@ -125,6 +127,8 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_canFlash = false;
     _tgzupload_filelist.clear();
   }
+
+  _tgzupload_rawBytesReceived += len;
 
   // Agregar búfer recibido al búfer de entrada, notando si debe empezarse a parsear gzip
   unsigned int used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
@@ -625,11 +629,12 @@ void YuboxOTAClass::_emitUploadEvent_FileStart(const char * filename, bool isfir
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(4));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
   json_doc["event"] = "uploadFileStart";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
   json_doc["total"] = size;
+  json_doc["currupload"] = _tgzupload_rawBytesReceived;
   serializeJson(json_doc, s);
   _pEvents->send(s.c_str(), "uploadFileStart");
 }
@@ -642,12 +647,13 @@ void YuboxOTAClass::_emitUploadEvent_FileProgress(const char * filename, bool is
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(6));
   json_doc["event"] = "uploadFileProgress";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
   json_doc["current"] = offset;
   json_doc["total"] = size;
+  json_doc["currupload"] = _tgzupload_rawBytesReceived;
   serializeJson(json_doc, s);
   _pEvents->send(s.c_str(), "uploadFileProgress");
 }
@@ -659,11 +665,12 @@ void YuboxOTAClass::_emitUploadEvent_FileEnd(const char * filename, bool isfirmw
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(4));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
   json_doc["event"] = "uploadFileEnd";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
   json_doc["total"] = size;
+  json_doc["currupload"] = _tgzupload_rawBytesReceived;
   serializeJson(json_doc, s);
   _pEvents->send(s.c_str(), "uploadFileEnd");
 }

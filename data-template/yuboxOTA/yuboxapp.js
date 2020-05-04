@@ -79,9 +79,11 @@ function yuboxOTAUpload_init()
         sse.addEventListener('uploadFileStart', function (e) {
             var data = $.parseJSON(e.data);
             var totalKB = data.total / 1024.0;
+            var currUploadKB = data.currupload / 1024.0;
             otapane.find('div.upload-progress span#filename').text(data.filename);
             otapane.find('div.upload-progress span#current').text(0);
             otapane.find('div.upload-progress span#total').text(totalKB.toFixed(1));
+            otapane.find('div.upload-progress span#currupload').text(currUploadKB.toFixed(1));
             otapane.find('div.progress-bar')
                 .removeClass('bg-info bg-danger')
                 .addClass(data.firmware ? 'bg-danger' : 'bg-info');
@@ -91,17 +93,21 @@ function yuboxOTAUpload_init()
             var data = $.parseJSON(e.data);
             var totalKB = data.total / 1024.0;
             var currKB = data.current / 1024.0;
+            var currUploadKB = data.currupload / 1024.0;
             otapane.find('div.upload-progress span#filename').text(data.filename);
             otapane.find('div.upload-progress span#total').text(totalKB.toFixed(1));
             otapane.find('div.upload-progress span#current').text(currKB.toFixed(1));
+            otapane.find('div.upload-progress span#currupload').text(currUploadKB.toFixed(1));
             yuboxOTAUpload_setProgressBar(totalKB > 0.0 ? 100.0 * currKB / totalKB : 0);
         });
         sse.addEventListener('uploadFileEnd', function (e) {
             var data = $.parseJSON(e.data);
             var totalKB = data.total / 1024.0;
+            var currUploadKB = data.currupload / 1024.0;
             otapane.find('div.upload-progress span#filename').text(data.filename);
             otapane.find('div.upload-progress span#current').text(totalKB.toFixed(1));
             otapane.find('div.upload-progress span#total').text(totalKB.toFixed(1));
+            otapane.find('div.upload-progress span#currupload').text(currUploadKB.toFixed(1));
             yuboxOTAUpload_setProgressBar(100);
         });
         otapane.data('sse', sse);

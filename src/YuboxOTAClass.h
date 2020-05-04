@@ -25,6 +25,9 @@ private:
   // Rechazar el resto de los fragmentos de upload si primera revisión falla
   bool _uploadRejected;
 
+  // Cuenta de datos subidos del archivo para reportar en eventos
+  unsigned long _tgzupload_rawBytesReceived;
+
   // Datos requeridos para manejar la descompresión gzip
   struct uzlib_uncomp _uzLib_decomp;    // Estructura de descompresión de uzlib
   unsigned char * _gz_srcdata;          // Memoria de búfer de datos comprimidos
