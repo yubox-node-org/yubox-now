@@ -9,6 +9,9 @@ extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
+#include "FS.h"
+#include <vector>
+
 typedef enum
 {
   OTA_IDLE,           // Código ocioso, o el archivo está siendo ignorado
@@ -45,6 +48,8 @@ private:
   YuboxOTA_operationWithFile _tgzupload_currentOp;
   bool _tgzupload_foundFirmware;
   bool _tgzupload_canFlash;
+  File _tgzupload_rsrc;
+  std::vector<String> _tgzupload_filelist;
 
   void _setupHTTPRoutes(AsyncWebServer &);
 

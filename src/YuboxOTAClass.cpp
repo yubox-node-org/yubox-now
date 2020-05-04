@@ -13,6 +13,7 @@ extern "C" {
 }
 
 #include <Update.h>
+#include "SPIFFS.h"
 
 #define GZIP_DICT_SIZE 32768
 #define GZIP_BUFF_SIZE 4096
@@ -111,6 +112,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_currentOp = OTA_IDLE;
     _tgzupload_foundFirmware = false;
     _tgzupload_canFlash = false;
+    _tgzupload_filelist.clear();
   }
 
   // Agregar búfer recibido al búfer de entrada, notando si debe empezarse a parsear gzip
@@ -208,8 +210,11 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
             //Serial.printf("DEBUG: se alcanzó el final del tar actual=%lu esperado=%lu\r\n", _gz_actualExpandedSize, gz_expectedExpandedSize);
           } else if (r != 0) {
             Serial.printf("ERR: fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu\r\n", _tar_available, r, _tar_emptyChunk, _gz_actualExpandedSize, gz_expectedExpandedSize);
-            _tgzupload_clientError = true;
-            _tgzupload_responseMsg = "Archivo corrupto o truncado (tar), no puede procesarse";
+            // No sobreescribir mensaje raíz si ha sido ya asignado
+            if (!_tgzupload_clientError && !_tgzupload_serverError) {
+              _tgzupload_clientError = true;
+              _tgzupload_responseMsg = "Archivo corrupto o truncado (tar), no puede procesarse";
+            }
             _uploadRejected = true;
           } else {
             //Serial.printf("DEBUG: luego de parseo tar: _tar_available=%u\r\n", _tar_available);
@@ -253,12 +258,104 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       }
     }
 
+    if (!_uploadRejected) {
+      File h;
+      std::vector<String>::iterator it;
+      std::vector<String> old_filelist;
+      String s, sn;
+
+      // Cargar lista de archivos viejos a preservar
+      if (SPIFFS.exists("/manifest.txt")) {
+        // Lista de archivos a preservar para rollback futuro
+        // Se asume archivo de texto ordinario con líneas formato UNIX
+        h = SPIFFS.open("/manifest.txt", FILE_READ);
+        if (!h) {
+          Serial.println("WARN: /manifest.txt existe pero no se puede abrir. Los archivos de recursos podrían ser sobreescritos.");
+        } else {
+          bool selfref = false;
+          while (h.available()) {
+            String s = h.readStringUntil('\n');
+            if (s == "manifest.txt") selfref = true;
+            sn = "/"; sn += s;
+            if (!SPIFFS.exists(sn)) {
+              // Si el archivo no existe pero existe el correspondiente .gz se arregla aquí
+              sn += ".gz";
+              if (SPIFFS.exists(sn)) {
+                s += ".gz";
+                old_filelist.push_back(s);
+              } else {
+                Serial.printf("WARN: %s no existe de forma ordinaria o comprimida, se omite!\r\n", s.c_str());
+              }
+            } else {
+              // Archivo existe ordinariamente
+              old_filelist.push_back(s);
+            }
+          }
+          h.close();
+          if (!selfref) old_filelist.push_back("manifest.txt");
+        }
+      } else {
+        Serial.println("WARN: /manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
+      }
+
+      // Se BORRA cualquier archivo que empiece con el prefijo "b," reservado para rollback
+      std::vector<String> del_filelist;
+      h = SPIFFS.open("/");
+      if (!h) {
+        Serial.println("WARN: no es posible listar directorio.");
+      } else if (!h.isDirectory()) {
+        Serial.println("WARN: no es posible listar no-directorio.");
+      } else {
+        File f = h.openNextFile();
+        while (f) {
+          s = f.name();
+          f.close();
+          Serial.printf("DEBUG: listado %s\r\n", s.c_str());
+          if (s.startsWith("/b,")) {
+            Serial.println("DEBUG: se agrega a lista a borrar...");
+            del_filelist.push_back(s);
+          }
+
+          f = h.openNextFile();
+        }
+        h.close();
+      }
+      for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
+        Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
+        if (!SPIFFS.remove(*it)) {
+          Serial.printf("WARN: no se pudo borrar %s !\r\n", it->c_str());
+        }
+      }
+      del_filelist.clear();
+
+      // Se RENOMBRA todos los archivos en old_filelist con prefijo "b,"
+      for (it = old_filelist.begin(); it != old_filelist.end(); it++) {
+        s = "/"; s += *it;    // Ruta original del archivo
+        sn = "/b,"; sn += *it; // Ruta de respaldo del archivo
+        Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
+        if (!SPIFFS.rename(s, sn)) {
+          Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
+        }
+      }
+      old_filelist.clear();
+
+      // Se RENOMBRA todos los archivos en _tgzupload_filelist quitando prefijo "n,"
+      for (it = _tgzupload_filelist.begin(); it != _tgzupload_filelist.end(); it++) {
+        s = "/n,"; s += *it;  // Ruta temporal del archivo
+        sn = "/"; sn += *it;   // Ruta definitiva del archivo
+        Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
+        if (!SPIFFS.rename(s, sn)) {
+          Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
+        }
+      }
+      _tgzupload_filelist.clear();
+    }
+
     if (_uploadRejected && _tgzupload_foundFirmware) {
       // Abortar la operación de firmware si se estaba escribiendo
       Update.abort();
     }
   }
-
 
   if (_uploadRejected || final) {
     tar_abort("tar cleanup", 0);
@@ -331,6 +428,31 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
           _tgzupload_currentOp = OTA_FIRMWARE_FLASH;
         }
       }
+    } else {
+      Serial.printf("DEBUG: detectado archivo ordinario: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
+      // Verificar si tengo suficiente espacio en SPIFFS para este archivo
+      if (SPIFFS.totalBytes() < SPIFFS.usedBytes() + hdr->filesize) {
+        Serial.printf("ERR: no hay suficiente espacio: total=%lu usado=%u\r\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+        // No hay suficiente espacio para escribir este archivo
+        _tgzupload_serverError = true;
+        _tgzupload_responseMsg = "No hay suficiente espacio en SPIFFS para archivo: ";
+        _tgzupload_responseMsg += hdr->filename;
+        _uploadRejected = true;
+      } else {
+        // Abrir archivo y agregarlo a lista de archivos a procesar al final
+        String tmpname = "/n,"; tmpname += hdr->filename;
+        Serial.printf("DEBUG: abriendo archivo %s ...\r\n", tmpname.c_str());
+        _tgzupload_rsrc = SPIFFS.open(tmpname, FILE_WRITE);
+        if (!_tgzupload_rsrc) {
+          _tgzupload_serverError = true;
+          _tgzupload_responseMsg = "Fallo al abrir archivo para escribir: ";
+          _tgzupload_responseMsg += hdr->filename;
+          _uploadRejected = true;
+        } else {
+          _tgzupload_filelist.push_back((String)(hdr->filename));
+          _tgzupload_currentOp = OTA_SPIFFS_WRITE;
+        }
+      }
     }
     break;
 /*
@@ -353,14 +475,30 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
 
 int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_index, unsigned char * block, int size)
 {
-  //Serial.write(block, size);
+  size_t r;
+
   switch (_tgzupload_currentOp) {
   case OTA_SPIFFS_WRITE:
-    // TODO: implementar
+    // Esto asume que el archivo ya fue abierto previamente
+    while (size > 0) {
+      Serial.print(".");
+      r = _tgzupload_rsrc.write(block, size);
+      if (r == 0) {
+        _tgzupload_rsrc.close();
+        _tgzupload_serverError = true;
+        _tgzupload_responseMsg = "Fallo al escribir archivo: ";
+        _tgzupload_responseMsg += hdr->filename;
+        _uploadRejected = true;
+        _tgzupload_currentOp = OTA_IDLE;
+        break;
+      }
+      size -= r;
+      block += r;
+    }
     break;
   case OTA_FIRMWARE_FLASH:
     while (size > 0) {
-      size_t r = Update.write(block, size);
+      r = Update.write(block, size);
       if (r == 0) {
         _tgzupload_serverError = true;
         _tgzupload_responseMsg = _updater_errstr(Update.getError());
@@ -384,8 +522,10 @@ int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_inde
   //Serial.printf("\r\nDEBUG: _tar_cb_gotEntryEnd: %s FINAL\r\n", hdr->filename);
   switch (_tgzupload_currentOp) {
   case OTA_SPIFFS_WRITE:
+    // Esto asume que el archivo todavía sigue abierto
+    Serial.println("(cerrando)");
     _tgzupload_currentOp = OTA_IDLE;
-    // TODO: implementar
+    _tgzupload_rsrc.close();
     break;
   case OTA_FIRMWARE_FLASH:
     _tgzupload_currentOp = OTA_IDLE;
