@@ -49,8 +49,12 @@ private:
   bool _tgzupload_foundFirmware;
   bool _tgzupload_canFlash;
   File _tgzupload_rsrc;
+  unsigned long _tgzupload_bytesWritten;
   std::vector<String> _tgzupload_filelist;
   TimerHandle_t _timer_restartYUBOX;
+
+  AsyncEventSource * _pEvents;
+  unsigned long _tgzupload_lastEventSent;
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
@@ -68,6 +72,9 @@ private:
   int _tar_cb_gotEntryData(header_translated_t *, int, unsigned char *, int);
   int _tar_cb_gotEntryEnd(header_translated_t *, int);
 
+  void _emitUploadEvent_FileStart(const char * filename, bool isfirmware, unsigned long size);
+  void _emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset);
+  void _emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size);
 public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);

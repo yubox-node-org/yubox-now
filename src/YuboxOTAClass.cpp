@@ -40,6 +40,7 @@ YuboxOTAClass::YuboxOTAClass(void)
   _tarCB.data_cb = ::_tar_cb_gotEntryData;
   _tarCB.end_cb = ::_tar_cb_gotEntryEnd;
   tinyUntarReadCallback = ::_tar_cb_feedFromBuffer;
+  _pEvents = NULL;
 
   _timer_restartYUBOX = xTimerCreate(
     "YuboxOTAClass_restartYUBOX",
@@ -55,6 +56,9 @@ void YuboxOTAClass::begin(AsyncWebServer & srv)
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST, this, std::placeholders::_1),
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload, this, std::placeholders::_1,
       std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+  _pEvents = new AsyncEventSource("/yubox-api/yuboxOTA/events");
+  YuboxWebAuth.addManagedHandler(_pEvents);
+  srv.addHandler(_pEvents);
 }
 
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
@@ -317,9 +321,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
         while (f) {
           s = f.name();
           f.close();
-          Serial.printf("DEBUG: listado %s\r\n", s.c_str());
+          //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
           if (s.startsWith("/b,")) {
-            Serial.println("DEBUG: se agrega a lista a borrar...");
+            //Serial.println("DEBUG: se agrega a lista a borrar...");
             del_filelist.push_back(s);
           }
 
@@ -328,7 +332,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
         h.close();
       }
       for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
-        Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
+        //Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
         if (!SPIFFS.remove(*it)) {
           Serial.printf("WARN: no se pudo borrar %s !\r\n", it->c_str());
         }
@@ -339,7 +343,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       for (it = old_filelist.begin(); it != old_filelist.end(); it++) {
         s = "/"; s += *it;    // Ruta original del archivo
         sn = "/b,"; sn += *it; // Ruta de respaldo del archivo
-        Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
+        //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
         if (!SPIFFS.rename(s, sn)) {
           Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
         }
@@ -350,7 +354,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       for (it = _tgzupload_filelist.begin(); it != _tgzupload_filelist.end(); it++) {
         s = "/n,"; s += *it;  // Ruta temporal del archivo
         sn = "/"; sn += *it;   // Ruta definitiva del archivo
-        Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
+        //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
         if (!SPIFFS.rename(s, sn)) {
           Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
         }
@@ -433,10 +437,12 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
           _uploadRejected = true;
         } else {
           _tgzupload_currentOp = OTA_FIRMWARE_FLASH;
+          _tgzupload_bytesWritten = 0;
+          _emitUploadEvent_FileStart(hdr->filename, true, hdr->filesize);
         }
       }
     } else {
-      Serial.printf("DEBUG: detectado archivo ordinario: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
+      //Serial.printf("DEBUG: detectado archivo ordinario: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
       // Verificar si tengo suficiente espacio en SPIFFS para este archivo
       if (SPIFFS.totalBytes() < SPIFFS.usedBytes() + hdr->filesize) {
         Serial.printf("ERR: no hay suficiente espacio: total=%lu usado=%u\r\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
@@ -448,7 +454,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
       } else {
         // Abrir archivo y agregarlo a lista de archivos a procesar al final
         String tmpname = "/n,"; tmpname += hdr->filename;
-        Serial.printf("DEBUG: abriendo archivo %s ...\r\n", tmpname.c_str());
+        //Serial.printf("DEBUG: abriendo archivo %s ...\r\n", tmpname.c_str());
         _tgzupload_rsrc = SPIFFS.open(tmpname, FILE_WRITE);
         if (!_tgzupload_rsrc) {
           _tgzupload_serverError = true;
@@ -458,6 +464,8 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
         } else {
           _tgzupload_filelist.push_back((String)(hdr->filename));
           _tgzupload_currentOp = OTA_SPIFFS_WRITE;
+          _tgzupload_bytesWritten = 0;
+          _emitUploadEvent_FileStart(hdr->filename, false, hdr->filesize);
         }
       }
     }
@@ -488,7 +496,6 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
   case OTA_SPIFFS_WRITE:
     // Esto asume que el archivo ya fue abierto previamente
     while (size > 0) {
-      Serial.print(".");
       r = _tgzupload_rsrc.write(block, size);
       if (r == 0) {
         _tgzupload_rsrc.close();
@@ -499,6 +506,8 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
         _tgzupload_currentOp = OTA_IDLE;
         break;
       }
+      _tgzupload_bytesWritten += r;
+      _emitUploadEvent_FileProgress(hdr->filename, false, hdr->filesize, _tgzupload_bytesWritten);
       size -= r;
       block += r;
     }
@@ -514,6 +523,8 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
         _tgzupload_currentOp = OTA_IDLE;
         break;
       }
+      _tgzupload_bytesWritten += r;
+      _emitUploadEvent_FileProgress(hdr->filename, true, hdr->filesize, _tgzupload_bytesWritten);
       size -= r;
       block += r;
     }
@@ -530,13 +541,14 @@ int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_inde
   switch (_tgzupload_currentOp) {
   case OTA_SPIFFS_WRITE:
     // Esto asume que el archivo todavía sigue abierto
-    Serial.println("(cerrando)");
     _tgzupload_currentOp = OTA_IDLE;
     _tgzupload_rsrc.close();
+    _emitUploadEvent_FileEnd(hdr->filename, false, hdr->filesize);
     break;
   case OTA_FIRMWARE_FLASH:
     _tgzupload_currentOp = OTA_IDLE;
     _tgzupload_canFlash = true;
+    _emitUploadEvent_FileEnd(hdr->filename, true, hdr->filesize);
     break;
   }
 
@@ -606,6 +618,57 @@ int _tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_index, void * conte
   return ota->_tar_cb_gotEntryEnd(hdr, entry_index);
 }
 
+void YuboxOTAClass::_emitUploadEvent_FileStart(const char * filename, bool isfirmware, unsigned long size)
+{
+  if (_pEvents == NULL) return;
+  if (_pEvents->count() <= 0) return;
+
+  _tgzupload_lastEventSent = millis();
+  String s;
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(4));
+  json_doc["event"] = "uploadFileStart";
+  json_doc["filename"] = filename;
+  json_doc["firmware"] = isfirmware;
+  json_doc["total"] = size;
+  serializeJson(json_doc, s);
+  _pEvents->send(s.c_str(), "uploadFileStart");
+}
+
+void YuboxOTAClass::_emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset)
+{
+  if (_pEvents == NULL) return;
+  if (_pEvents->count() <= 0) return;
+  if (millis() - _tgzupload_lastEventSent < 400) return;
+
+  _tgzupload_lastEventSent = millis();
+  String s;
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
+  json_doc["event"] = "uploadFileProgress";
+  json_doc["filename"] = filename;
+  json_doc["firmware"] = isfirmware;
+  json_doc["current"] = offset;
+  json_doc["total"] = size;
+  serializeJson(json_doc, s);
+  _pEvents->send(s.c_str(), "uploadFileProgress");
+}
+
+void YuboxOTAClass::_emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size)
+{
+  if (_pEvents == NULL) return;
+  if (_pEvents->count() <= 0) return;
+
+  _tgzupload_lastEventSent = millis();
+  String s;
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(4));
+  json_doc["event"] = "uploadFileEnd";
+  json_doc["filename"] = filename;
+  json_doc["firmware"] = isfirmware;
+  json_doc["total"] = size;
+  serializeJson(json_doc, s);
+  _pEvents->send(s.c_str(), "uploadFileEnd");
+}
+
+
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServerRequest * request)
 {
   /* La macro YUBOX_RUN_AUTH no es adecuada aquí porque el manejador de upload se ejecuta primero
@@ -653,7 +716,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
 void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
-  Serial.println("DEBUG: reiniciando luego de cargar firmware...");
+  //Serial.println("DEBUG: reiniciando luego de cargar firmware...");
   ESP.restart();
 }
 
