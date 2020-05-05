@@ -54,6 +54,7 @@ private:
   File _tgzupload_rsrc;
   unsigned long _tgzupload_bytesWritten;
   std::vector<String> _tgzupload_filelist;
+  bool _tgzupload_hasManifest;
   TimerHandle_t _timer_restartYUBOX;
 
   AsyncEventSource * _pEvents;
@@ -78,6 +79,10 @@ private:
   void _emitUploadEvent_FileStart(const char * filename, bool isfirmware, unsigned long size);
   void _emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset);
   void _emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size);
+
+  void _deleteFilesWithPrefix(const char *);
+  void _changeFileListPrefix(std::vector<String> &, const char *, const char *);
+  void _loadManifest(std::vector<String> &);
 public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);

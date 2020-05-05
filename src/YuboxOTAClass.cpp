@@ -125,6 +125,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_currentOp = OTA_IDLE;
     _tgzupload_foundFirmware = false;
     _tgzupload_canFlash = false;
+    _tgzupload_hasManifest = false;
     _tgzupload_filelist.clear();
   }
 
@@ -259,6 +260,13 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   }
 
   if (_tar_eof) {
+    if (!_tgzupload_hasManifest) {
+      // No existe manifest.txt, esto no era un targz de firmware
+      _tgzupload_clientError = true;
+      _tgzupload_responseMsg = "No se encuentra manifest.txt, archivo subido no es un firmware";
+      _uploadRejected = true;
+    }
+
     if (!_uploadRejected && _tgzupload_canFlash) {
       // Finalizar operación de flash de firmware, si es necesaria
       if (!Update.end()) {
@@ -274,101 +282,31 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     }
 
     if (!_uploadRejected) {
-      File h;
-      std::vector<String>::iterator it;
       std::vector<String> old_filelist;
-      String s, sn;
 
       // Cargar lista de archivos viejos a preservar
-      if (SPIFFS.exists("/manifest.txt")) {
-        // Lista de archivos a preservar para rollback futuro
-        // Se asume archivo de texto ordinario con líneas formato UNIX
-        h = SPIFFS.open("/manifest.txt", FILE_READ);
-        if (!h) {
-          Serial.println("WARN: /manifest.txt existe pero no se puede abrir. Los archivos de recursos podrían ser sobreescritos.");
-        } else {
-          bool selfref = false;
-          while (h.available()) {
-            String s = h.readStringUntil('\n');
-            if (s == "manifest.txt") selfref = true;
-            sn = "/"; sn += s;
-            if (!SPIFFS.exists(sn)) {
-              // Si el archivo no existe pero existe el correspondiente .gz se arregla aquí
-              sn += ".gz";
-              if (SPIFFS.exists(sn)) {
-                s += ".gz";
-                old_filelist.push_back(s);
-              } else {
-                Serial.printf("WARN: %s no existe de forma ordinaria o comprimida, se omite!\r\n", s.c_str());
-              }
-            } else {
-              // Archivo existe ordinariamente
-              old_filelist.push_back(s);
-            }
-          }
-          h.close();
-          if (!selfref) old_filelist.push_back("manifest.txt");
-        }
-      } else {
-        Serial.println("WARN: /manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
-      }
+      _loadManifest(old_filelist);
 
       // Se BORRA cualquier archivo que empiece con el prefijo "b," reservado para rollback
-      std::vector<String> del_filelist;
-      h = SPIFFS.open("/");
-      if (!h) {
-        Serial.println("WARN: no es posible listar directorio.");
-      } else if (!h.isDirectory()) {
-        Serial.println("WARN: no es posible listar no-directorio.");
-      } else {
-        File f = h.openNextFile();
-        while (f) {
-          s = f.name();
-          f.close();
-          //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
-          if (s.startsWith("/b,")) {
-            //Serial.println("DEBUG: se agrega a lista a borrar...");
-            del_filelist.push_back(s);
-          }
-
-          f = h.openNextFile();
-        }
-        h.close();
-      }
-      for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
-        //Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
-        if (!SPIFFS.remove(*it)) {
-          Serial.printf("WARN: no se pudo borrar %s !\r\n", it->c_str());
-        }
-      }
-      del_filelist.clear();
+      _deleteFilesWithPrefix("b,");
 
       // Se RENOMBRA todos los archivos en old_filelist con prefijo "b,"
-      for (it = old_filelist.begin(); it != old_filelist.end(); it++) {
-        s = "/"; s += *it;    // Ruta original del archivo
-        sn = "/b,"; sn += *it; // Ruta de respaldo del archivo
-        //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
-        if (!SPIFFS.rename(s, sn)) {
-          Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
-        }
-      }
+      _changeFileListPrefix(old_filelist, "", "b,");
       old_filelist.clear();
 
       // Se RENOMBRA todos los archivos en _tgzupload_filelist quitando prefijo "n,"
-      for (it = _tgzupload_filelist.begin(); it != _tgzupload_filelist.end(); it++) {
-        s = "/n,"; s += *it;  // Ruta temporal del archivo
-        sn = "/"; sn += *it;   // Ruta definitiva del archivo
-        //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
-        if (!SPIFFS.rename(s, sn)) {
-          Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
-        }
-      }
+      _changeFileListPrefix(_tgzupload_filelist, "n,", "");
       _tgzupload_filelist.clear();
     }
 
-    if (_uploadRejected && _tgzupload_foundFirmware) {
-      // Abortar la operación de firmware si se estaba escribiendo
-      Update.abort();
+    if (_uploadRejected) {
+      if (_tgzupload_foundFirmware) {
+        // Abortar la operación de firmware si se estaba escribiendo
+        Update.abort();
+      }
+
+      // Se BORRA cualquier archivo que empiece con el prefijo "n,"
+      _deleteFilesWithPrefix("n,");
     }
   }
 
@@ -378,6 +316,93 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     if (_gz_srcdata != NULL) { delete _gz_srcdata; _gz_srcdata = NULL; }
     if (_gz_dstdata != NULL) { delete _gz_dstdata; _gz_dstdata = NULL; }
     memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
+  }
+}
+
+void YuboxOTAClass::_loadManifest(std::vector<String> & flist)
+{
+  if (SPIFFS.exists("/manifest.txt")) {
+    // Lista de archivos a preservar para rollback futuro
+    // Se asume archivo de texto ordinario con líneas formato UNIX
+    File h = SPIFFS.open("/manifest.txt", FILE_READ);
+    if (!h) {
+      Serial.println("WARN: /manifest.txt existe pero no se puede abrir. Los archivos de recursos podrían ser sobreescritos.");
+    } else {
+      bool selfref = false;
+      while (h.available()) {
+        String s = h.readStringUntil('\n');
+        if (s == "manifest.txt") selfref = true;
+        String sn = "/"; sn += s;
+        if (!SPIFFS.exists(sn)) {
+          // Si el archivo no existe pero existe el correspondiente .gz se arregla aquí
+          sn += ".gz";
+          if (SPIFFS.exists(sn)) {
+            s += ".gz";
+            flist.push_back(s);
+          } else {
+            Serial.printf("WARN: %s no existe de forma ordinaria o comprimida, se omite!\r\n", s.c_str());
+          }
+        } else {
+          // Archivo existe ordinariamente
+          flist.push_back(s);
+        }
+      }
+      h.close();
+      if (!selfref) flist.push_back("manifest.txt");
+    }
+  } else {
+    Serial.println("WARN: /manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
+  }
+}
+
+void YuboxOTAClass::_deleteFilesWithPrefix(const char * p)
+{
+  std::vector<String> del_filelist;
+  std::vector<String>::iterator it;
+  File h = SPIFFS.open("/");
+  if (!h) {
+    Serial.println("WARN: no es posible listar directorio.");
+  } else if (!h.isDirectory()) {
+    Serial.println("WARN: no es posible listar no-directorio.");
+  } else {
+    String prefix = "/";
+    prefix += p;
+
+    File f = h.openNextFile();
+    while (f) {
+      String s = f.name();
+      f.close();
+      //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
+      if (s.startsWith(prefix)) {
+        //Serial.println("DEBUG: se agrega a lista a borrar...");
+        del_filelist.push_back(s);
+      }
+
+      f = h.openNextFile();
+    }
+    h.close();
+  }
+  for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
+    //Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
+    if (!SPIFFS.remove(*it)) {
+      Serial.printf("WARN: no se pudo borrar %s !\r\n", it->c_str());
+    }
+  }
+  del_filelist.clear();
+}
+
+void YuboxOTAClass::_changeFileListPrefix(std::vector<String> & flist, const char * op, const char * np)
+{
+  std::vector<String>::iterator it;
+  String s, sn;
+
+  for (it = flist.begin(); it != flist.end(); it++) {
+    s = "/"; s += op; s += *it;      // Ruta original del archivo
+    sn = "/"; sn += np; sn += *it;  // Ruta nueva del archivo
+    //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
+    if (!SPIFFS.rename(s, sn)) {
+      Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
+    }
   }
 }
 
@@ -470,6 +495,9 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
           _tgzupload_currentOp = OTA_SPIFFS_WRITE;
           _tgzupload_bytesWritten = 0;
           _emitUploadEvent_FileStart(hdr->filename, false, hdr->filesize);
+
+          // Detectar si el tar contiene el manifest.txt
+          if (strcmp(hdr->filename, "manifest.txt") == 0) _tgzupload_hasManifest = true;
         }
       }
     }
