@@ -20,7 +20,7 @@ void setup()
   Serial.begin(115200);
 
   Serial.println("Inicializando SPIFFS...");
-  if (!SPIFFS.begin(true)){
+  if (!SPIFFS.begin(true)) {
     Serial.println("Ha ocurrido un error al montar SPIFFS");
     return;
   }

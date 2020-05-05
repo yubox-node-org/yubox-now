@@ -11,6 +11,8 @@ $(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.nodemcu-32s.bin
 	gzip -9 $(YUBOX_PROJECT).tar
 	rm -rf dist/
 
+spiffs: data/manifest.txt
+
 data/manifest.txt: modules.txt
 	rm -rf data/
 	mkdir data/
