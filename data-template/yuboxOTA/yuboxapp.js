@@ -6,6 +6,41 @@ function setupYuboxOTATab()
     };
     otapane.data(data);
 
+    // https://getbootstrap.com/docs/4.4/components/navs/#events
+    $('ul#yuboxMainTab a#yuboxOTA-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
+
+        $.get(yuboxAPI('yuboxOTA')+'/rollback')
+        .done(function (data) {
+            var spanRB = otapane.find('span#canrollback');
+            var btnRB = otapane.find('button[name="rollback"]');
+
+            spanRB.removeClass('badge-danger badge-success');
+            if (data.canrollback) {
+                spanRB
+                    .addClass('badge-success')
+                    .text('RESTAURABLE');
+                btnRB.prop('disabled', false);
+            } else {
+                spanRB
+                    .addClass('badge-danger')
+                    .text('NO RESTAURABLE');
+                btnRB.prop('disabled', true);
+            }
+        })
+        .fail(function (e) {
+            var msg;
+            if (e.status == 0) {
+                msg = 'Fallo al contactar dispositivo';
+            } else if (e.responseJSON == undefined) {
+                msg = 'Tipo de dato no esperado en respuesta';
+            } else {
+                msg = e.responseJSON.msg;
+            }
+            yuboxMostrarAlertText('danger', msg, 2000);
+        });
+    });
+
     otapane.find('input[type=file]#tgzupload').change(function () {
         var lbl = $(this).next('label.custom-file-label');
         if (lbl.data('default') == undefined) {
@@ -61,12 +96,40 @@ function setupYuboxOTATab()
             yuboxOTAUpload_shutdown();
         });
     });
+    otapane.find('button[name=rollback]').click(function () {
+        otapane.find('button[name=apply], button[name=rollback]').prop('disabled', true);
+        $.post(yuboxAPI('yuboxOTA')+'/rollback', {})
+        .done(function (data) {
+            if (data.success) {
+                // Al aplicar actualización debería recargarse más tarde
+                yuboxMostrarAlertText('success', data.msg, 5000);
+                setTimeout(function () {
+                    window.location.reload();
+                }, 10 * 1000);
+            } else {
+                yuboxMostrarAlertText('danger', data.msg, 2000);
+            }
+            otapane.find('button[name=apply], button[name=rollback]').prop('disabled', false);
+        })
+        .fail(function (e) {
+            var msg;
+            if (e.status == 0) {
+                msg = 'Fallo al contactar dispositivo';
+            } else if (e.responseJSON == undefined) {
+                msg = 'Tipo de dato no esperado en respuesta';
+            } else {
+                msg = e.responseJSON.msg;
+            }
+            yuboxMostrarAlertText('danger', msg, 2000);
+            otapane.find('button[name=apply], button[name=rollback]').prop('disabled', false);
+        });
+    });
 }
 
 function yuboxOTAUpload_init()
 {
     var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
-    otapane.find('button[name=apply]').prop('disabled', true);
+    otapane.find('button[name=apply], button[name=rollback]').prop('disabled', true);
     yuboxOTAUpload_setProgressBar(0);
     otapane.find('div.upload-progress span#filename').text('-');
     otapane.find('div.upload-progress span#current').text('0');
@@ -117,7 +180,7 @@ function yuboxOTAUpload_init()
 function yuboxOTAUpload_shutdown()
 {
     var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
-    otapane.find('button[name=apply]').prop('disabled', false);
+    otapane.find('button[name=apply], button[name=rollback]').prop('disabled', false);
     otapane.find('div.upload-progress').hide();
     if (otapane.data('sse') != null) {
         otapane.data('sse').close();

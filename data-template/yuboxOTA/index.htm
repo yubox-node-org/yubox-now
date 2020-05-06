@@ -1,20 +1,50 @@
-<form>
-    <div class="form-group">
-        <div class="custom-file">
-            <input type="file" class="custom-file-input" id="tgzupload">
-            <label class="custom-file-label" for="tgzupload" data-browse="Elegir">Indique archivo de firmware:</label>
+<div class="row row-cols-1">
+    <div class="col mb-4">
+        <div class="card">
+            <div class="card-header">Actualización de firmware</div>
+            <div class="card-body">
+                <form>
+                    <div class="form-group">
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="tgzupload">
+                            <label class="custom-file-label" for="tgzupload" data-browse="Elegir">Indique archivo de firmware:</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
+                    </div>
+                    <div class="form-group row upload-progress" style="display: none;">
+                        <div class="col-4 col-sm-2"><b>Copiando:</b></div>
+                        <div class="col-8 col-sm-4"><span id="filename">algo.txt</span></div>
+                        <div class="col-4 col-sm-2"><span id="current">?</span> de <span id="total">?</span> Kb</div>
+                        <div class="col-8 col-sm-4"><span id="currupload">?</span> Kb subidos</div>
+                    </div>
+                    <div class="progress upload-progress" style="display: none; height: 3em;">
+                        <div class="progress-bar bg-info" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="transition-duration: 0.1s; width: 0%" >0%</div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-    <div class="form-group">
-        <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
+    <div class="col mb-4">
+        <div class="card">
+            <div class="card-header">Restauración de firmware previo</div>
+            <div class="card-body">
+                <form>
+                    <div class="form-group row">
+                        <legend class="col-form-label col-sm-auto">El firmware anterior es:</legend>
+                        <div class="col-form-label col">
+                            <h5>
+                            <span id="canrollback" class="badge badge-danger">NO RESTAURABLE</span>
+                            </h5>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-danger" name="rollback">Restaurar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-    <div class="form-group row upload-progress" style="display: none;">
-        <div class="col-4 col-sm-2"><b>Copiando:</b></div>
-        <div class="col-8 col-sm-4"><span id="filename">algo.txt</span></div>
-        <div class="col-4 col-sm-2"><span id="current">?</span> de <span id="total">?</span> Kb</div>
-        <div class="col-8 col-sm-4"><span id="currupload">?</span> Kb subidos</div>
-    </div>
-    <div class="progress upload-progress" style="display: none; height: 3em;">
-        <div class="progress-bar bg-info" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5" style="transition-duration: 0.1s; width: 5%" >5%</div>
-    </div>
-</form>
+</div>
+

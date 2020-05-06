@@ -65,6 +65,8 @@ private:
   void _routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest *,
     String filename, size_t index, uint8_t *data, size_t len, bool final);
+  void _routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerRequest *);
+  void _routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServerRequest *);
 
   void _handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final);
 
@@ -80,6 +82,7 @@ private:
   void _emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset);
   void _emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size);
 
+  void _listFilesWithPrefix(std::vector<String> &, const char *);
   void _deleteFilesWithPrefix(const char *);
   void _changeFileListPrefix(std::vector<String> &, const char *, const char *);
   void _loadManifest(std::vector<String> &);

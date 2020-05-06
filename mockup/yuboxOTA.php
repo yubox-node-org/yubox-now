@@ -28,6 +28,29 @@ case '/tgzupload':
         'msg'       =>  'Actualización aplicada correctamente. El equipo se reiniciará en un momento...'
     ));
     break;
+case '/rollback':
+    switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+        sleep(2);
+        print json_encode(array(
+            'success'   =>  TRUE,
+            'msg'       =>  "Firmware restaurado correctamente. El equipo se reiniciará en unos momentos."
+        ));
+        /*
+        print json_encode(array(
+            'success'   =>  FALSE,
+            'msg'       =>  "No hay firmware a restaurar, o no fue restaurado correctamente."
+        ));
+        */
+        break;
+    case 'GET':
+    default:
+        print json_encode(array(
+            'canrollback'   =>  TRUE,
+        ));
+        break;
+    }
+	break;
 default:
     Header('HTTP/1.1 404 Not Found');
     print json_encode(array(

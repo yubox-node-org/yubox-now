@@ -56,6 +56,10 @@ void YuboxOTAClass::begin(AsyncWebServer & srv)
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST, this, std::placeholders::_1),
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload, this, std::placeholders::_1,
       std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+  srv.on("/yubox-api/yuboxOTA/rollback", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET, this, std::placeholders::_1));
+  srv.on("/yubox-api/yuboxOTA/rollback", HTTP_POST,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/yuboxOTA/events");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
@@ -352,6 +356,34 @@ void YuboxOTAClass::_loadManifest(std::vector<String> & flist)
     }
   } else {
     Serial.println("WARN: /manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
+  }
+}
+
+void YuboxOTAClass::_listFilesWithPrefix(std::vector<String> & flist, const char * p)
+{
+  std::vector<String>::iterator it;
+  File h = SPIFFS.open("/");
+  if (!h) {
+    Serial.println("WARN: no es posible listar directorio.");
+  } else if (!h.isDirectory()) {
+    Serial.println("WARN: no es posible listar no-directorio.");
+  } else {
+    String prefix = "/";
+    prefix += p;
+
+    File f = h.openNextFile();
+    while (f) {
+      String s = f.name();
+      f.close();
+      //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
+      if (s.startsWith(prefix)) {
+        //Serial.println("DEBUG: se agrega a lista a borrar...");
+        flist.push_back(s.substring(prefix.length()));
+      }
+
+      f = h.openNextFile();
+    }
+    h.close();
   }
 }
 
@@ -744,6 +776,64 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(1));
+  response->setCode(200);
+  json_doc["canrollback"] = Update.canRollBack();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+
+  if (Update.rollBack()) {
+    std::vector<String> curr_filelist;
+    std::vector<String> prev_filelist;
+
+    // Cargar lista de archivos actuales a preservar
+    _loadManifest(curr_filelist);
+
+    // Cargar lista de archivos preservados, sin su prefijo
+    _listFilesWithPrefix(prev_filelist, "b,");
+
+    // Se RENOMBRA todos los archivos actuales con prefijo "R,"
+    _changeFileListPrefix(curr_filelist, "", "R,");
+
+    // Se RENOMBRA todos los archivos preservados quitando prefijo "b,"
+    _changeFileListPrefix(prev_filelist, "b,", "");
+
+    // Se renombra los archivos que eran actuales con prefijo "b,"
+    _changeFileListPrefix(curr_filelist, "R,", "b,");
+
+    curr_filelist.clear();
+    prev_filelist.clear();
+
+    json_doc["success"] = true;
+    json_doc["msg"] = "Firmware restaurado correctamente. El equipo se reiniciará en unos momentos.";
+    xTimerStart(_timer_restartYUBOX, 0);
+
+    response->setCode(200);
+  } else {
+    json_doc["success"] = false;
+    json_doc["msg"] = "No hay firmware a restaurar, o no fue restaurado correctamente.";
+
+    response->setCode(500);
+  }
 
   serializeJson(json_doc, *response);
   request->send(response);
