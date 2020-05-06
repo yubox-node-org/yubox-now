@@ -1,85 +1,17 @@
-<form method="POST">
-    <div class="form-group">
-        <label for="interval">Intervalo de muestreo (segundos):</label>
-        <input type="number" id="interval" name="interval" class="form-control"
-        placeholder="edificio-principal" aria-describedby="intervalAyuda"
-        value="{$interval|escape:html}" {literal}pattern="^[\d]+$"{/literal} required/>
-        <small id="intervalAyuda" class="form-text text-muted">Cada intervalo, el muestreador enviará una muestra al servidor de recolección de muestras.</small>
-    </div>
-    <div class="form-group row">
-        <legend class="col-form-label col-sm-4 pt-0">Modo primario de medición: </legend>
-        <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-        <label class="btn btn-secondary {if $mode eq 'AC'}active{/if}">
-            <input type="radio" name="mode" id="AC" value="AC" autocomplete="off" {if $mode eq 'AC'}checked{/if}>AC (Corriente alterna)
-        </label>
-        <label class="btn btn-secondary {if $mode eq 'DC'}active{/if}">
-            <input type="radio" name="mode" id="DC" value="DC" autocomplete="off" {if $mode eq 'DC'}checked{/if}>DC (Corriente Directa)
-        </label>
-        </div>
-    </div>
-    <div class="form-group row">
-        <legend class="col-form-label col-sm-4 pt-0">Uso de canales AC: </legend>
-        <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-        <label class="btn btn-secondary {if $acmode eq 'voltamp'}active{/if}">
-            <input type="radio" name="acmode" id="voltamp" value="voltamp" autocomplete="off" {if $acmode eq 'voltamp'}checked{/if}>Voltaje + Corriente
-        </label>
-        <label class="btn btn-secondary {if $acmode eq 'amponly'}active{/if}">
-            <input type="radio" name="acmode" id="amponly" value="amponly" autocomplete="off" {if $acmode eq 'amponly'}checked{/if}>Sólo Corriente
-        </label>
-        </div>
-    </div>
-    <div class="form-group">
-        <label for="rmsvoltage">Voltaje RMS a asumir para cálculo de potencia:</label>
-        <input type="number" id="rmsvoltage" name="rmsvoltage" class="form-control"
-        placeholder="edificio-principal" aria-describedby="rmsvoltageAyuda"
-        value="{$rmsvoltage|escape:html}" {literal}pattern="^[\d]+$"{/literal}/>
-        <small id="rmsvoltageAyuda" class="form-text text-muted">Este valor de voltaje se usa para calcular la potencia de cada canal de corriente.</small>
-    </div>
-    <div id="mapa-canal-aviso" class="alert alert-warning d-none" role="alert"></div>
-    <div class="form-group">
-        <input type="hidden" name="voltampchans" id="voltampchans" value="{$voltampchans|escape:html}" />
-        <input type="hidden" name="ampchans" id="ampchans" value="{$ampchans|escape:html}" />
-        <input type="hidden" name="bias" id="bias" value="{$bias|escape:html}" />
-        <input type="hidden" name="scale" id="scale" value="{$scale|escape:html}" />
-
-        <div class="card">
-        <h4 class="card-header">Mapa de canales:</h4>
-        <div class="card-body row">
-            <div class="canales-col col-sm-4">
-            <div id="chans-disponibles" class="card">
-                <h5 class="card-header">Disponibles</h5>
-                <ul class="list-group list-group-flush">
-                {* Los items que representan cada canal serán duplicados movidos vía javascript *}
-                <li draggable="true" class="list-group-item form-inline">
-                    <span></span>
-                    <input class="form-control form-control-sm" pattern="[+-]?\d+(\.\d+)?" type="text" name="minval" placeholder="0" size="6" />-
-                    <input class="form-control form-control-sm" pattern="[+-]?\d+(\.\d+)?" type="text" name="maxval" placeholder="0" size="6"/>
-                    <div class="text-muted" id="rms"></div>
-                </li>
-                </ul>
-            </div>
-            </div>
-            <div class="canales-col col-sm-4">
-            <div id="chans-voltaje" class="card">
-                <h5 class="card-header">Voltaje</h5>
-                <ul class="list-group list-group-flush">
-                {* A llenar vía javascript *}
-                </ul>
-            </div>
-            </div>
-            <div class="canales-col col-sm-4">
-            <div id="chans-corriente" class="card">
-                <h5 class="card-header">Corriente</h5>
-                <ul class="list-group list-group-flush">
-                {* A llenar vía javascript *}
-                </ul>
-            </div>
+<script src="Chart-2.9.3b.min.js"></script>
+<div class="card">
+    <div class="card-header">Condiciones atmosféricas</div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col">
+                <canvas id="atmospheric"></canvas>
             </div>
         </div>
-        <div class="card-footer text-muted">
-            Arrastre y suelte canales para asignar o liberar
-        </div>
+        <div class="row row-cols-2 row-cols-sm-4">
+            <div class="col">Temperatura (&deg;C):</div>
+            <div class="col"><h3 id="temp">0.00</h3></div>
+            <div class="col">Presión (Pa):</div>
+            <div class="col"><h3 id="press">0.00</h3></div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary" name="apply">Actualizar</button>
-</form>
+</div>
