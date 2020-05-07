@@ -13,8 +13,7 @@
 #include "YuboxWiFiClass.h"
 #include "YuboxOTAClass.h"
 
-#include <NTPClient.h>
-#include <WiFiUdp.h>
+#include "YuboxAsyncNTPClient.h"
 
 AsyncWebServer server(80);
 
@@ -25,8 +24,7 @@ void notFound(AsyncWebServerRequest *);
 #include <Adafruit_BMP280.h>
 
 Adafruit_BMP280 sensor_bmp280;
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
+YuboxAsyncNTPClient ntp;
 bool ntpStart = false;
 
 void WiFiEvent(WiFiEvent_t event);
@@ -65,12 +63,18 @@ void setup()
   }
 }
 
+bool ntpFirst = true;
 void loop()
 {
   if (WiFi.isConnected()) {
-    if (timeClient.update()) {
+    if (ntpFirst) Serial.println("DEBUG: Conexión establecida, pidiendo hora de red vía NTP...");
+    if (ntp.isTimeValid()) {
+      if (ntpFirst) {
+        ntpFirst = false;
+        Serial.println("DEBUG: hora de red obtenida!");
+      }
       DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
-      json_doc["ts"] = 1000ULL * timeClient.getEpochTime();
+      json_doc["ts"] = ntp.time_ms();
       json_doc["temperature"] = sensor_bmp280.readTemperature();
       json_doc["pressure"] = sensor_bmp280.readPressure();
 
@@ -81,7 +85,7 @@ void loop()
         eventosLector.send(json_output.c_str());
       }
     } else {
-      Serial.println("ERR: fallo al obtener hora de red");
+      Serial.println("ERR: todavía no es válida la hora de red");
     }
   } else {
     Serial.println("WARN: red desconectada");
@@ -93,10 +97,9 @@ void WiFiEvent(WiFiEvent_t event)
 {
     switch(event) {
     case SYSTEM_EVENT_STA_GOT_IP:
-      // NOTA: este es un bucle bloqueante. Debería implementárselo de otra manera.
       if (!ntpStart) {
-        Serial.println("Conexión establecida, pidiendo hora de red vía NTP...");
-        timeClient.begin();
+        Serial.println("DEBUG: Estableciendo conexión UDP para NTP...");
+        ntp.begin();
         ntpStart = true;
       }
       break;
