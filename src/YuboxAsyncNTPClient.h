@@ -56,6 +56,8 @@ public:
   struct tm * gmtime_r(struct tm *);
   struct tm * localtime_r(struct tm *);
 
+  String getFormattedTime(void);
+
   friend void _cb_YuboxAsyncNTPClient_updateNTP(TimerHandle_t);
   friend void _cb_YuboxAsyncNTPClient_lookupDNS(const char *, const ip_addr_t *, void *);
 };

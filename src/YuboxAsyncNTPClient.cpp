@@ -181,3 +181,16 @@ struct tm * YuboxAsyncNTPClient::localtime_r(struct tm * result)
   time_t t = time(NULL);
   return ::localtime_r(&t, result);
 }
+
+String YuboxAsyncNTPClient::getFormattedTime(void)
+{
+  String s;
+  struct tm r;
+  char _tmp[16];
+
+  if (NULL != localtime_r(&r)) {
+    snprintf(_tmp, sizeof(_tmp), "%02d:%02d:%02d", r.tm_hour, r.tm_min, r.tm_sec);
+    s = _tmp;
+  }
+  return s;
+}
