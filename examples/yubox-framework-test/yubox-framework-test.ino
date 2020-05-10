@@ -12,7 +12,7 @@
 
 #include "YuboxWiFiClass.h"
 #include "YuboxOTAClass.h"
-
+#include "YuboxMQTTConfClass.h"
 #include "YuboxAsyncNTPClient.h"
 
 AsyncWebServer server(80);
@@ -53,6 +53,7 @@ void setup()
   YuboxWiFi.begin(server);
   YuboxWebAuth.begin(server);
   YuboxOTA.begin(server);
+  YuboxMQTTConf.begin(server);
   server.onNotFound(notFound);
   server.begin();
 

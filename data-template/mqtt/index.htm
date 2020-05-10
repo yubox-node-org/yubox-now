@@ -1,0 +1,45 @@
+<form>
+    <div class="form-group row">
+        <legend class="col-form-label col-sm-2">Estado MQTT:</legend>
+        <div class="col-form-label col-sm-10">
+            <h5>
+            <span id="mqtt_connstatus" class="badge badge-danger">DESCONECTADO</span>
+            <span id="mqtt_disconnected_reason">???</span>
+            </h5>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="mqtthost">Broker MQTT para envío de datos:</label>
+        <input type="text" id="mqtthost" name="mqtthost" class="form-control" placeholder="mqtt.example.com"
+            aria-describedby="mqtthostAyuda" value="" required />
+        <small id="mqtthostAyuda" class="form-text text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
+    </div>
+    <div class="form-group">
+        <div class="row">
+        <legend class="col-form-label col-sm-4 pt-0">Autenticación MQTT:</legend>
+        <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+            <label class="btn btn-secondary">
+            <input type="radio" name="mqttauth" id="off" value="off" autocomplete="off">Abierta
+            </label>
+            <label class="btn btn-secondary">
+            <input type="radio" name="mqttauth" id="on" value="on" autocomplete="off">Contraseña
+            </label>
+        </div>
+        </div>
+    </div>
+    <div class="form-row mqttauth">
+        <div class="form-group col-sm-6">
+            <label for="mqttuser">Nombre de usuario:</label>
+            <input type="text" id="mqttuser" name="mqttuser" class="form-control"
+                aria-describedby="mqttuserAyuda" value="" />
+            <small id="mqttuserAyuda" class="form-text text-muted">Nombre de usuario para autenticación MQTT</small>
+        </div>
+        <div class="form-group col-sm-6">
+            <label for="mqttpass">Contraseña:</label>
+            <input type="password" id="mqttpass" name="mqttpass" class="form-control"
+                aria-describedby="mqttpassAyuda" value="" />
+            <small id="mqttpassAyuda" class="form-text text-muted">Contraseña para autenticación MQTT</small>
+        </div>
+    </div>
+    <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
+</form>
