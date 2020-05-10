@@ -28,12 +28,12 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
     pdFALSE,
     (void*)this,
     &_cb_YuboxMQTTConfClass_connectMQTT);
-  WiFi.onEvent(std::bind(&YuboxMQTTConfClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
   _mqttClient.onDisconnect(std::bind(&YuboxMQTTConfClass::_cbHandler_onMqttDisconnect, this, std::placeholders::_1));
 }
 
 void YuboxMQTTConfClass::begin(AsyncWebServer & srv)
 {
+  WiFi.onEvent(std::bind(&YuboxMQTTConfClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
   _loadSavedCredentialsFromNVRAM();
   _setupHTTPRoutes(srv);
 }
