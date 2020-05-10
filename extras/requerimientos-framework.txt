@@ -3,31 +3,36 @@ Requerimientos para framework de aplicaciones YUBOX sobre ESP32
 
 General
 -------
-- De alguna manera volver componible la interfaz, de forma que se puedan almacenar fragmentos
+- (YA) De alguna manera volver componible la interfaz, de forma que se puedan almacenar fragmentos
   de HTTP y Javascript y combinarlos a partir de múltiples proyectos en el archivo final
   index.htm y yuboxapp.js que luego deben zipearse para SPIFFS
 
 Interfaz web
 ------------
-- Basada en JQuery+Bootstrap últimas versiones
-- Interfaz debe SIEMPRE pedir autenticación
-- Single Page Application, debe cargar HTML base una sola vez, interactuar vía AJAX, WebSockets
+- (YA) Basada en JQuery+Bootstrap últimas versiones
+- (YA) Interfaz debe SIEMPRE pedir autenticación
+- (YA) Single Page Application, debe cargar HTML base una sola vez, interactuar vía AJAX, WebSockets
   |- Investigar si vale la pena usar React.js para desarrollo (NO CoreUI, muy pesado)
-- Variables guardadas vía biblioteca Preferences.h
+- (YA) Variables guardadas vía biblioteca Preferences.h
 
 WiFi
 ----
-- Debe de soportarse modo hostAP, el cual debe estar activo SIEMPRE, incluso si ya se conectó a otra red
-- Nombre de red HostAP por omisión debe ser único por chip, posiblemente generado vía MAC
-- Soporte de múltiples redes descubiertas, debe conectarse a la mejor posible por omisión
-- Administración Web de conexiones Wifi (ingresar clave, olvidar red, modo autenticación enterprise)
+- (YA) Debe de soportarse modo hostAP, el cual debe estar activo SIEMPRE, incluso si ya se conectó a otra red
+- (YA) Nombre de red HostAP por omisión debe ser único por chip, posiblemente generado vía MAC
+- (YA) Soporte de múltiples redes descubiertas, debe conectarse a la mejor posible por omisión
+- (PROBAR ENTERPRISE) Administración Web de conexiones Wifi (ingresar clave, olvidar red, modo autenticación enterprise)
   \- ver celular para ejemplo de interfaz administración
-- Integración MDNS para localizar aparato en red WiFi, debe publicar existencia de puerto 80 HTTP
+- (YA) Integración MDNS para localizar aparato en red WiFi, debe publicar existencia de puerto 80 HTTP
 - Envío de muestras a recolector vía HTTP/HTTPS/MQTT como sea soportado, payload urlencoded (form) o JSON
+  - (YA) MQTT
+  - HTTP/HTTPS
+    - form urlencoded
+    - json
+    - InfluxDB
 
 OTA
 ---
-- Soporte de actualizar firmware a partir de upload vía interfaz administrativa
+- (YA) Soporte de actualizar firmware a partir de upload vía interfaz administrativa
 - Soporte de actualizar firmware mandando a YUBOX a pedir firmware a un URL conocido externo
   |- verificación periódica de actualizaciones sin intervención humana
   |- bandera de si aplicar actualización una vez detectada que existe
@@ -60,4 +65,29 @@ Gráficos
 --------
 - Incluir chart.js si se tiene requerimiento de gráficos
 - Datos en tiempo real usando websockets, actualizar HTML+gráficos
+
+Tareas Yubox Framework:
+- WiFi:
+  - en caso de desconexión, si red era con credenciales correctas, debería intentar reconectarse a la misma red antes de escanear redes disponibles
+  - mostrar, para redes detectadas en escaneo, cuáles no están conectadas pero tienen credenciales guardadas
+  - implementar lista de redes con credenciales guardadas que NO son visibles, con opción a BORRAR
+  - implementar ingreso a mano de red que no es visible (todavía), no debe anclarse a este ingreso
+
+- NTP: 
+  - (YA) implementar vía AsyncUDP
+  - configuración de servidor NTP vía web
+  - leer servidor NTP vía NVRAM, por omisión pool.ntp.org (verificar este nombre de host)
+  - sólo resolver IP una vez al arrancar o al setear vía web
+- OTA: implementar
+  - verificación servidor remoto por si hay archivo actualizado
+    - Usar biblioteca async de petición web?
+  - (YA) carga explícita de archivo actualizado
+  - (YA) decidir formato de archivo actualizado
+    - (YA) debe contener opcionalmente tanto código como contenido SPIFFS
+    - (YA) contenido SPIFFS debe declararse y almacenarse para distinguir de posibles archivos que NO DEBEN SER BORRADOS
+    - (YA) NO sobreescribir directamente la partición SPIFFS, porque puede tener archivos que hay que preservar
+    - (YA: tinytar, ugzip) usar tar? usar gz?
+  https://makitweb.com/how-to-upload-image-file-using-ajax-and-jquery/
+  https://developer.mozilla.org/en-US/docs/Web/API/FormData
+  https://github.com/tobozo/ESP32-targz/ implementa flashear desde tgz en SPIFFS, contiene TinyUntar modificado para streaming
 
