@@ -69,6 +69,7 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
     //Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
     switch(event) {
     case SYSTEM_EVENT_SCAN_DONE:
+      WiFi.setAutoReconnect(true);
       _collectScannedNetworks();
       if (WiFi.status() != WL_CONNECTED) {
         Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
@@ -86,11 +87,13 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
     case SYSTEM_EVENT_STA_GOT_IP:
         Serial.print("DEBUG: Conectado al WiFi. Dirección IP: ");
         Serial.println(WiFi.localIP());
+        WiFi.setAutoReconnect(true);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         Serial.println("DEBUG: Se perdió conexión WiFi.");
         if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
           Serial.println("DEBUG: Iniciando escaneo de redes WiFi (2)...");
+          WiFi.setAutoReconnect(false);
           WiFi.scanNetworks(true);
         }
         break;
@@ -102,7 +105,7 @@ void YuboxWiFiClass::_startWiFi(void)
   Serial.println("DEBUG: Iniciando modo dual WiFi (AP+STA)...");
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(_apName.c_str());
-  WiFi.setAutoReconnect(false);
+  WiFi.setSleep(false);
 
   if (!MDNS.begin(_mdnsName.c_str())) {
     Serial.println("ERROR: no se puede iniciar mDNS para anunciar hostname!");
@@ -115,6 +118,7 @@ void YuboxWiFiClass::_startWiFi(void)
   MDNS.addService("http", "tcp", 80);
 
   Serial.println("DEBUG: Iniciando escaneo de redes WiFi...");
+  WiFi.setAutoReconnect(false);
   WiFi.scanNetworks(true);
 }
 
@@ -218,6 +222,7 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
       Serial.println("DEBUG: ninguna de las redes guardadas aparece en escaneo.");
       if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
         Serial.println("DEBUG: Iniciando escaneo de redes WiFi (3)...");
+        WiFi.setAutoReconnect(false);
         WiFi.scanNetworks(true);
       }
     } else {
@@ -393,6 +398,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
   response->print("]");
 
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+    WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
 
@@ -605,6 +611,7 @@ void YuboxWiFiClass::_cbHandler_wifiDisconnectRescan(TimerHandle_t)
   WiFi.mode(WIFI_AP_STA);
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
     Serial.println("DEBUG: Iniciando escaneo de redes WiFi (3)...");
+    WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
 }
