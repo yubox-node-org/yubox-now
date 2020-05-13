@@ -60,6 +60,8 @@ void YuboxOTAClass::begin(AsyncWebServer & srv)
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/yuboxOTA/rollback", HTTP_POST,
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/yuboxOTA/reboot", HTTP_POST,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/yuboxOTA/events");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
@@ -834,6 +836,23 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
 
     response->setCode(500);
   }
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+
+  json_doc["success"] = true;
+  json_doc["msg"] = "El equipo se reiniciará en unos momentos.";
+  xTimerStart(_timer_restartYUBOX, 0);
+
+  response->setCode(200);
 
   serializeJson(json_doc, *response);
   request->send(response);

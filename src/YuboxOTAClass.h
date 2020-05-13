@@ -67,6 +67,7 @@ private:
     String filename, size_t index, uint8_t *data, size_t len, bool final);
   void _routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServerRequest *);
+  void _routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRequest *);
 
   void _handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final);
 
