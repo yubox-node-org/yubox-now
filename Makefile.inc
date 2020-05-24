@@ -13,7 +13,7 @@ $(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.nodemcu-32s.bin
 
 spiffs: data/manifest.txt
 
-data/manifest.txt: modules.txt
+data/manifest.txt: modules.txt $(YF)/data-template $(YF)/data-template/* $(YF)/data-template/*/* ./data-template ./data-template/* ./data-template/*/*
 	rm -rf data/
 	mkdir data/
 	$(YF)/yubox-framework-assemble $(YF)/data-template:./data-template $(shell cat modules.txt)
