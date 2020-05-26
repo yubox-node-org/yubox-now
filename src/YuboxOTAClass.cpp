@@ -222,7 +222,8 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
         _tar_available = _uzLib_decomp.dest - _uzLib_decomp.dest_start;
 
         // Pasar búfer descomprimido a rutina tar
-        while (!_tar_eof && !_uploadRejected && _tar_available >= 2 * TAR_BLOCK_SIZE) {
+        while (!_tar_eof && !_uploadRejected && ((_tar_available >= 2 * TAR_BLOCK_SIZE)
+          || (final && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize && _tar_available > 0))) {
           //Serial.printf("DEBUG: _tar_available=%u se ejecuta lectura tar\r\n", _tar_available);
           // _tar_available se actualiza en _tar_cb_feedFromBuffer()
           // Procesamiento continúa en callbacks _tar_cb_*
@@ -241,6 +242,11 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
           } else {
             //Serial.printf("DEBUG: luego de parseo tar: _tar_available=%u\r\n", _tar_available);
           }
+        }
+
+        if (final && !_uploadRejected && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize
+          && _tar_available <= 0 && _tar_emptyChunk >= 2) {
+          _tar_eof = true;
         }
       }
 
