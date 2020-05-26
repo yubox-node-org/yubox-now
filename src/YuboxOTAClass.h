@@ -87,6 +87,9 @@ private:
   void _deleteFilesWithPrefix(const char *);
   void _changeFileListPrefix(std::vector<String> &, const char *, const char *);
   void _loadManifest(std::vector<String> &);
+
+  void _firmwareAbort(void);
+
 public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);

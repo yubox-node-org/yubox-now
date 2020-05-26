@@ -305,15 +305,14 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       _tgzupload_filelist.clear();
     }
 
-    if (_uploadRejected) {
-      if (_tgzupload_foundFirmware) {
-        // Abortar la operación de firmware si se estaba escribiendo
-        Update.abort();
-      }
-
-      // Se BORRA cualquier archivo que empiece con el prefijo "n,"
-      _deleteFilesWithPrefix("n,");
-    }
+    if (_uploadRejected) _firmwareAbort();
+  } else if (final) {
+    // Se ha llegado al último chunk y no se ha detectado el fin del tar.
+    // Esto o es un tar corrupto dentro de gzip, o un bug del código
+    _firmwareAbort();
+    _tgzupload_clientError = true;
+    _tgzupload_responseMsg = "No se ha detectado final del tar al término del upload";
+    _uploadRejected = true;
   }
 
   if (_uploadRejected || final) {
@@ -323,6 +322,17 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     if (_gz_dstdata != NULL) { delete _gz_dstdata; _gz_dstdata = NULL; }
     memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
   }
+}
+
+void YuboxOTAClass::_firmwareAbort(void)
+{
+  if (_tgzupload_foundFirmware) {
+    // Abortar la operación de firmware si se estaba escribiendo
+    Update.abort();
+  }
+
+  // Se BORRA cualquier archivo que empiece con el prefijo "n,"
+  _deleteFilesWithPrefix("n,");
 }
 
 void YuboxOTAClass::_loadManifest(std::vector<String> & flist)
