@@ -876,7 +876,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
 
 void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
-  //Serial.println("DEBUG: reiniciando luego de cargar firmware...");
+  Serial.println("YUBOX OTA: reiniciando luego de cambio de firmware...");
   ESP.restart();
 }
 
