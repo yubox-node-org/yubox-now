@@ -60,6 +60,11 @@ function yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)
 
 function yuboxStdAjaxFailHandler(e, timeout)
 {
+    yuboxStdAjaxFailHandlerDlg('main > div.container', e, timeout);
+}
+
+function yuboxStdAjaxFailHandlerDlg(basesel, e, timeout)
+{
     var msg;
     if (e.status == 0) {
         msg = 'Fallo al contactar dispositivo';
@@ -68,5 +73,5 @@ function yuboxStdAjaxFailHandler(e, timeout)
     } else {
         msg = e.responseJSON.msg;
     }
-    yuboxMostrarAlertText('danger', msg, timeout);
+    yuboxDlgMostrarAlertText(basesel, 'danger', msg, timeout);
 }

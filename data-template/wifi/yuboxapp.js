@@ -140,15 +140,7 @@ function setupWiFiTab()
             dlg_wificred.modal('hide');
         })
         .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxDlgMostrarAlertText(dlg_wificred.find('div.modal-body'), 'danger', msg, 2000);
+            yuboxStdAjaxFailHandlerDlg(dlg_wificred.find('div.modal-body'), e, 2000);
         });
     });
 
@@ -168,15 +160,7 @@ function setupWiFiTab()
             dlg_wifiinfo.modal('hide');
         })
         .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxDlgMostrarAlertText(dlg_wifiinfo.find('div.modal-body'), 'danger', msg, 2000);
+            yuboxStdAjaxFailHandlerDlg(dlg_wificred.find('div.modal-body'), e, 2000);
         });
     });
 }
