@@ -70,7 +70,10 @@ bool ntpFirst = true;
 void loop()
 {
   if (WiFi.isConnected()) {
-    if (ntpFirst) Serial.println("DEBUG: Conexión establecida, pidiendo hora de red vía NTP...");
+    if (ntpFirst) {
+      Serial.println("DEBUG: Conexión establecida, pidiendo hora de red vía NTP...");
+      ntpFirst = false;
+    }
     if (timeClient.update()) {
       DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
       json_doc["ts"] = 1000ULL * timeClient.getEpochTime();
