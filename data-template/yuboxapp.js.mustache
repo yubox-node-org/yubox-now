@@ -23,7 +23,7 @@ function yuboxAPI(s)
 
 function yuboxMostrarAlertText(alertstyle, text, timeout)
 {
-    var content = $('<span/>').text(text);
+    var content = $('<span></span>').text(text);
     return yuboxMostrarAlert(alertstyle, content, timeout);
 }
 
@@ -34,7 +34,7 @@ function yuboxMostrarAlert(alertstyle, content, timeout)
 
 function yuboxDlgMostrarAlertText(basesel, alertstyle, text, timeout)
 {
-    var content = $('<span/>').text(text);
+    var content = $('<span></span>').text(text);
     return yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout);
 }
 
