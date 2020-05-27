@@ -28,17 +28,7 @@ function setupYuboxOTATab()
                 btnRB.prop('disabled', true);
             }
         })
-        .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxMostrarAlertText('danger', msg, 2000);
-        });
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
 
     otapane.find('input[type=file]#tgzupload').change(function () {
@@ -84,15 +74,7 @@ function setupYuboxOTATab()
             yuboxOTAUpload_shutdown();
         })
         .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxMostrarAlertText('danger', msg, 2000);
+            yuboxStdAjaxFailHandler(e, 2000);
             yuboxOTAUpload_shutdown();
         });
     });
@@ -112,15 +94,7 @@ function setupYuboxOTATab()
             otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
         })
         .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxMostrarAlertText('danger', msg, 2000);
+            yuboxStdAjaxFailHandler(e, 2000);
             otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
         });
     });
@@ -140,15 +114,7 @@ function setupYuboxOTATab()
             otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
         })
         .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxMostrarAlertText('danger', msg, 2000);
+            yuboxStdAjaxFailHandler(e, 2000);
             otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
         });
     });

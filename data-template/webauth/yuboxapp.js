@@ -11,17 +11,7 @@ function setupWebAuthTab()
             authpane.find('input#yubox_username').val(data.username);
             authpane.find('input#yubox_password1, input#yubox_password2').val(data.password);
         })
-        .fail(function (e) {
-            var msg;
-            if (e.status == 0) {
-                msg = 'Fallo al contactar dispositivo';
-            } else if (e.responseJSON == undefined) {
-                msg = 'Tipo de dato no esperado en respuesta';
-            } else {
-                msg = e.responseJSON.msg;
-            }
-            yuboxMostrarAlertText('danger', msg, 2000);
-        });
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
     authpane.find('button[name=apply]').click(function () {
         var postData = {
@@ -45,17 +35,7 @@ function setupWebAuthTab()
                     yuboxMostrarAlertText('danger', data.msg, 2000);
                 }
             })
-            .fail(function (e) {
-                var msg;
-                if (e.status == 0) {
-                    msg = 'Fallo al contactar dispositivo';
-                } else if (e.responseJSON == undefined) {
-                    msg = 'Tipo de dato no esperado en respuesta';
-                } else {
-                    msg = e.responseJSON.msg;
-                }
-                yuboxMostrarAlertText('danger', msg, 2000);
-            });
+            .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
         }
     });
 }

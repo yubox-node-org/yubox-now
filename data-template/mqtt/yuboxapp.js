@@ -39,25 +39,7 @@ function setupMqttTab()
                 yuboxMostrarAlertText('danger', r.msg);
             }
         })
-        .fail(function (e) {
-            if (e.status == 0) {
-                yuboxMostrarAlertText('danger', "Fallo al contactar dispositivo");
-            } else {
-                var ct = e.getResponseHeader('Content-Type');
-                if (ct == null || !ct.startsWith('application/json')) {
-                    yuboxMostrarAlertText('danger', "Tipo de contenido inesperado de respuesta");
-                } else {
-                    var r = null;
-
-                    try {
-                        r = JSON.parse(e.responseText);
-                        yuboxMostrarAlertText('danger', r.msg);
-                    } catch (e) {
-                        yuboxMostrarAlertText('danger', "Contenido JSON no válido en respuesta");
-                    }
-                }
-            }
-        });
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
@@ -123,5 +105,6 @@ function yuboxLoadMqttConfig()
             mqttpane.find('form input#mqttpass').val('');
             mqttpane.find('input[name=mqttauth]#off').click();
         }
-    });
+    })
+    .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
 }

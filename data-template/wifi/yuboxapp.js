@@ -58,17 +58,7 @@ function setupWiFiTab()
 
                 dlg_wifiinfo.modal({ focus: true });
             })
-            .fail(function (e) {
-                var msg;
-                if (e.status == 0) {
-                    msg = 'Fallo al contactar dispositivo';
-                } else if (e.responseJSON == undefined) {
-                    msg = 'Tipo de dato no esperado en respuesta';
-                } else {
-                    msg = e.responseJSON.msg;
-                }
-                yuboxMostrarAlertText('danger', msg, 2000);
-            });
+            .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
         } else {
             var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
             dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
