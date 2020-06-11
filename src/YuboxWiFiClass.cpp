@@ -11,17 +11,20 @@
 #include <functional>
 
 const char * YuboxWiFiClass::_ns_nvram_yuboxframework_wifi = "YUBOX/WiFi";
+void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 
 YuboxWiFiClass::YuboxWiFiClass(void)
 {
   String tpl = "YUBOX-{MAC}";
 
-  _timer_wifiDisconnectRescan = xTimerCreate(
-    "YuboxWiFiClass_wifiDisconnectRescan",
+  _pEvents = NULL;
+  _disconnectBeforeRescan = false;
+  _timer_wifiRescan = xTimerCreate(
+    "YuboxWiFiClass_wifiRescan",
     pdMS_TO_TICKS(2000),
     pdFALSE,
-    0,
-    &YuboxWiFiClass::_cbHandler_wifiDisconnectRescan);
+    (void*)this,
+    &_cb_YuboxWiFiClass_wifiRescan);
 
   _scannedNetworks_timestamp = 0;
   setMDNSHostname(tpl);
@@ -64,6 +67,14 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
   _startWiFi();
 }
 
+void YuboxWiFiClass::_startCondRescanTimer(bool disconn)
+{
+  if (disconn) _disconnectBeforeRescan = true;
+  if (!xTimerIsTimerActive(_timer_wifiRescan)) {
+    xTimerStart(_timer_wifiRescan, 0);
+  }
+}
+
 void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
 {
     //Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
@@ -71,6 +82,15 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
     case SYSTEM_EVENT_SCAN_DONE:
       WiFi.setAutoReconnect(true);
       _collectScannedNetworks();
+
+      // Reportar las redes a cualquier cliente SSE que esté escuchando
+      if (_pEvents != NULL && _pEvents->count() > 0) {
+        Serial.printf("DEBUG: hay %d clientes SSE conectados, se reporta resultado scan...\r\n", _pEvents->count());
+        String json_report = _buildAvailableNetworksJSONReport();
+        _pEvents->send(json_report.c_str(), "WiFiScanResult");
+        _startCondRescanTimer(false);
+      }
+
       if (WiFi.status() != WL_CONNECTED) {
         Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
         if (_useTrialNetworkFirst) {
@@ -91,11 +111,7 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         Serial.println("DEBUG: Se perdió conexión WiFi.");
-        if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
-          Serial.println("DEBUG: Iniciando escaneo de redes WiFi (2)...");
-          WiFi.setAutoReconnect(false);
-          WiFi.scanNetworks(true);
-        }
+        _startCondRescanTimer(false);
         break;
     }
 }
@@ -117,7 +133,7 @@ void YuboxWiFiClass::_startWiFi(void)
 
   MDNS.addService("http", "tcp", 80);
 
-  Serial.println("DEBUG: Iniciando escaneo de redes WiFi...");
+  Serial.println("DEBUG: Iniciando escaneo de redes WiFi (1)...");
   WiFi.setAutoReconnect(false);
   WiFi.scanNetworks(true);
 }
@@ -213,18 +229,16 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
         }
       }
 
-      Serial.printf("DEBUG: se ha elegido red %u presente en escaneo (%s)\r\n", netBest, _savedNetworks[netBest].ssid.c_str());
-      netIdx = netBest;
+      if (netBest != -1) {
+        Serial.printf("DEBUG: se ha elegido red %u presente en escaneo (%s)\r\n", netBest, _savedNetworks[netBest].ssid.c_str());
+        netIdx = netBest;
+      }
     }
 
     if (netIdx == -1) {
       // Ninguna de las redes guardadas aparece en el escaneo
       Serial.println("DEBUG: ninguna de las redes guardadas aparece en escaneo.");
-      if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
-        Serial.println("DEBUG: Iniciando escaneo de redes WiFi (3)...");
-        WiFi.setAutoReconnect(false);
-        WiFi.scanNetworks(true);
-      }
+      _startCondRescanTimer(false);
     } else {
       WiFi.disconnect(true);
 
@@ -325,10 +339,13 @@ void YuboxWiFiClass::_saveOneNetworkToNVRAM(Preferences & nvram, uint32_t idx, Y
 
 void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
 {
-  srv.on("/yubox-api/wificonfig/networks", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
+  _pEvents = new AsyncEventSource("/yubox-api/wificonfig/networks");
+  YuboxWebAuth.addManagedHandler(_pEvents);
+  srv.addHandler(_pEvents);
+  _pEvents->onConnect(std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_onConnect, this, std::placeholders::_1));
 }
 
 String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
@@ -397,20 +414,14 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
   return json_output;
 }
 
-void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_onConnect(AsyncEventSourceClient *)
 {
-  YUBOX_RUN_AUTH(request);
-
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-
-  response->print(_buildAvailableNetworksJSONReport());
-
-  if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+  // Por ahora no me interesa el cliente individual, sólo el hecho de que se debe iniciar escaneo
+  if (!xTimerIsTimerActive(_timer_wifiRescan)) {
+    Serial.println("DEBUG: Iniciando escaneo de redes WiFi (2)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
-
-  request->send(response);
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request)
@@ -569,7 +580,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
   request->send(response);
 
   if (!clientError && !serverError) {
-    xTimerStart(_timer_wifiDisconnectRescan, 0);
+    _startCondRescanTimer(true);
   }
 }
 
@@ -610,19 +621,28 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
 
   request->send(204);
 
-  xTimerStart(_timer_wifiDisconnectRescan, 0);
+  _startCondRescanTimer(true);
 }
 
-void YuboxWiFiClass::_cbHandler_wifiDisconnectRescan(TimerHandle_t)
+void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)
 {
-  WiFi.disconnect(true);
+  YuboxWiFiClass *self = (YuboxWiFiClass *)pvTimerGetTimerID(timer);
+  return self->_cbHandler_WiFiRescan(timer);
+}
+
+void YuboxWiFiClass::_cbHandler_WiFiRescan(TimerHandle_t timer)
+{
+  if (_disconnectBeforeRescan) {
+    _disconnectBeforeRescan = false;
+    Serial.println("DEBUG: Desconectando antes de escaneo...");
+    WiFi.disconnect(true);
+  }
   WiFi.mode(WIFI_AP_STA);
-  if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+  if (WiFi.scanComplete() != WIFI_SCAN_RUNNING && (WiFi.status() != WL_CONNECTED || (_pEvents != NULL && _pEvents->count() > 0))) {
     Serial.println("DEBUG: Iniciando escaneo de redes WiFi (3)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
 }
-
 
 YuboxWiFiClass YuboxWiFi;

@@ -60,8 +60,11 @@ private:
   YuboxWiFi_nvramrec _trialNetwork;
   bool _useTrialNetworkFirst;
 
+  AsyncEventSource * _pEvents;
+
   // Timers asociados a llamadas de métodos
-  TimerHandle_t _timer_wifiDisconnectRescan;
+  TimerHandle_t _timer_wifiRescan;
+  bool _disconnectBeforeRescan;
 
   String _getWiFiMAC(void);
   void _loadOneNetworkFromNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
@@ -72,15 +75,17 @@ private:
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
   void _connectToActiveNetwork(void);
+  void _startCondRescanTimer(bool);
 
   String _buildAvailableNetworksJSONReport(void);
 
   // Callbacks y timers
   void _cbHandler_WiFiEvent(WiFiEvent_t event);
+  void _cbHandler_WiFiRescan(TimerHandle_t);
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
-  void _routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_networks_onConnect(AsyncEventSourceClient *);
   void _routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request);
@@ -96,7 +101,7 @@ public:
   void setMDNSHostname(String &);
   void setAPName(String &);
 
-  static void _cbHandler_wifiDisconnectRescan(TimerHandle_t);
+  friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 };
 
 extern YuboxWiFiClass YuboxWiFi;

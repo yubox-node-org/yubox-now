@@ -3,7 +3,7 @@ function setupWiFiTab()
 {
     var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
     var data = {
-        'wifiscan-timer': null,
+        'sse': null,
         'wifiscan-template':
             wifipane.find('table#wifiscan > tbody > tr.template')
             .removeClass('template')
@@ -13,14 +13,13 @@ function setupWiFiTab()
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
-        if (wifipane.data('wifiscan-timer') == null) wifipane.data('wifiscan-timer', setTimeout(scanWifiNetworks, 1));
+        yuboxWiFi_setupWiFiScanListener();
     });
     $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('hide.bs.tab', function (e) {
         var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
-        if (wifipane.data('wifiscan-timer') != null) {
-            clearTimeout(wifipane.data('wifiscan-timer'));
-            wifipane.data('wifiscan-timer', null)
+        if (wifipane.data('sse') != null) {
+          wifipane.data('sse').close();
+          wifipane.data('sse', null);
         }
     });
 
@@ -184,89 +183,84 @@ function checkValidWifiCred_PSK()
     dlg_wificred.find('button[name=connect]').prop('disabled', !(psk.length >= 8));
 }
 
-function scanWifiNetworks()
+function yuboxWiFi_setupWiFiScanListener()
 {
     if (!$('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
         // El tab de WIFI ya no está visible, no se hace nada
         return;
     }
 
-    $.get(yuboxAPI('wificonfig')+'/networks')
-    .done(function (data) {
-        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
-        wifipane.data('wifiscan-timer', null);
-
-        data.sort(function (a, b) {
-            if (a.connected || a.connfail) return -1;
-            if (b.connected || b.connfail) return 1;
-            return b.rssi - a.rssi;
+    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    if (!!window.EventSource) {
+        var sse = new EventSource(yuboxAPI('wificonfig')+'/networks');
+        sse.addEventListener('WiFiScanResult', function (e) {
+          var data = $.parseJSON(e.data);
+          yuboxWiFi_actualizarRedes(data);
         });
-
-        var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
-        tbody_wifiscan.empty();
-        var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
-        var ssid_visible = null;
-        if (dlg_wifiinfo.is(':visible')) {
-            ssid_visible = dlg_wifiinfo.find('input#ssid').val();
-        }
-        var max_rssi = null;
-        data.forEach(function (net) {
-            var tr_wifiscan = wifipane.data('wifiscan-template').clone();
-
-            // Mostrar dibujo de intensidad de señal a partir de RSSI
-            var res = evaluarIntensidadRedWifi(tr_wifiscan.find('td#rssi > svg.wifipower'), net.rssi);
-            tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+res.pwr+' %');
-
-            // Verificar si se está mostrando la red activa en el diálogo
-            if (ssid_visible != null && ssid_visible == net.ssid) {
-                if (max_rssi == null || max_rssi < net.rssi) max_rssi = net.rssi;
-            }
-
-
-            // Mostrar candado según si hay o no autenticación para la red
-            tr_wifiscan.children('td#ssid').text(net.ssid);
-            if (net.connected) {
-                var sm_connlabel = $('<small class="form-text text-muted" />').text('Conectado');
-                tr_wifiscan.addClass('table-success');
-                tr_wifiscan.children('td#ssid').append(sm_connlabel);
-            } else if (net.connfail) {
-                var sm_connlabel = $('<small class="form-text text-muted" />').text('Ha fallado la conexión');
-                tr_wifiscan.addClass('table-danger');
-                tr_wifiscan.children('td#ssid').append(sm_connlabel);
-            }
-            tr_wifiscan.children('td#auth').attr('title',
-                'Seguridad: ' + wifiauth_desc(net.authmode));
-            tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
-
-            tr_wifiscan.data(net);
-            tbody_wifiscan.append(tr_wifiscan);
+        sse.addEventListener('error', function (e) {
+          mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');
         });
+        wifipane.data('sse', sse);
+    } else {
+        yuboxMostrarAlertText('danger', 'Este navegador no soporta Server-Sent Events, no se puede escanear WiFi.');
+    }
+}
+
+function yuboxWiFi_actualizarRedes(data)
+{
+    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+
+    data.sort(function (a, b) {
+        if (a.connected || a.connfail) return -1;
+        if (b.connected || b.connfail) return 1;
+        return b.rssi - a.rssi;
+    });
+
+    var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
+    tbody_wifiscan.empty();
+    var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+    var ssid_visible = null;
+    if (dlg_wifiinfo.is(':visible')) {
+        ssid_visible = dlg_wifiinfo.find('input#ssid').val();
+    }
+    var max_rssi = null;
+    data.forEach(function (net) {
+        var tr_wifiscan = wifipane.data('wifiscan-template').clone();
+
+        // Mostrar dibujo de intensidad de señal a partir de RSSI
+        var res = evaluarIntensidadRedWifi(tr_wifiscan.find('td#rssi > svg.wifipower'), net.rssi);
+        tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+res.pwr+' %');
 
         // Verificar si se está mostrando la red activa en el diálogo
-        if (ssid_visible != null && max_rssi != null) {
-            var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), max_rssi);
-            dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
+        if (ssid_visible != null && ssid_visible == net.ssid) {
+            if (max_rssi == null || max_rssi < net.rssi) max_rssi = net.rssi;
         }
 
-        // Volver a escanear redes si el tab sigue activo al recibir respuesta
-        if ($('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
-            wifipane.data('wifiscan-timer', setTimeout(scanWifiNetworks, 5 * 1000));
-        }
-    })
-    .fail(function (e) {
-        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
-        wifipane.data('wifiscan-timer', null);
 
-        var msg;
-        if (e.status == 0) {
-            msg = 'Fallo al contactar dispositivo para siguiente escaneo';
-        } else if (e.responseJSON == undefined) {
-            msg = 'Tipo de dato no esperado en respuesta';
-        } else {
-            msg = e.responseJSON.msg;
+        // Mostrar candado según si hay o no autenticación para la red
+        tr_wifiscan.children('td#ssid').text(net.ssid);
+        if (net.connected) {
+            var sm_connlabel = $('<small class="form-text text-muted" />').text('Conectado');
+            tr_wifiscan.addClass('table-success');
+            tr_wifiscan.children('td#ssid').append(sm_connlabel);
+        } else if (net.connfail) {
+            var sm_connlabel = $('<small class="form-text text-muted" />').text('Ha fallado la conexión');
+            tr_wifiscan.addClass('table-danger');
+            tr_wifiscan.children('td#ssid').append(sm_connlabel);
         }
-        mostrarReintentoScanWifi(msg);
+        tr_wifiscan.children('td#auth').attr('title',
+            'Seguridad: ' + wifiauth_desc(net.authmode));
+        tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
+
+        tr_wifiscan.data(net);
+        tbody_wifiscan.append(tr_wifiscan);
     });
+
+    // Verificar si se está mostrando la red activa en el diálogo
+    if (ssid_visible != null && max_rssi != null) {
+        var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), max_rssi);
+        dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
+    }
 }
 
 function evaluarIntensidadRedWifi(svg_wifi, rssi)
@@ -295,6 +289,11 @@ function evaluarIntensidadRedWifi(svg_wifi, rssi)
 
 function mostrarReintentoScanWifi(msg)
 {
+    if (!$('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
+        // El tab de WIFI ya no está visible, no se hace nada
+        return;
+    }
+
     var btn = $('<button class="btn btn-primary float-right" />').text('Reintentar');
     var al = yuboxMostrarAlert('danger',
         $('<div class="clearfix"/>')
@@ -302,9 +301,7 @@ function mostrarReintentoScanWifi(msg)
         .append(btn));
     btn.click(function () {
         al.remove();
-
-        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
-        if (wifipane.data('wifiscan-timer') == null) wifipane.data('wifiscan-timer', setTimeout(scanWifiNetworks, 1));
+        yuboxWiFi_setupWiFiScanListener();
     });
 }
 
