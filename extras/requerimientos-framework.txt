@@ -74,10 +74,10 @@ Tareas Yubox Framework:
   - implementar ingreso a mano de red que no es visible (todavía), no debe anclarse a este ingreso
 
 - NTP: 
-  - (YA) implementar vía AsyncUDP
+  - (suspendido) implementar vía AsyncUDP
+    - sólo resolver IP una vez al arrancar o al setear vía web
   - configuración de servidor NTP vía web
   - leer servidor NTP vía NVRAM, por omisión pool.ntp.org (verificar este nombre de host)
-  - sólo resolver IP una vez al arrancar o al setear vía web
 - OTA: implementar
   - verificación servidor remoto por si hay archivo actualizado
     - Usar biblioteca async de petición web?
