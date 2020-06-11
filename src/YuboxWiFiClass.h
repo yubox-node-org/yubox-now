@@ -73,6 +73,8 @@ private:
   void _chooseKnownScannedNetwork(void);
   void _connectToActiveNetwork(void);
 
+  String _buildAvailableNetworksJSONReport(void);
+
   // Callbacks y timers
   void _cbHandler_WiFiEvent(WiFiEvent_t event);
 

@@ -331,14 +331,12 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
   srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
 }
 
-void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
+String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 {
-  YUBOX_RUN_AUTH(request);
-  
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(10));
+  String json_output;
 
-  response->print("[");
+  json_output = "[";
 
   String currNet = WiFi.SSID();
   String currBssid = WiFi.BSSIDstr();
@@ -349,7 +347,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
 
   bool redVista = false;
   for (int i = 0; i < _scannedNetworks.size(); i++) {
-    if (i > 0) response->print(",");
+    if (i > 0) json_output += ",";
 
     String temp_bssid = _scannedNetworks[i].bssid;
     String temp_ssid = _scannedNetworks[i].ssid;
@@ -392,10 +390,20 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
       if (!temp_password.isEmpty()) json_doc["password"] = temp_password.c_str();
     }
 
-    serializeJson(json_doc, *response);
+    serializeJson(json_doc, json_output);
   }
 
-  response->print("]");
+  json_output += "]";
+  return json_output;
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+
+  response->print(_buildAvailableNetworksJSONReport());
 
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
     WiFi.setAutoReconnect(false);
