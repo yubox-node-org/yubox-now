@@ -168,6 +168,8 @@ function yuboxOTAUpload_init()
             yuboxOTAUpload_setProgressBar(100);
         });
         otapane.data('sse', sse);
+    } else {
+      yuboxMostrarAlertText('danger', 'Este navegador no soporta Server-Sent Events, no se puede escanear WiFi.');
     }
 }
 
