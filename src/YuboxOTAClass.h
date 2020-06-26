@@ -94,6 +94,9 @@ public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);
 
+  // Para invocar al arranque del YUBOX y limpiar archivos de una subida fallida
+  void cleanupFailedUpdateFiles(void);
+
   friend int _tar_cb_feedFromBuffer(unsigned char *, size_t);
   friend int _tar_cb_gotEntryHeader(header_translated_t *, int, void *);
   friend int _tar_cb_gotEntryData(header_translated_t *, int, void *, unsigned char *, int);

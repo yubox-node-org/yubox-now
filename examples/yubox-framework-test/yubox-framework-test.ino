@@ -45,6 +45,9 @@ void setup()
     return;
   }
 
+  // Limpiar archivos que queden de actualización fallida
+  YuboxOTA.cleanupFailedUpdateFiles();
+
   // Activar y agregar todas las rutas que requieren autenticación
   YuboxWebAuth.setEnabled(true);	// <-- activar explícitamente la autenticación
   AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");

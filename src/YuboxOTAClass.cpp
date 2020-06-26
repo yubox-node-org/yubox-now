@@ -337,6 +337,11 @@ void YuboxOTAClass::_firmwareAbort(void)
     Update.abort();
   }
 
+  cleanupFailedUpdateFiles();
+}
+
+void YuboxOTAClass::cleanupFailedUpdateFiles(void)
+{
   // Se BORRA cualquier archivo que empiece con el prefijo "n,"
   _deleteFilesWithPrefix("n,");
 }
