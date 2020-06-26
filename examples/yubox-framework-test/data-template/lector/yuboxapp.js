@@ -62,6 +62,7 @@ function setupLectorTab()
             var data = $.parseJSON(e.data);
             yuboxLector_actualizar(new Date(data.ts), data.pressure, data.temperature);
         });
+        lectorpane.data('sse', sse);
     }
 }
 
