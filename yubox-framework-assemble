@@ -150,8 +150,10 @@ for t in content:
         with open(content[t]['template_path'], 'r') as f:
             tpl_content = f.read()
         tpl_context = {
-            'modules': []
+            'modules':      [],
+            'extra_jslibs': []
         }
+        extra_jslibs = []
         for m in modules_enabled:
             modrow = {}
             for k in modules[m]:
@@ -159,8 +161,15 @@ for t in content:
                     modrow[k] = modules[m][k]
             if t in modules[m]['templates']:
                 for k in modules[m]['templates'][t]:
-                    modrow[k] = modules[m]['templates'][t][k]
+                    if k in ('module_extra_jslibs'):
+                        for ejl in modules[m]['templates'][t][k].split(' '):
+                            if ejl != '' and not ejl in extra_jslibs:
+                                extra_jslibs.append(ejl)
+                    else:
+                        modrow[k] = modules[m]['templates'][t][k]
             tpl_context['modules'].append(modrow)
+        for ejl in extra_jslibs:
+            tpl_context['extra_jslibs'].append({ 'jslib': ejl })
         tpl_render = pystache.render(tpl_content, tpl_context)
         with open(os.path.join('data', t), 'w') as f:
             f.write(tpl_render)
