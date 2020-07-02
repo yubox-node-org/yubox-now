@@ -30,6 +30,8 @@ private:
   String _yuboxMQTT_user;
   String _yuboxMQTT_pass;
 
+  String _yuboxMQTT_default_clientid;
+
   void _loadSavedCredentialsFromNVRAM(void);
 
   void _setupHTTPRoutes(AsyncWebServer &);

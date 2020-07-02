@@ -58,7 +58,8 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   } else {
     _mqttClient.setCredentials(NULL, NULL);
   }
-  _mqttClient.setClientId(YuboxWiFi.getMDNSHostname().c_str());
+  _yuboxMQTT_default_clientid = YuboxWiFi.getMDNSHostname();
+  _mqttClient.setClientId(_yuboxMQTT_default_clientid.c_str());
 }
 
 void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
