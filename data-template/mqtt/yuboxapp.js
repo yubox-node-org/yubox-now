@@ -51,9 +51,16 @@ function setupMqttTab()
 
 function yuboxLoadMqttConfig()
 {
+    var mqttpane = $('div#yuboxMainTabContent > div.tab-pane#mqtt');
+    mqttpane.find('form span#mqtt_connstatus')
+        .removeClass('badge-success badge-danger')
+        .addClass('badge-secondary')
+        .text('(consultando)');
+    mqttpane.find('form span#mqtt_disconnected_reason').text('...');
+
     $.get(yuboxAPI('mqtt')+'/conf.json')
     .done(function (data) {
-        var mqttpane = $('div#yuboxMainTabContent > div.tab-pane#mqtt');
+        mqttpane.find('form input#mqtt_clientid').val(data.clientid);
 
         var span_connstatus = mqttpane.find('form span#mqtt_connstatus');
         var span_reason = mqttpane.find('form span#mqtt_disconnected_reason');

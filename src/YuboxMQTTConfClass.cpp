@@ -95,7 +95,9 @@ void YuboxMQTTConfClass::_connectMQTT(void)
     return;
   }
 
-  //Serial.printf("DEBUG: YuboxMQTTConfClass::_connectMQTT Iniciando conexión a MQTT en %s:%u...\r\n", _yuboxMQTT_host.c_str(), MQTT_PORT);
+  //const char *p = _mqttClient.getClientId();
+  //Serial.printf("DEBUG: YuboxMQTTConfClass::_connectMQTT Iniciando conexión a MQTT en %s:%u client-id %p[%s] ...\r\n",
+  //  _yuboxMQTT_host.c_str(), MQTT_PORT, p, p);
   _mqttClient.connect();
 }
 
@@ -111,7 +113,7 @@ void YuboxMQTTConfClass::setAutoConnect(bool c)
 void YuboxMQTTConfClass::_cbHandler_onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
   _lastdisconnect = reason;
-  //Serial.println("DEBUG: YuboxMQTTConfClass::_cbHandler_onMqttDisconnect Disconnected from MQTT.");
+  //Serial.printf("DEBUG: YuboxMQTTConfClass::_cbHandler_onMqttDisconnect Disconnected from MQTT reason=%d\r\n.", reason);
 
   if (WiFi.isConnected()) {
     xTimerStart(_mqttReconnectTimer, 0);
@@ -129,7 +131,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(7));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(8));
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["want2connect"] = _autoConnect;
@@ -140,6 +142,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
     json_doc["connected"] = false;
     json_doc["disconnected_reason"] = (uint8_t)_lastdisconnect;
   }
+  json_doc["clientid"] = _mqttClient.getClientId();
 
   // Valores a cambiar vía web
   if (_yuboxMQTT_host.length() > 0) {
