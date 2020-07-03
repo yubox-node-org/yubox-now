@@ -167,6 +167,22 @@ function yuboxOTAUpload_init()
             otapane.find('div.upload-progress span#currupload').text(currUploadKB.toFixed(1));
             yuboxOTAUpload_setProgressBar(100);
         });
+        sse.addEventListener('uploadPostTask', function (e) {
+	        var data = $.parseJSON(e.data);
+	        var msg = data.task;
+	        var taskDesc = {
+                'firmware-commit-start':		'Iniciando commit de firmware nuevo',
+                'firmware-commit-failed':		'Falló el commit de firmware nuevo',
+                'firmware-commit-end':			'Finalizado commit de firmware nuevo',
+                'datafiles-load-oldmanifest':	'Cargando lista de archivos de datos viejos',
+                'datafiles-delete-oldbackup':	'Borrando respaldo anterior de archivos de datos',
+                'datafiles-rename-oldfiles':	'Respaldando archivos de datos viejos',
+                'datafiles-rename-newfiles':	'Instalando archivos de datos nuevos',
+                'datafiles-end':				'Fin de instalación de archivos de datos'
+	        };
+	        if (taskDesc[data.task] != undefined) msg = taskDesc[data.task];
+	        yuboxOTAUpload_setProgressBarMessage(100, msg);
+        });
         otapane.data('sse', sse);
     } else {
       yuboxMostrarAlertText('danger', 'Este navegador no soporta Server-Sent Events, no se puede escanear WiFi.');
@@ -186,8 +202,13 @@ function yuboxOTAUpload_shutdown()
 
 function yuboxOTAUpload_setProgressBar(v)
 {
+	yuboxOTAUpload_setProgressBarMessage(v, v.toFixed(1) + ' %');
+}
+
+function yuboxOTAUpload_setProgressBarMessage(v, msg)
+{
     var pb = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA div.progress-bar');
     pb.css('width', v+'%');
     pb.attr('aria-valuenow', v);
-    pb.text(v.toFixed(1) + ' %');
+    pb.text(msg);
 }

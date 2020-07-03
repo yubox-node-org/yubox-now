@@ -271,6 +271,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     }
   }
 
+  // Cada llamada al callback de upload cede el CPU al menos aquí
+  vTaskDelay(1);
+
   if (_tar_eof) {
     if (!_tgzupload_hasManifest) {
       // No existe manifest.txt, esto no era un targz de firmware
@@ -280,35 +283,58 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     }
 
     if (!_uploadRejected && _tgzupload_canFlash) {
+      vTaskDelay(1);
+
       // Finalizar operación de flash de firmware, si es necesaria
+      _emitUploadEvent_PostTask("firmware-commit-start");
       if (!Update.end()) {
         _tgzupload_serverError = true;
         _tgzupload_responseMsg = _updater_errstr(Update.getError());
         _uploadRejected = true;
+        _emitUploadEvent_PostTask("firmware-commit-failed");
       } else if (!Update.isFinished()) {
         _tgzupload_serverError = true;
         _tgzupload_responseMsg = "Actualización no ha podido finalizarse: ";
         _tgzupload_responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
+        _emitUploadEvent_PostTask("firmware-commit-failed");
+      } else {
+        _emitUploadEvent_PostTask("firmware-commit-end");
       }
+
+      vTaskDelay(1);
     }
 
     if (!_uploadRejected) {
       std::vector<String> old_filelist;
 
+      vTaskDelay(1);
+
       // Cargar lista de archivos viejos a preservar
+      _emitUploadEvent_PostTask("datafiles-load-oldmanifest");
       _loadManifest(old_filelist);
+      vTaskDelay(1);
 
       // Se BORRA cualquier archivo que empiece con el prefijo "b," reservado para rollback
+      _emitUploadEvent_PostTask("datafiles-delete-oldbackup");
       _deleteFilesWithPrefix("b,");
+      vTaskDelay(1);
 
       // Se RENOMBRA todos los archivos en old_filelist con prefijo "b,"
+      _emitUploadEvent_PostTask("datafiles-rename-oldfiles");
       _changeFileListPrefix(old_filelist, "", "b,");
+      vTaskDelay(1);
       old_filelist.clear();
 
       // Se RENOMBRA todos los archivos en _tgzupload_filelist quitando prefijo "n,"
+      _emitUploadEvent_PostTask("datafiles-rename-newfiles");
       _changeFileListPrefix(_tgzupload_filelist, "n,", "");
+      vTaskDelay(1);
       _tgzupload_filelist.clear();
+
+      _emitUploadEvent_PostTask("datafiles-end");
+
+      vTaskDelay(1);
     }
 
     if (_uploadRejected) _firmwareAbort();
@@ -758,6 +784,18 @@ void YuboxOTAClass::_emitUploadEvent_FileEnd(const char * filename, bool isfirmw
   _pEvents->send(s.c_str(), "uploadFileEnd");
 }
 
+void YuboxOTAClass::_emitUploadEvent_PostTask(const char * task)
+{
+  if (_pEvents == NULL) return;
+  if (_pEvents->count() <= 0) return;
+
+  String s;
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  json_doc["event"] = "uploadPostTask";
+  json_doc["task"] = task;
+  serializeJson(json_doc, s);
+  _pEvents->send(s.c_str(), "uploadPostTask");
+}
 
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServerRequest * request)
 {
