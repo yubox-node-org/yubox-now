@@ -275,6 +275,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   vTaskDelay(1);
 
   if (_tar_eof) {
+    Serial.println("YUBOX OTA: DESACTIVANDO WATCHDOG EN CORE-0");
+    disableCore0WDT();
+
     if (!_tgzupload_hasManifest) {
       // No existe manifest.txt, esto no era un targz de firmware
       _tgzupload_clientError = true;
@@ -338,6 +341,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     }
 
     if (_uploadRejected) _firmwareAbort();
+
+    Serial.println("YUBOX OTA: REACTIVANDO WATCHDOG EN CORE-0");
+    enableCore0WDT();
   } else if (final) {
     // Se ha llegado al último chunk y no se ha detectado el fin del tar.
     // Esto o es un tar corrupto dentro de gzip, o un bug del código
