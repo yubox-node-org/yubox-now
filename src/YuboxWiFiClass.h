@@ -89,6 +89,7 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request);
+  void _routeHandler_spiffslist_GET(AsyncWebServerRequest *request);
 
 public:
   YuboxWiFiClass();

@@ -339,6 +339,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
   srv.on("/yubox-api/wificonfig/connection", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
+  srv.on("/_spiffslist.html", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/networks");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
@@ -419,6 +420,39 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_onConnect(AsyncE
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
+}
+
+void YuboxWiFiClass::_routeHandler_spiffslist_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("text/html");
+
+  response->print(
+    "<!DOCTYPE html><html lang=\"en\"><head><title>Index of SPIFFS</title></head><body><h1>Index of SPIFFS</h1>");
+  response->print("<table><tr><th>Name</th><th>Size</th></tr><tr><th colspan=\"2\"><hr></th></tr>");
+
+  File h = SPIFFS.open("/");
+  if (h && h.isDirectory()) {
+    File f = h.openNextFile();
+    while (f) {
+      String s = f.name();
+      unsigned int sz = f.size();
+      bool gzcomp = s.endsWith(".gz");
+      f.close();
+      if (gzcomp) {
+        s.remove(s.length() - 3);
+      }
+      response->printf("<tr><td><a href=\"%s\">%s</a>%s</td><td align=\"right\">%u</td></tr>",
+        s.c_str(), s.c_str(), gzcomp ? ".gz" : "", sz);
+      f = h.openNextFile();
+    }
+
+    h.close();
+  }
+
+  response->print("<tr><th colspan=\"2\"><hr></th></tr></table></body></html>");
+  request->send(response);
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request)
