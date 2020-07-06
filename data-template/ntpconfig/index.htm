@@ -1,0 +1,23 @@
+<form>
+    <div class="form-group row">
+        <legend class="col-form-label col-sm-2">Estado NTP:</legend>
+        <div class="col-form-label col-sm-10">
+            <h5>
+            <span id="ntp_connstatus" class="badge badge-danger">NO SINCRONIZADO</span>
+            <span id="ntp_timestamp">???</span>
+            </h5>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="ntphost">Servidor NTP:</label>
+        <input type="text" id="ntphost" name="ntphost" class="form-control" placeholder="ntp.example.com"
+            aria-describedby="ntphostAyuda" value="" required />
+        <small id="ntphostAyuda" class="form-text text-muted">Nombre de host o IP del servidor NTP para sincronizar hora</small>
+    </div>
+    <div class="form-group row">
+        <label for="ntptz_hh" class="col-auto col-form-label">Diferencia zona horaria:</label>
+        <div class="col"><select id="ntptz_hh" name="ntptz_hh" class="form-control"></select></div>
+        <div class="col"><select id="ntptz_mm" name="ntptz_mm" class="form-control"></select></div>
+    </div>
+    <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
+</form>
