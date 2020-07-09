@@ -70,7 +70,7 @@ void loop()
     if (WiFi.isConnected()) Serial.println("ERR: fallo al obtener hora de red");
   } else {
     DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
-    json_doc["ts"] = 1000ULL * YuboxNTPConf.getNTPClient().getEpochTime();
+    json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
     json_doc["temperature"] = sensor_bmp280.readTemperature();
     json_doc["pressure"] = sensor_bmp280.readPressure();
 

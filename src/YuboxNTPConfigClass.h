@@ -47,6 +47,10 @@ public:
 
   // Función a llamar regularmente para actualizar el cliente NTPClient
   bool update(void);
+
+  // Mantener separación entre hora local y hora UTC
+  unsigned long getLocalTime(void) { return _ntpClient->getEpochTime(); }
+  unsigned long getUTCTime(void) { return _ntpClient->getEpochTime() - _ntpOffset; }
 };
 
 extern YuboxNTPConfigClass YuboxNTPConf;
