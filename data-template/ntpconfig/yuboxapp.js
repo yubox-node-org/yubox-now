@@ -8,7 +8,7 @@ function setupNTPConfTab()
     for (var i = -12; i <= 14; i++) {
         $('<option></option>')
             .val(i)
-            .text(((i > 0) ? '+' : '-')+(("0"+Math.abs(i)).slice(-2)))
+            .text(((i >= 0) ? '+' : '-')+(("0"+Math.abs(i)).slice(-2)))
             .appendTo(sel_tzh);
     }
     for (var i = 0; i < 60; i++) {
@@ -73,12 +73,12 @@ function yuboxLoadNTPConfig()
             span_connstatus
                 .addClass('badge-success')
                 .text('SINCRONIZADO');
-            span_timestamp.text('TODO');
+            //span_timestamp.text('TODO');
         } else {
             span_connstatus
                 .addClass('badge-danger')
                 .text('NO SINCRONIZADO');
-            span_timestamp.text('No se contacta a servidor NTP');
+            span_timestamp.text('No se ha contactado a servidor NTP');
         }
 
         ntppane.find('form input#ntphost').val(data.ntphost);
