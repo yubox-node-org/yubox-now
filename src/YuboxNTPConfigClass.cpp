@@ -48,7 +48,7 @@ void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
   switch(event) {
   case SYSTEM_EVENT_STA_GOT_IP:
     if (!_ntpStart) {
-      Serial.println("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent - estableciendo conexión UDP para NTP...");
+      //Serial.println("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent - estableciendo conexión UDP para NTP...");
       _ntpClient->begin();
       _ntpStart = true;
     }
@@ -175,7 +175,7 @@ bool YuboxNTPConfigClass::update(void)
   if (!_ntpStart) return false;
   if (!WiFi.isConnected()) return _ntpValid;
   if (_ntpFirst) {
-    Serial.println("DEBUG: YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
+    //Serial.println("DEBUG: YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
     _ntpFirst = false;
   }
   if (!_ntpClient->update()) return false;
