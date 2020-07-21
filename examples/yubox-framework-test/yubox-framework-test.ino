@@ -1,8 +1,7 @@
 #include <WiFi.h>
-#include <ESPmDNS.h>
-#include <Preferences.h>
+// #include <Preferences.h>
 #include "SPIFFS.h"
-#include <AsyncTCP.h>
+// #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
 #define ARDUINOJSON_USE_LONG_LONG 1
