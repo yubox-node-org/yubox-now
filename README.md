@@ -57,6 +57,8 @@ descritos a continuación:
 Esta guía ha sido construida desde el punto de vista de un desarrollo en una PC con una distro Linux. Consecuentemente
 todos los comandos y utilidades indicados a continuación son presentados como los ejecutaría un usuario de Linux. El
 desarrollo con YUBOX Framework en un sistema operativo distinto (MacOS o Windows) puede requerir pasos adicionales.
+Además se asume que el usuario Linux tiene conocimiento de línea de comando básica (shell), y que tiene permisos para
+instalar paquetes adicionales en caso necesario, tanto localmente como a nivel global del sistema.
 
 Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
 - Arduino IDE, en su versión 1.8 o superior. No está soportado el desarrollo usando versiones anteriores de Arduino IDE.
@@ -83,6 +85,18 @@ Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
   - Herramientas-->Placa-->ESP32 Arduino-->NodeMCU-32S
   - Herramientas-->Upload Speed-->921600
   - Herramientas-->Flash Frequency-->80MHz
+
+  Al llegar a este punto, recomendamos que verifique que su Arduino IDE efectivamente puede compilar y enviar un sketch
+  mínimo a su YUBOX Node a través del puerto USB Serial, y que el sketch efectivamente se ejecute correctamente.
+- Comando `make` instalado correctamente en su sistema. Si el comando `make` no está instalado, es probable que se lo
+  pueda instalar con un comando similar a `sudo apt-get install make` (para distros basadas en Debian o Ubunto), o
+  `sudo yum install make` o `sudo dnf install make` para distros basadas en RedHat como CentOS, SuSE o Fedora. Otras
+  distros pueden requerir sus propias herramientas de instalación de paquetes.
+- Intérprete `python3`. Se requiere Python 3 para el comando yubox-framework-assemble, el cual no ha sido diseñado para
+  ser ejecutado en Python2. En Fedora 32 el intérprete Python por omisión es Python 3.8. En otras distros puede que sea
+  necesario instalar explícitamente Python3 con el comando `sudo apt-get install python3` o `sudo yum install python3`
+  o `sudo dnf install python3` según su distro.
+
 
 ### Dependencias Arduino
 
