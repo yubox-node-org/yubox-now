@@ -39,10 +39,10 @@ OTA
 
 NTP y reloj
 -----------
-- Programa debe arrancar incluso si no hay NTP. Si una hora es obligatoria, el procesamiento debe estar detenido hasta que se consiga una hora
-  |- Interfaz administrativa debe estar disponible incluso en ausencia de NTP, sólo debe congelarse la funcionalidad que requiere hora real
-- Interfaz debe permitir configurar un servidor NTP (por omisión pool.ntp.org)
-- Interfaz debe permitir configurar zona horaria como offset GMT (por omisión GMT-5 Ecuador)
+- (YA) Programa debe arrancar incluso si no hay NTP. Si una hora es obligatoria, el procesamiento debe estar detenido hasta que se consiga una hora
+  |- (YA) Interfaz administrativa debe estar disponible incluso en ausencia de NTP, sólo debe congelarse la funcionalidad que requiere hora real
+- (YA) Interfaz debe permitir configurar un servidor NTP (por omisión pool.ntp.org)
+- (YA) Interfaz debe permitir configurar zona horaria como offset GMT (por omisión GMT-5 Ecuador)
 - Como fallback, si se tiene una conexión Wifi con acceso al exterior, una petición HTTPS de HEAD puede devolver una cabecera Date: que puede parsearse para tener una fecha y hora inicial GMT.
 - Última hora válida (NTP o HTTP) debe almacenarse regularmente como preferencia (flash) para reducir error en caso de reseteo y conexión internet no disponible
 - Soporte opcional reloj RTC en lugar de preferencia flash
