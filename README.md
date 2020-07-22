@@ -137,6 +137,41 @@ Además se recomienda instalar el siguiente addon de Arduino IDE:
 
 ### Obtener biblioteca
 
+Para instalar el YUBOX Framework, visite https://github.com/yubox-node-org/yubox-framework y descargue un zip con el código
+fuente desde https://github.com/yubox-node-org/yubox-framework/archive/master.zip . Debe existir eventualmente un directorio
+con el código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/yubox-framework`.
+
+En este punto, verifique si se puede ejecutar correctamente el programa `yubox-framework-assemble` ejecutando lo siguiente en
+una consola de línea de comando:
+
+```
+$ chmod +x ~/Arduino/libraries/yubox-framework/yubox-framework-assemble
+$ ~/Arduino/libraries/yubox-framework/yubox-framework-assemble
+```
+
+Si se han instalado todos los requisitos, la salida debería ser la siguiente línea:
+
+```
+Uso: /home/alex/Arduino/libraries/yubox-framework/yubox-framework-assemble /data/template/dir1:/data/template/dir2:(...) module1 (module2 ...)
+```
+
+Si en su lugar se muestra un mensaje aludiendo a python3 inexistente, como el siguiente:
+
+```
+bash: /home/alex/Arduino/libraries/yubox-framework/yubox-framework-assemble: /usr/bin/python4: intérprete erróneo: No existe el fichero o el directorio
+```
+Verifique que se dispone de Python 3 en su sistema.
+
+Si en su lugar se muestra un mensaje que contiene mención de ModuleNotFoundError, como el siguiente:
+
+```
+Traceback (most recent call last):
+  File "/home/alex/Arduino/libraries/yubox-framework/yubox-framework-assemble", line 9, in <module>
+    import pystache
+ModuleNotFoundError: No module named 'pystache'
+```
+Verifique que la biblioteca correspondiente esté disponible para Python 3, especialmente `pystache`.
+
 ## Modelo de funcionamiento
 
 ## Estructura de directorios
