@@ -1,8 +1,8 @@
-# yubox-framework
+# YUBOX Framework
 Librería que consolida varias necesidades comunes a todos los proyectos basados en YUBOX ESP32 para IoT.
 
 ## Tabla de contenido
-- [yubox-framework](#yubox-framework)
+- [YUBOX Framework](#yubox-framework)
   - [Tabla de contenido](#tabla-de-contenido)
   - [Requerimientos del framework](#requerimientos-del-framework)
   - [Instalación](#instalación)
@@ -49,7 +49,38 @@ más allá del alcance de esta documentación.
 
 ## Instalación
 
+Para poder construir un proyecto que use el Yubox Framework, se debe preparar la PC de desarrollo con los requisitos
+descritos a continuación:
+
 ### Requisitos en PC de desarrollo
+
+Esta guía ha sido construida desde el punto de vista de un desarrollo en una PC con una distro Linux. Consecuentemente
+todos los comandos y utilidades indicados a continuación son presentados como los ejecutaría un usuario de Linux. El
+desarrollo con YUBOX Framework en un sistema operativo distinto (MacOS o Windows) puede requerir pasos adicionales.
+
+Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
+- Arduino IDE, en su versión 1.8 o superior. No está soportado el desarrollo usando versiones anteriores de Arduino IDE.
+  En particular, las distros basadas en Ubuntu podrían tener un paquete arduino que es una versión muy vieja para
+  funcionar correctamente con el resto de paquetes. Si la versión instalada es muy vieja, debe actualizarse con una
+  versión más reciente instalada desde el zip o targz oficial de [Arduino](#https://www.arduino.cc/en/Main/Software).
+  ATENCIÓN: algunas distros ofrecen la instalación de Arduino a través de Flatpak. Sin embargo, el modelo de ejecución
+  de Flatpak puede obstruir el acceso a los puertos seriales y también negar el acceso al intérprete Python del sistema
+  lo cual impide completamente subir programas al ESP32. Se recomienda no instalar el Arduino IDE desde Flatpak, sino
+  usando el zip o targz oficial, o el paquete ofrecido por los repositorios de la distro (si es lo suficientemente
+  reciente).
+- Soporte de ESP32 para el Arduino IDE. Para instalar este soporte, ejecute el Arduino IDE, elija del menú la opción
+  Archivo-->Preferencias, y en el cuadro de diálogo inserte o agregue en la caja de texto "Gestor de URLs Adicionales
+  de Tarjetas" la siguiente URL: https://dl.espressif.com/dl/package_esp32_index.json .
+  - Si no aparece la caja de texto para URLs de tarjetas, su versión de Arduino IDE podría ser muy vieja. Revise la
+    versión de su IDE y actualice en caso necesario.
+  A continuación pulse el botón OK, reinicie el Arduino IDE, y elija la opción de menú Herramientas-->Placa-->Gestor
+  de tarjetas. Entonces debe mostrarse un diálogo donde se carga la lista de soportes de tarjetas, incluyendo el soporte
+  "esp32". Pulse sobre esa fila el botón "Instalar", y deje que todos los componentes se descarguen. Luego de completar
+  la instalación, reinicie el Arduino IDE, y elija las siguientes opciones de tarjeta en el menú Herramientas. Note que
+  el orden de elección es importante, porque el tipo de tarjeta condiciona la aparición de las siguientes opciones:
+  - Herramientas-->Placa-->ESP32 Arduino-->NodeMCU-32S
+  - Herramientas-->Upload Speed-->921600
+  - Herramientas-->Flash Frequency-->80MHz
 
 ### Dependencias Arduino
 
