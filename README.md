@@ -158,7 +158,7 @@ Uso: /home/alex/Arduino/libraries/yubox-framework/yubox-framework-assemble /data
 Si en su lugar se muestra un mensaje aludiendo a python3 inexistente, como el siguiente:
 
 ```
-bash: /home/alex/Arduino/libraries/yubox-framework/yubox-framework-assemble: /usr/bin/python4: intérprete erróneo: No existe el fichero o el directorio
+bash: /home/alex/Arduino/libraries/yubox-framework/yubox-framework-assemble: /usr/bin/python3: intérprete erróneo: No existe el fichero o el directorio
 ```
 Verifique que se dispone de Python 3 en su sistema.
 
@@ -173,6 +173,62 @@ ModuleNotFoundError: No module named 'pystache'
 Verifique que la biblioteca correspondiente esté disponible para Python 3, especialmente `pystache`.
 
 ## Modelo de funcionamiento
+
+En el dispositivo ESP32, el espacio total de almacenamiento flash disponible (que no debe confundirse con el
+almacenamiento disponible en alguna tarjeta microSD insertada) está dividido en varias particiones. En la
+disposición estándar existen dos particiones dedicadas a la aplicación, una partición destinada a NVRAM, y
+una partición dedicada a SPIFFS. De las dos particiones de aplicación, una de ellas contiene el código del
+sketch en ejecución, y la otra se destina a recibir una posible actualización de código, seguido de un
+intercambio de roles. Esto permite realizar un rollback si la nueva aplicación lo requiere, y también permite
+que una actualización provea un firmware más grande que la memoria disponible o el espacio en SPIFFS, siempre
+y cuando quepa dentro de la partición de actualización.
+
+La partición NVRAM está destinada a almacenar opciones estructuradas accesibles en formato clave/valor, y permite
+guardar opciones que deben persistir entre reinicios del dispositivo, como por ejemplo credenciales de WiFi,
+o nombres/IPs de servidores remotos.
+
+La partición SPIFFS contiene un sistema de archivos que el sketch puede leer y escribir de forma arbitraria.
+En el YUBOX Framework, el sistema de archivos SPIFFS se utiliza para contener la página web de la interfaz de
+configuración, su correspondiente Javascript, y las bibliotecas CSS y Javascript accesorias. Estas últimas
+bibliotecas incluyen jQuery, Bootstrap 4 (javascript y CSS), y pueden incluir más bibliotecas por requerimiento
+de la aplicación.
+
+Un dispositivo que usa el YUBOX Framework expone un servidor web en sus interfases de red WiFi en el puerto 80.
+Se aprovecha la capacidad del ESP32 de tener dos interfases WiFi activas (la interfaz STA y la interfaz AP) para
+proveer permanentemente un acceso WiFi al dispositivo incluso si la conexión al WiFi del entorno se pierde o no
+se ha configurado todavía. En la interfaz AP, el aparato expone por omisión una red WiFi de nombre
+`YUBOX-XXXXXXXXXXXX` que se deriva de la MAC del WiFi del dispositivo, sin contraseña. Dentro de la red AP, el
+dispositivo es accesible vía la IP 192.168.4.1 (por omisión).
+
+El navegador que visita el servicio web (por cualquiera de las dos interfases) carga una página HTML construida
+con Bootstrap 4, previa autenticación si el sketch así lo ha configurado:
+
+[Autenticación admin](extras/yubox-framework-pedir-clave.png)
+
+[Interfaz web con gráfico](extras/yubox-framework-interfaz-ejemplo.png)
+
+La interfaz web es una aplicación de una sola página [(Single-Page-Application)](https://en.wikipedia.org/wiki/Single-page_application)
+construida con jQuery y Bootstrap 4. Toda la comunicación para actualizar la página web debe de realizarse a través
+de peticiones AJAX, canales Server-Sent-Event o websockets. El propósito de esta arquitectura es el de relegar el
+dispositivo al rol de únicamente responder AJAX, sin perder tiempo en construir varias veces una página web. En el menú
+de la parte superior se muestran los módulos disponibles para configuración. Por convención el módulo que corresponde
+al propósito específico del sketch es el primero en mostrarse en el menú y el que se abre por omisión.
+
+Al cambiar de cejilla en Bootstrap, se emiten eventos de cejilla visible o escondida, los cuales se manejan para
+iniciar o detener monitoreos o funcionalidades que deben actualizar la página. Por ejemplo, el mostrar la
+cejilla WiFi inicia un canal SSE hacia el servidor que inicia el escaneo de redes WiFi visibles. Este mismo
+escaneo deja de realizarse al cerrar el canal, lo cual ocurre al elegir otra cejilla.
+
+Internamente, el framework instala manejadores para las siguientes tareas:
+- Mantener una conexión WiFi activa siempre que sea posible. Es posible guardar las credenciales de múltiples sitos
+  para que el dispositivo pueda ser movido entre ubicaciones con redes distintas sin tener que configurarlo otra vez.
+  Si hay múltiples redes conocidas en un solo lugar, el framework elige la más potente primero.
+- En caso de activar MQTT, la conexión al servidor MQTT se reintenta si se ha desconectado y se tiene de nuevo
+  una conexión disponible.
+
+Mediante el uso de AsyncTCP se consigue que los manejadores de red y de la interfaz web sean invocados desde fuera
+del bucle principal del sketch. Entonces, el bucle principal sólo tiene que invocar regularmente el manejador de
+NTP (en caso de requerir hora), y únicamente implementar el código que concierne a la aplicación.
 
 ## Estructura de directorios
 
