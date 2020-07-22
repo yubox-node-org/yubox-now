@@ -64,8 +64,9 @@ Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
 - Arduino IDE, en su versión 1.8 o superior. No está soportado el desarrollo usando versiones anteriores de Arduino IDE.
   En particular, las distros basadas en Ubuntu podrían tener un paquete arduino que es una versión muy vieja para
   funcionar correctamente con el resto de paquetes. Si la versión instalada es muy vieja, debe actualizarse con una
-  versión más reciente instalada desde el zip o targz oficial de [Arduino](#https://www.arduino.cc/en/Main/Software).
-  ATENCIÓN: algunas distros ofrecen la instalación de Arduino a través de Flatpak. Sin embargo, el modelo de ejecución
+  versión más reciente instalada desde el zip o targz oficial de [Arduino](https://www.arduino.cc/en/Main/Software).
+
+  *ATENCIÓN*: algunas distros ofrecen la instalación de Arduino a través de Flatpak. Sin embargo, el modelo de ejecución
   de Flatpak puede obstruir el acceso a los puertos seriales y también negar el acceso al intérprete Python del sistema
   lo cual impide completamente subir programas al ESP32. Se recomienda no instalar el Arduino IDE desde Flatpak, sino
   usando el zip o targz oficial, o el paquete ofrecido por los repositorios de la distro (si es lo suficientemente
@@ -106,6 +107,29 @@ Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
   - `pystache`, intérprete de plantillas [Mustache](http://mustache.github.io/) para Python, posiblemente disponible como `python3-pystache`.
 
 ### Dependencias Arduino
+
+Se requieren las siguientes bibliotecas de código como dependencias de YUBOX Framework:
+- `NTPClient` que es una biblioteca para realizar peticiones NTP (Network Time Protocol) para obtener y actualizar la
+  hora en el dispositivo ESP32. Esta biblioteca se la puede instalar desde el gestor de bibliotecas de Arduino IDE.
+- `ArduinoJSON` que es una biblioteca para serializar y deserializar JSON, para Arduino. Esta biblioteca se usa
+  principalmente para construir respuestas JSON a las peticiones AJAX. Esta biblioteca se la puede instalar desde el
+  gestor de bibliotecas del Arduino IDE. El YUBOX Framework ha sido probado con la versión 6.15.2 al 22 de julio de
+  2020.
+- `AsyncTCP` que es una biblioteca para realizar conexiones TCP/IP de forma asíncrona en una tarea separada del ESP32.
+  Esta biblioteca **NO** está disponible en el gestor de bibliotecas de Arduino IDE. Para instalarla, visite
+  https://github.com/me-no-dev/AsyncTCP y descargue un zip con el código fuente desde https://github.com/me-no-dev/AsyncTCP/archive/master.zip
+  o (para uso avanzado) haga un checkout usando `git`. En cualquier caso, debe existir un directorio con el código de
+  la biblioteca debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/AsyncTCP`. Esta
+  biblioteca es un requisito para las dos bibliotecas siguientes.
+- `ESPAsyncWebServer` que es una biblioteca para exponer un servidor web en el ESP32, usando `AsyncTCP`. Para instalar
+  esta biblioteca, visite https://github.com/me-no-dev/ESPAsyncWebServer y descargue un zip con el código fuente desde
+  https://github.com/me-no-dev/ESPAsyncWebServer/archive/master.zip . Debe existir eventualmente un directorio con el
+  código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/ESPAsyncWebServer`.
+
+Además se recomienda instalar el siguiente addon de Arduino IDE:
+- [Arduino ESP32 filesystem uploader](https://github.com/me-no-dev/arduino-esp32fs-plugin), el cual es un addon al Arduino
+  IDE que permite poblar la partición SPIFFS del ESP32 con archivos preparados desde un directorio del proyecto. Visite
+  https://github.com/me-no-dev/arduino-esp32fs-plugin y siga las instrucciones para instalar el plugin.
 
 ### Obtener biblioteca
 
