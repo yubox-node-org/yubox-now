@@ -92,11 +92,18 @@ Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
   pueda instalar con un comando similar a `sudo apt-get install make` (para distros basadas en Debian o Ubunto), o
   `sudo yum install make` o `sudo dnf install make` para distros basadas en RedHat como CentOS, SuSE o Fedora. Otras
   distros pueden requerir sus propias herramientas de instalación de paquetes.
-- Intérprete `python3`. Se requiere Python 3 para el comando yubox-framework-assemble, el cual no ha sido diseñado para
+- Intérprete `python3`. Se requiere Python 3 para el comando `yubox-framework-assemble`, el cual no ha sido diseñado para
   ser ejecutado en Python2. En Fedora 32 el intérprete Python por omisión es Python 3.8. En otras distros puede que sea
   necesario instalar explícitamente Python3 con el comando `sudo apt-get install python3` o `sudo yum install python3`
   o `sudo dnf install python3` según su distro.
-
+- Paquete `pip3` que provee [Pip](https://pypi.org/project/pip/) para Python 3. Este paquete puede que sea necesario si
+  los paquetes de Python 3 indicados a continuación no están disponibles como paquetes de su distro. Primero verifique
+  si existe el comando `/usr/bin/pip3`. Si el comando no existe, instálelo con `sudo apt-get install python3-pip`,
+  `sudo yum install python3-pip`, o `sudo dnf install python3-pip` según su distro de Linux.
+- El comando `yubox-framework-assemble` requiere además de los siguientes paquetes. Para cada uno, intente primero
+  instalar una versión provista por el repositorio de su distro Linux. Si la distro no provee el paquete, entonces ejecute
+  el comando `pip3 install PAQUETE` donde PAQUETE debe reemplazarse por el paquete a instalar:
+  - `pystache`, intérprete de plantillas [Mustache](http://mustache.github.io/) para Python, posiblemente disponible como `python3-pystache`.
 
 ### Dependencias Arduino
 
