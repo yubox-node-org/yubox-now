@@ -220,6 +220,9 @@ cejilla WiFi inicia un canal SSE hacia el servidor que inicia el escaneo de rede
 escaneo deja de realizarse al cerrar el canal, lo cual ocurre al elegir otra cejilla.
 
 Internamente, el framework instala manejadores para las siguientes tareas:
+- Se activa mDNS para asignar un nombre de host descubrible en la red WiFi. Si un sistema operativo soporta mDNS
+  (Bonjour para MacOS o Avahi bajo Linux), el dispositivo responde al nombre de host `yubox-XXXXXXXXXXXX.local`
+  construido a partir de la MAC del dispositivo. Adicionalmente se activa [DNS-SD](https://en.wikipedia.org/wiki/Zero-configuration_networking#DNS-SD)para exponer la presencia del servicio _http._tcp .
 - Mantener una conexión WiFi activa siempre que sea posible. Es posible guardar las credenciales de múltiples sitos
   para que el dispositivo pueda ser movido entre ubicaciones con redes distintas sin tener que configurarlo otra vez.
   Si hay múltiples redes conocidas en un solo lugar, el framework elige la más potente primero.
