@@ -6,7 +6,8 @@ Librería que consolida varias necesidades comunes a todos los proyectos basados
   - [Tabla de contenido](#tabla-de-contenido)
   - [Requerimientos del framework](#requerimientos-del-framework)
   - [Instalación](#instalación)
-    - [Dependencias](#dependencias)
+    - [Requisitos en PC de desarrollo](#requisitos-en-pc-de-desarrollo)
+    - [Dependencias Arduino](#dependencias-arduino)
     - [Obtener biblioteca](#obtener-biblioteca)
   - [Modelo de funcionamiento](#modelo-de-funcionamiento)
   - [Estructura de directorios](#estructura-de-directorios)
@@ -14,6 +15,13 @@ Librería que consolida varias necesidades comunes a todos los proyectos basados
     - [Archivos y directorios de proyecto](#archivos-y-directorios-de-proyecto)
     - [Desarrollo cliente - JavaScript](#desarrollo-cliente---javascript)
     - [Desarrollo server - Arduino C++](#desarrollo-server---arduino-c++)
+    - [Transferencia de sketch al ESP32](#transferencia-de-sketch-al-ESP32)
+  - [Configuración básica usando interfaz web](#configuración-básica-usando-interfaz-web)
+    - [Ingreso a red softAP y configuración WiFi](#ingreso-a-red-softap-y-configuración-wifi)
+    - [Credenciales y cambio de clave](#credenciales-y-cambio-de-clave)
+    - [Configuración NTP](#configuración-ntp)
+    - [Actualización de firmware](#actualización-de-firmware)
+    - [Configuración MQTT (según proyecto)](#configuración-mqtt-según-proyecto)
 
 ## Requerimientos del framework
 
@@ -32,9 +40,18 @@ a continuación:
 - Configuración estandar de acceso a un servidor MQTT
 - Actualización OTA (Over The Air) del firmware del dispositivo con uso del rollback disponible en el ESP32
 
+La biblioteca de YUBOX Framework es un proyecto en desarrollo que implementa las funcionalidades descritas arriba
+y presenta una interfaz web estandarizada usando [Bootstrap 4](https://getbootstrap.com/) para disponer de widgets
+estándar. Se debe hacer notar que la porción C++ que se ejecuta en el ESP32 usa AJAX para su comunicación y no
+depende estrictamente de Bootstrap. Sin embargo, cualquier intento de migrar la interfaz para usar otra biblioteca
+de interfaz web cliente, requiere una reescritura de todas las porciones HTML y Javascript del framework, y está
+más allá del alcance de esta documentación.
+
 ## Instalación
 
-### Dependencias
+### Requisitos en PC de desarrollo
+
+### Dependencias Arduino
 
 ### Obtener biblioteca
 
@@ -49,4 +66,18 @@ a continuación:
 ### Desarrollo cliente - JavaScript
 
 ### Desarrollo server - Arduino C++
+
+### Transferencia de sketch al ESP32
+
+## Configuración básica usando interfaz web
+
+### Ingreso a red softAP y configuración WiFi
+
+### Credenciales y cambio de clave
+
+### Configuración NTP
+
+### Actualización de firmware
+
+### Configuración MQTT (según proyecto)
 
