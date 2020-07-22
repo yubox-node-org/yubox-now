@@ -203,9 +203,9 @@ dispositivo es accesible vía la IP 192.168.4.1 (por omisión).
 El navegador que visita el servicio web (por cualquiera de las dos interfases) carga una página HTML construida
 con Bootstrap 4, previa autenticación si el sketch así lo ha configurado:
 
-[Autenticación admin](extras/yubox-framework-pedir-clave.png)
+![Autenticación admin](extras/yubox-framework-pedir-clave.png)
 
-[Interfaz web con gráfico](extras/yubox-framework-interfaz-ejemplo.png)
+![Interfaz web con gráfico](extras/yubox-framework-interfaz-ejemplo.png)
 
 La interfaz web es una aplicación de una sola página [(Single-Page-Application)](https://en.wikipedia.org/wiki/Single-page_application)
 construida con jQuery y Bootstrap 4. Toda la comunicación para actualizar la página web debe de realizarse a través
