@@ -222,7 +222,7 @@ escaneo deja de realizarse al cerrar el canal, lo cual ocurre al elegir otra cej
 Internamente, el framework instala manejadores para las siguientes tareas:
 - Se activa mDNS para asignar un nombre de host descubrible en la red WiFi. Si un sistema operativo soporta mDNS
   (Bonjour para MacOS o Avahi bajo Linux), el dispositivo responde al nombre de host `yubox-XXXXXXXXXXXX.local`
-  construido a partir de la MAC del dispositivo. Adicionalmente se activa [DNS-SD](https://en.wikipedia.org/wiki/Zero-configuration_networking#DNS-SD)para exponer la presencia del servicio _http._tcp .
+  construido a partir de la MAC del dispositivo. Adicionalmente se activa [DNS-SD](https://en.wikipedia.org/wiki/Zero-configuration_networking#DNS-SD) para exponer la presencia del servicio _http._tcp .
 - Mantener una conexión WiFi activa siempre que sea posible. Es posible guardar las credenciales de múltiples sitos
   para que el dispositivo pueda ser movido entre ubicaciones con redes distintas sin tener que configurarlo otra vez.
   Si hay múltiples redes conocidas en un solo lugar, el framework elige la más potente primero.
@@ -234,6 +234,23 @@ del bucle principal del sketch. Entonces, el bucle principal sólo tiene que inv
 NTP (en caso de requerir hora), y únicamente implementar el código que concierne a la aplicación.
 
 ## Estructura de directorios
+
+Un proyecto Arduino que usa YUBOX Framework debe de ajustarse a la siguiente estructura de archivos y directorios:
+
+- NombreProyecto/
+  - NombreProyecto.ino
+  - Fuente1.cpp
+  - Fuente2.cpp
+  - Makefile
+  - modules.txt
+  - data/
+  - data-template/
+    - libreria-adicional-1.js
+    - libreria-adicional-2.js.gz
+    - medidorproyecto/
+      - index.htm
+      - yuboxapp.js
+      - module.ini
 
 ## Creación de un nuevo proyecto
 
