@@ -251,6 +251,44 @@ Un proyecto Arduino que usa YUBOX Framework debe de ajustarse a la siguiente est
       - index.htm
       - yuboxapp.js
       - module.ini
+    - otromoduloproyecto/
+      - index.htm
+      - yuboxapp.js
+      - module.ini
+
+Para un ejemplo funcional de un proyecto de YUBOX Framework, examine el directorio `examples/yubox-framework-test` y refiérase a
+la explicación a continuación.
+
+En el esquema mostrado arriba, se notan los siguientes nombres de archivo:
+- `NombreProyecto` es el nombre arbitrario del directorio de su proyecto.
+- `NombreProyecto.ino` es el archivo fuente principal del proyecto. Por convención del Arduino IDE, este archivo debe llamarse igual que el
+  nombre del directorio, con extensión `.ino`.
+- `Fuente1.cpp` y `Fuente2.cpp` representan archivos adicionales de código fuente específicos de su proyecto.
+- `Makefile` es el archivo leído por la invocación del programa `make`. Muchas de las operaciones que serán hechas en el proyecto involucran
+  invocar al comando `make`, el cual leerá este archivo.
+- `modules.txt` es un archivo de configuración que será leído por el comando `yubox-framework-assemble` para construir la interfaz HTML que
+  será servida por el servidor web del YUBOX Framework.
+- `NombreProyecto/data` es el directorio donde se arma el contenido del directorio SPIFFS del ESP32. El comando `yubox-framework-assemble`
+  construye en este directorio el contenido que será servido por el servidor web del YUBOX Framework. Este directorio empieza vacío.
+- `data-template` es el directorio donde se organiza el contenido de la parte de la interfaz del YUBOX Framework que es específica de su
+  proyecto. En este directorio deben colocarse los módulos que definen configuraciones y visualizaciones de su proyecto, y bibliotecas
+  Javascript adicionales que sean usadas por tales módulos.
+- `libreria-adicional-1.js` y `libreria-adicional-2.js.gz` representan bibliotecas Javascript que serán incluidas en su proyecto. Para que
+  la interfaz web realmente haga referencia a tales bibliotecas, estas deben ser declaradas en el archivo module.ini de al menos un módulo
+  de su proyecto. La biblioteca ESPAsyncWebServer soporta servir una versión comprimida (con `gzip`) de un recurso si `archivo` no existe
+  pero existe su correspondiente `archivo.gz`. Por lo tanto, a menos que exista una razón para lo contrario, se recomienda comprimir las
+  bibliotecas externas que no son directamente parte de su desarrollo pero son dependencias de su proyecto.
+- `data-template/medidorproyecto` y `data-template/otromoduloproyecto` representan módulos de la interfaz web a ser agregados para su proyecto.
+- `data-template/medidorproyecto/index.htm` es un fragmento de HTML que contiene los widgets y elementos HTML necesarios para mostrar su
+  interfaz web para el módulo específico del proyecto. El contenido de este HTML termina dentro de un `<div>` que se embebe en la lista de
+  cejillas en la interfaz web.
+- `data-template/medidorproyecto/yuboxapp.js` contiene código Javascript que será incluido como parte del archivo Javascript a ser cargado
+  para la interfaz web entera. Dentro de este archivo debe declararse al menos una función Javascript dedicada a la preparación de los
+  widgets del módulo (manejadores de eventos en su mayor parte). El nombre de esta función Javascript debe declararse en el archivo module.ini
+  del directorio del módulo.
+- `data-template/medidorproyecto/module.ini` es un archivo de configuración cuya presencia indica que el directorio `medidorproyecto` dentro
+  de `data-template` es, efectivamente, un módulo. El contenido del archivo obedece el formato INI e indica varias variables a usar para
+  la ejecución de `yubox-framework-assemble`. El detalle de este archivo se examina en la sección de creación de un proyecto.
 
 ## Creación de un nuevo proyecto
 
