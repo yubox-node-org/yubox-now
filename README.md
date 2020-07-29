@@ -348,6 +348,68 @@ crearse la siguiente estructura de archivos y directorios:
 
 ### Desarrollo cliente - JavaScript
 
+En la parte de presentación de su proyecto, la casi totalidad de la programación estará dentro de uno o más directorios debajo de `data-template`.
+Para que un directorio sea reconocido como un módulo de presentación en lugar de un archivo de datos a ser copiado directamente, el directorio
+debe de tener un archivo llamado `module.ini`. A continuación se muestra un contenido típico del archivo:
+```ini
+[index.htm]
+desc=Estado del clima
+extra_jslibs=Chart-2.9.3b.min.js
+
+[yuboxapp.js]
+setupjs=setupLectorTab
+```
+El archivo `module.ini` sigue el formato INI (internamente leído a través de la biblioteca estándar `configparser` de Python 3) y está dividido en
+secciones con claves y valores. La regla general es que cada sección tiene el nombre de un archivo a generar para el cual el YUBOX Framework
+provee una plantilla Mustache. Por ejemplo, la sección llamada `[index.htm]` contiene claves a ser asignadas para el módulo cuando se procesa
+la plantilla `data-template/index.htm.mustache`, sea la estándar del framework, o una plantilla personalizada del proyecto.
+
+Las variables a asignar para cada archivo de plantilla son las siguientes:
+- `[index.htm]`: variables para decorar el HTML correspondiente al módulo
+  - `desc`: Etiqueta para el módulo, tal como debe de aparecer en la barra de menú superior. Valor requerido.
+  - `extra_jslibs`: Lista de bibliotecas Javascript que son necesarias cargar antes de ejecutar la inicialización Javascript del módulo. Esta es
+    una lista de nombres de archivo separada por espacios. Cada archivo memcionado debe de existir en el directorio `data-template` del proyecto,
+    con la excepción de que si el archivo está comprimido con `gzip`, el archivo mencionado en la lista debe ser el nombre SIN el `.gz` al final.
+    La presencia de esta lista es opcional.
+- `[yuboxapp.js]`: variables para configurar el Javascript correspondiente al módulo
+  - `setupjs`: nombre de una función Javascript que debe existir en el archivo `yuboxapp.js` del módulo. Esta función será invocada al cargar la
+    página HTML, y debe encargarse de inicializar todos los eventos de los widgets del módulo, y de abrir inmediatamente o condicionalmente los
+    canales de comunicación con el dispositivo. Por ejemplo, si se requiere que se abra un canal SSE al mostrar la cejilla del módulo, los
+    manejadores de eventos serán instalados por esta función.
+- `[yuboxapp.css]`: variables para configurar el CSS correspondiente al módulo
+  - (ninguna definida en este punto por la plantilla)
+
+Además del archivo `module.ini`, el módulo puede proveer un archivo que se corresponde a cada plantilla provista por el framework. Si el archivo
+es provisto por el módulo, el contenido de este archivo se convierte en el "contenido" que el módulo provee para la interfaz:
+- `index.htm` se carga y se introduce como el contenido de la cejilla elegida al navegar entre módulos en la interfaz.
+- `yuboxapp.js` se carga y su contenido, concatenado con el de todos los demás módulos, contribuye al contenido del archivo `yuboxapp.js`
+  cargado como parte de la interfaz web.
+- `yuboxapp.css` (si existe) se carga y su contenido agrega a los estilos CSS disponibles para la interfaz web.
+
+Refiérase al ejemplo `yubox-framework-test` para una organización típica. Los estilos y eventos disponibles en la interfaz HTML y el código
+Javascript son los proporcionados por jQuery 3.5.1 y Bootstrap 4.5.0. Consulte la documentación de jQuery y Bootstrap 4 para esta referencia.
+La plantilla estándar de YUBOX Framework adopta las siguientes convenciones para localizar los elementos del módulo llamado `ejemplo`:
+- `div#yuboxMainTabContent > div.tab-pane#ejemplo` es el selector jQuery que identifica el panel que contiene el código HTML del módulo
+  `ejemplo`, el cual se cargó originalmente del archivo `index.htm` del directorio del módulo.
+- `ul#yuboxMainTab a#ejemplo-tab[data-toggle="tab"]` es el selector jQuery que identifica el widget de navegación que recibe los eventos
+  de panel mostrado y ocultado para el módulo `ejemplo`. Refiérase a la documentación en https://getbootstrap.com/docs/4.4/components/navs/#events
+  para los eventos `shown.bs.tab` y `hide.bs.tab` que deben ser manejados en caso necesario para tomar acción al mostrar u ocultar
+  el módulo.
+
+La plantilla estándar de YUBOX Framework define también las siguientes funciones para operaciones estándar de módulos:
+- `yuboxAPI(s)` introduce una formato estándar para el punto de entrada de API de un módulo. La invocación de `yuboxAPI('ejemplo')+'/config.json'`
+  se expande actualmente a `/yubox-api/ejemplo/config.json`. El código C++ de Arduino debe entonces instalar un manejador para esta ruta.
+- `yuboxMostrarAlert(alertstyle, content, timeout)` y `yuboxMostrarAlertText(alertstyle, text, timeout)` muestran una caja de alerta de
+  Bootstrap en la parte superior de la interfaz, justo debajo del menú de módulos. El valor de `alertstyle` es uno de los estilos de
+  alerta estándar de Bootstrap: `primary`, `secondary`, `success`, `warning`, `danger`, `info`, `light`, `dark`. El parámetro `timeout`
+  es opcional e indica el número de milisegundos luego del cual quitar la alerta. El parámetro `content` indica un HTML arbitrario a
+  insertar, mientras que `text` indica un texto corriente.
+- `yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)` y `yuboxDlgMostrarAlertText(basesel, alertstyle, text, timeout)` son
+  similares a `yuboxMostrarAlert` y `yuboxMostrarAlertText`, pero muestran una caja de alerta en el interior de un diálogo modal
+  identificado por `basesel`.
+- `yuboxStdAjaxFailHandler(e, timeout)` y `yuboxStdAjaxFailHandlerDlg(basesel, e, timeout)` son especializaciones que muestran el contenido
+  de un error o excepción dentro de `e`, en la parte superior de la interfaz, o dentro de un diálogo modal, respectivamente.
+
 ### Desarrollo server - Arduino C++
 
 ### Transferencia de sketch al ESP32
