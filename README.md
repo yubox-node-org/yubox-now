@@ -288,11 +288,50 @@ En el esquema mostrado arriba, se notan los siguientes nombres de archivo:
   del directorio del módulo.
 - `data-template/medidorproyecto/module.ini` es un archivo de configuración cuya presencia indica que el directorio `medidorproyecto` dentro
   de `data-template` es, efectivamente, un módulo. El contenido del archivo obedece el formato INI e indica varias variables a usar para
-  la ejecución de `yubox-framework-assemble`. El detalle de este archivo se examina en la sección de creación de un proyecto.
+  la ejecución de `yubox-framework-assemble`. El detalle de este archivo se examina en
 
 ## Creación de un nuevo proyecto
 
 ### Archivos y directorios de proyecto
+
+Para crear un proyecto nuevo que use YUBOX Framework, primero inicie un sketch ordinario en el Arduino IDE para el ESP32. A continuación, debe
+crearse la siguiente estructura de archivos y directorios:
+- `modules.txt`: este archivo contiene la lista de módulos que conformarán la interfaz web de su proyecto. El contenido de este archivo debe
+  ser similar al siguiente ejemplo:
+  ```
+  +lector wifi ntpconfig mqtt webauth yuboxOTA
+  ```
+  El contenido es una sola línea de identificadores separados por espacio. Cada identificador es un módulo de interfaz web provisto por el
+  YUBOX Framework o por su desarrollo del proyecto, y se corresponde con un nombre de directorio dentro del directorio `data-template`, sea
+  del framework o de su proyecto. El orden en el cual los identificadores aparecen en el archivo determina el orden en el que se muestran las
+  respectivas entradas de menú en la interfaz. Exactamente uno de los identificadores debe estar precedido de un signo más (+). Este identificador
+  será el módulo que se mostrará por omisión al cargar la interfaz web.
+
+  Los módulos provistos por el YUBOX Framework son los siguientes:
+  - `wifi`: módulo que provee la funcionalidad de configuración de WiFi y escaneo de redes. Este módulo es casi siempre necesario.
+  - `webauth`: módulo que permite administrar la contraseña de administración del dispositivo. A menos que se deje el equipo enteramente sin
+    autenticación, este módulo es requerido.
+  - `ntpconfig`: módulo que permite administrar la sincronización con hora de red vía NTP. Este módulo es necesario a menos que su proyecto sea
+    enteramente independiente de la hora del día.
+  - `yuboxOTA`: módulo que implementa la actualización de firmware a partir de una carga de archivo. También se ofrece la opción de rollback
+    (si hay un firmware anterior) y un botón de simple reinicio del dispositivo.
+  - `mqtt`: si está presente, este módulo permite administrar una conexión de un cliente MQTT hacia un servidor arbitrario cuyo acceso (incluyendo
+    usuario y contraseña) se configura aquí. Este módulo puede omitirse si no se requiere una conexión MQTT o se usa otro mecanismo para enviar
+    muestras.
+  
+  Es posible tener en el directorio `data-template` del proyecto, un módulo que se llama de forma igual que un módulo estándar del YUBOX Framework.
+  En este caso, al ensamblar la interfaz web, se usará la versión del proyecto en lugar de la copia del YUBOX Framework.
+- `Makefile`: este archivo es la entrada al comando `make` que inicia varias operaciones para la construcción del proyecto. El archivo más sencillo
+  que sirve para el desarrollo es el siguiente:
+  ```
+  include $(YF)/Makefile.inc
+  ```
+  Este `Makefile` puede usarse con el siguiente comando:
+  ```sh
+  $ make YF=/ruta/a/yubox-framework/
+  ```
+  En esta invocación, `/ruta/a/yubox-framework/` es la ruta (relativa o absoluta) hacia su instalación de YUBOX Framework, generalmente en
+  /home/SU_USUARIO/Arduino/libraries/yubox-framework/ .
 
 ### Desarrollo cliente - JavaScript
 
