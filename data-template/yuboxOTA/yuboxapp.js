@@ -185,7 +185,7 @@ function yuboxOTAUpload_init()
         });
         otapane.data('sse', sse);
     } else {
-      yuboxMostrarAlertText('danger', 'Este navegador no soporta Server-Sent Events, no se puede escanear WiFi.');
+      yuboxMostrarAlertText('danger', 'Este navegador no soporta Server-Sent Events, no se puede monitorear upload.');
     }
 }
 
