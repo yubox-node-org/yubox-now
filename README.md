@@ -318,9 +318,7 @@ crearse la siguiente estructura de archivos y directorios:
   - `mqtt`: si está presente, este módulo permite administrar una conexión de un cliente MQTT hacia un servidor arbitrario cuyo acceso (incluyendo
     usuario y contraseña) se configura aquí. Este módulo puede omitirse si no se requiere una conexión MQTT o se usa otro mecanismo para enviar
     muestras.
-  
-  Es posible tener en el directorio `data-template` del proyecto, un módulo que se llama de forma igual que un módulo estándar del YUBOX Framework.
-  En este caso, al ensamblar la interfaz web, se usará la versión del proyecto en lugar de la copia del YUBOX Framework.
+
 - `Makefile`: este archivo es la entrada al comando `make` que inicia varias operaciones para la construcción del proyecto. El archivo más sencillo
   que sirve para el desarrollo es el siguiente:
   ```
@@ -332,6 +330,21 @@ crearse la siguiente estructura de archivos y directorios:
   ```
   En esta invocación, `/ruta/a/yubox-framework/` es la ruta (relativa o absoluta) hacia su instalación de YUBOX Framework, generalmente en
   /home/SU_USUARIO/Arduino/libraries/yubox-framework/ .
+
+  Alternativamente, puede incluirse la ruta relativa dentro del propio `Makefile` de la siguiente manera:
+  ```
+  include /ruta/a/yubox-framework/Makefile.inc
+  ```
+  De esta forma se evita tener que especificar la ruta, pero podrían introducirse dependencias en su estructura de directorios actual.
+- `data-template`: el directorio que contiene los módulos personalizados para su proyecto, y cualquier biblioteca Javascript adicional requerida
+  por los módulos Javascript de su proyecto.
+  
+  Es posible tener en el directorio `data-template` del proyecto, un módulo que se llama de forma igual que un módulo estándar del YUBOX Framework.
+  En este caso, al ensamblar la interfaz web, se usará la versión del proyecto en lugar de la copia del YUBOX Framework. Del mismo modo, cualquiera
+  de los archivos presentes en el directorio `data-template` del YUBOX Framework puede ser reemplazado por un archivo de nombre idéntico en el
+  directorio `data-template` de su proyecto, y será usado en lugar del original. Este es un método recomendado para cambiar de colores reemplazando
+  el archivo CSS, o la disposición de la interfaz en `index.htm.mustache`.
+
 
 ### Desarrollo cliente - JavaScript
 
