@@ -827,7 +827,6 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   if (!clientError && !serverError) {
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
-    if (_tgzupload_foundFirmware) xTimerStart(_timer_restartYUBOX, 0);
   }
 
   _uploadRejected = false;
@@ -838,9 +837,10 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
+  json_doc["reboot"] = (_tgzupload_foundFirmware && !clientError && !serverError);
 
   serializeJson(json_doc, *response);
   request->send(response);

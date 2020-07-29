@@ -68,6 +68,15 @@ function setupYuboxOTATab()
                 setTimeout(function () {
                     window.location.reload();
                 }, 10 * 1000);
+
+                if (data.reboot) {
+                    // Por haber recibido esta indicación, ya se sabe que el
+                    // dispositivo está listo para ser reiniciado.
+                    $.post(yuboxAPI('yuboxOTA')+'/reboot', {})
+                    .fail(function (e) {
+                        yuboxStdAjaxFailHandler(e, 2000);
+                    });
+                }
             } else {
                 yuboxMostrarAlertText('danger', data.msg, 2000);
             }
