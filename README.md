@@ -412,7 +412,40 @@ La plantilla estándar de YUBOX Framework define también las siguientes funcion
 
 ### Desarrollo server - Arduino C++
 
+**TODO**
+
 ### Transferencia de sketch al ESP32
+
+Durante el desarrollo del código C++, el comando `make YF=...` construye los siguientes objetivos para el proyecto de nombre `NombreProyecto`:
+- `NombreProyecto.tar.gz` es un tarball que contiene la totalidad del firmware compilado y los archivos de datos para HTML. Este archivo es
+  adecuado para ser subido en la interfaz de HTML en el módulo de actualización de firmware.
+- `data/*` son todos los archivos disponibles en el sistema de archivos SPIFFS disponible para el sketch. El YUBOX Framework construye los
+  archivos de la interfaz HTML/Javascript dentro de este directorio. Luego de construido, el contenido se empaqueta dentro del archivo
+  `NombreProyecto.tar.gz`. Además este directorio es el lugar donde el addon [Arduino ESP32 filesystem uploader](https://github.com/me-no-dev/arduino-esp32fs-plugin) espera encontrar el contenido a ser enviado a la partición SPIFFS del ESP32.
+- `NombreProyecto.ino.nodemcu-32s.bin` es la porción ejecutable del proyecto. Este archivo, luego de construido, se empaqueta dentro del
+  archivo `NombreProyecto.tar.gz`.
+
+Un sketch que usa el YUBOX Framework requiere para su funcionamiento la transferencia del firmware compilado, y además el contenido SPIFFS para servir el contenido HTML y Javascript. El comando/botón Subir del Arduino IDE sólo sabe transferir el firmware, no el contenido de SPIFFS. Para subir
+el SPIFFS, existen dos opciones:
+- Con el objetivo de Makefile: `make YF=... dataupload`. Este objetivo de Makefile arrastra la construcción de la interfaz HTML en `data/`
+  en caso necesario, y a continuación invoca al programa `esptool.py` para subir el contenido SPIFFS. El dispositivo ESP32 debe estar
+  conectado durante este paso, y (de necesitarlo) se debe pulsar el botón de flasheo de la misma manera en que se requiere al subir el
+  firmware. Si el dispositivo serial no es la ruta por omisión de `/dev/ttyUSB0` entonces se debe especificar el comando de la siguiente
+  manera: `make YF=... SERIALPORT=/dev/ruta/a/serial dataupload` donde `/dev/ruta/a/serial` es la ruta al dispositivo serial asignada al
+  enchufar el ESP32.
+- Con el addon para Arduino IDE: [Arduino ESP32 filesystem uploader](https://github.com/me-no-dev/arduino-esp32fs-plugin). Este método
+  requiere que se construya previamente el directorio `data/` debajo del directorio del proyecto, con los archivos ya listos para ser
+  enviados. Este contenido es construido por la invocación simple del Makefile: `make YF=...`, o (si se requiere reconstruir únicamente
+  la porción de HTML) con el comando `make YF=... data/manifest.txt`. Una vez creado el contenido de `data/`, se enchufa el YUBOX y
+  se elige en el menú del Arduino IDE la opción Herramientas-->ESP32 Sketch Data Upload con la cual se inicia la transferencia al YUBOX
+  del contenido del directorio.
+
+Para referencia, se listan los objetivos de Makefile que transfieren al ESP32:
+- `make YF=... dataupload` transfiere el contenido HTML/Javascript al ESP32, construyéndolo si es necesario
+- `make YF=... codeupload` transfiere el firmware al ESP32, compilándolo si es necesario. Este objetivo es equivalente al comando/botón
+  Subir del Arduino IDE.
+- `make YF=... fullupload` transfiere en un solo comando el firmware y el contenido HTML/Javascript, construyendo cada uno si
+  es necesario.
 
 ## Configuración básica usando interfaz web
 
