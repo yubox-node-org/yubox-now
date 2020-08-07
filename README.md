@@ -412,7 +412,49 @@ La plantilla estándar de YUBOX Framework define también las siguientes funcion
 
 ### Desarrollo server - Arduino C++
 
-**TODO**
+En el código C++ del sketch de Arduino, se debe realizar una inicialización de la siguiente manera:
+- Se debe realizar la inclusión de las bibliotecas siguientes:
+  ```cpp
+  #include <WiFi.h>
+  #include "SPIFFS.h"
+  #include <ESPAsyncWebServer.h>
+
+  #define ARDUINOJSON_USE_LONG_LONG 1
+
+  #include "AsyncJson.h"
+  #include "ArduinoJson.h"
+
+  #include "YuboxWiFiClass.h"
+  #include "YuboxNTPConfigClass.h"
+  #include "YuboxOTAClass.h"
+  #include "YuboxMQTTConfClass.h"
+  ```
+  El propósito de cada biblioteca es el siguiente:
+  - `WiFi.h` es la biblioteca estándar de acceso a WiFi de Arduino IDE.
+  - `SPIFFS.h` es la biblioteca que da acceso al sistema de archivos SPIFFS desde dentro del sketch.
+  - `ESPAsyncWebServer.h` es la cabecera de la biblioteca [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer). Consulte la
+    documentación de ese proyecto para referencias sobre cómo exponer rutas de URL y asociarlas a comportamientos.
+  - La definición de `ARDUINOJSON_USE_LONG_LONG` es necesaria para poder codificar y decodificar enteros de 64 bits (`uint64_t`)
+    correctamente usando la biblioteca ArduinoJSON. Esta definición debe estar presente **ANTES** de la inclusión de la biblioteca
+    `ArduinoJson.h` para consistencia con el YUBOX Framework.
+  - `ArduinoJson.h` es la biblioteca de [ArduinoJSON](https://arduinojson.org/v6/doc/) que se usa para construir respuestas JSON
+    en el YUBOX Framework. Casi siempre, las rutas que responderán a AJAX en su proyecto tendrán que codificar sus datos como
+    JSON.
+  - `YuboxWiFiClass.h` es la primera biblioteca de YUBOX Framework que debe ser incluida. Para el soporte Web, esta biblioteca es obligatoria.
+    Al incluir esta biblioteca se tiene acceso al objeto `YuboxWiFi` usado en la inicialización posterior.
+  - `YuboxNTPConfigClass.h` debe ser incluido si se requiere administración e inicialización automática del servidor de hora, si
+    su proyecto requiere sincronización con hora de red (NTP). Esta biblioteca proporciona la declaración del objeto `YuboxNTPConf`.
+    El uso de esta biblioteca es opcional.
+  - `YuboxOTAClass.h` debe ser incluido para tener la funcionalidad de actualización de firmware vía carga de archivo tarball.
+    Esta biblioteca proporciona la declaración del objeto `YuboxOTA`. Esta biblioteca es opcional pero casi siempre necesaria.
+  - `YuboxMQTTConfClass.h`, si es incluido, proporciona la funcionalidad de configuración con un servidor MQTT remoto. Esta biblioteca
+    proporciona la declaración del objeto `YuboxMQTTConf`.
+
+  Adicionalmente, todas las bibliotecas incluyen a su vez la siguiente biblioteca:
+  - `YuboxWebAuthClass.h`, que proporciona la declaración del objeto `YuboxWebAuth` usado para administrar la autenticación del
+    servidor web, y referenciado en la inicialización posterior.
+
+**TODO: terminar**
 
 ### Transferencia de sketch al ESP32
 
