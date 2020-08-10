@@ -14,7 +14,7 @@ Librería que consolida varias necesidades comunes a todos los proyectos basados
   - [Creación de un nuevo proyecto](#creación-de-un-nuevo-proyecto)
     - [Archivos y directorios de proyecto](#archivos-y-directorios-de-proyecto)
     - [Desarrollo cliente - JavaScript](#desarrollo-cliente---javascript)
-    - [Desarrollo server - Arduino C++](#desarrollo-server---arduino-c++)
+    - [Desarrollo server - Arduino C++](#desarrollo-server---arduino-c)
     - [Transferencia de sketch al ESP32](#transferencia-de-sketch-al-ESP32)
   - [Configuración básica usando interfaz web](#configuración-básica-usando-interfaz-web)
     - [Ingreso a red softAP y configuración WiFi](#ingreso-a-red-softap-y-configuración-wifi)
