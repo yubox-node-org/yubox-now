@@ -453,6 +453,44 @@ En el código C++ del sketch de Arduino, se debe realizar una inicialización de
   Adicionalmente, todas las bibliotecas incluyen a su vez la siguiente biblioteca:
   - `YuboxWebAuthClass.h`, que proporciona la declaración del objeto `YuboxWebAuth` usado para administrar la autenticación del
     servidor web, y referenciado en la inicialización posterior.
+- Se debe proveer un objeto de tipo `AsyncWebServer` que será el servidor web para servir toda la interfaz de configuración. La manera
+  más sencilla de hacer esto es declarar una variable global de tipo objeto `AsyncWebServer` con el puerto TCP/IP usado, casi siempre
+  el puerto 80:
+  ```cpp
+  AsyncWebServer server(80);
+  ```
+
+- En la función `setup()` se debe de realizar la siguiente secuencia de pasos para inicializar, en el orden que se muestra:
+  - Se debe invocar a `SPIFFS.begin()`. Esto activa el acceso desde el sketch a la partición SPIFFS donde se encuentran los archivos
+    a servir vía HTTP.
+  - Si se va a usar el soporte de autenticación del YUBOX Framework, el código debe de habilitar la autenticación:
+    ```cpp
+    YuboxWebAuth.setEnabled(true);
+    ```
+    Si la interfaz web no va a requerir autenticación, se puede omitir esta línea.
+  - Se debe de montar el sistema de archivos SPIFFS para ser servido vía web:
+    ```cpp
+    AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");
+    YuboxWebAuth.addManagedHandler(&h);
+    ```
+    Si se decide usar una fuente alterna de archivos web, por ejemplo el microSD, este estilo de inicialización permite servir el sistema
+    de archivos en lugar de, o además de, el SPIFFS.
+  - Se deben de instalar en este punto las rutas (AJAX o no), los manejadores WebSocket y Server-Sent Events que vayan a implementar el
+    API de su proyecto específico. Refiérase a la documentación de [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
+    para la explicación de cómo hacerlo. En el ejemplo de esta biblioteca, se instala un emisor de eventos SSE y un manejador de ruta
+    no encontrada que emite JSON (esto último es recomendado).
+  - Se deben invocar cada uno de los inicializadores mostrados para que el módulo correspondiente de YUBOX Framework instale los manejadores
+    de sus rutas, en el orden mostrado:
+    - `YuboxWiFi.begin(server)` requerido siempre, para iniciar el manejo de WiFi
+    - `YuboxWebAuth.begin(server)` requerido si se va a proporcionar acceso al módulo de configuración de autenticación Web
+    - `YuboxNTPConf.begin(server)` requerido si se va a proporcionar acceso al módulo de configuración de hora NTP
+    - `YuboxOTA.begin(server)` requerido si se va a proporcionar acceso al módulo de configuración de actualización de firmware
+    - `YuboxMQTTConf.begin(server)` requerido si se va a proporcionar acceso al módulo de configuración MQTT
+  - Como último paso, se invoca `server.begin()` para que el servidor web empiece a servir peticiones.
+
+- En la función `loop()` se requiere invocar `YuboxNTPConf.update();` regularmente. Esto es sólo necesario si se usa el soporte de NTP
+  del YUBOX Framework. Ya que los manejadores de las rutas se ejecutan en tareas separadas, no es necesario realizar operaciones
+  adicionales para poder servir la interfaz web.
 
 **TODO: terminar**
 
