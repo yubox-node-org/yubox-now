@@ -503,8 +503,6 @@ Si su proyecto requiere el uso de MQTT, se debe hacer uso del objeto `YuboxMQTTC
 - `YuboxMQTTConf.setAutoConnect(bool)`: indica si el objeto de configuración MQTT intenta mantener automáticamente una conexión abierta si se dispone de al menos un host MQTT. Por omisión el objeto de configuración NO mantiene una conexión abierta, sino que debe de iniciarse manualmente.
 - `YuboxMQTTConf.getMQTTClient()`: devuelve una referencia al objeto cliente de tipo `AsyncMqttClient` mantenido por el objeto de configuración. Una vez obtenido este objeto, debe de usarse como lo indica las instrucciones en https://github.com/marvinroger/async-mqtt-client .
 
-**TODO: terminar**
-
 ### Transferencia de sketch al ESP32
 
 Durante el desarrollo del código C++, el comando `make YF=...` construye los siguientes objetivos para el proyecto de nombre `NombreProyecto`:
@@ -541,6 +539,25 @@ Para referencia, se listan los objetivos de Makefile que transfieren al ESP32:
 ## Configuración básica usando interfaz web
 
 ### Ingreso a red softAP y configuración WiFi
+
+Un YUBOX que no está asociado con red WiFi alguna en su entorno debe ser contactado a través de su interfaz WiFi softAP.
+El YUBOX configura una red WiFi sin autenticación cuyo nombre por omisión es `YUBOX-XXXXXXXXXXXX` que se deriva de la MAC del
+WiFi del dispositivo. Dentro de esta red WiFi, debe de abrirse la IP 192.168.4.1.
+
+Al mostrar la interfaz web, una de las opciones del menú superior es la llamada WiFi. Al elegir esta opción, la pantalla mostrará (después de unos segundos) un listado de redes WiFi visibles ordenada por potencia de señal, actualizada
+regularmente. Cada fila de la lista muestra un estimado de la potencia de la red como un icono de barras, con el nombre de la
+red en sí, y un icono de candado cerrado o abierto, según la red tenga o no autenticación. Si una de las redes visibles es
+la red a la que el YUBOX está asociado, su fila correspondiente se mantiene como la primera de la lista y se colorea de verde.
+Al hacer clic en una de las filas de las redes visibles, se muestra un cuadro de diálogo en el cual se muestra el nombre
+de la red WiFi, el tipo de autenticación, y las siguientes opciones:
+- Clave PSK (todas las autenticaciones excepto WPA2-Enterprise)
+- Identidad (sólo autenticación WPA2-Enterprise)
+- Contraseña (sólo autenticación WPA2-Enterprise)
+- Interruptor de clavar red. Si se elige clavar la red, esta red se usará como la red activa incluso si hay otra red de credenciales conocidas que sea más potente.
+- Botones de Aceptar, Cancelar.
+
+Si la red ya estaba correctamente asociada, en lugar del diálogo descrito se mostrará otro que indica la autenticación y las siguientes opciones:
+- Botones de Olvidar, Cancelar. El botón de Olvidar elimina las credenciales almacenadas para esta red.
 
 ### Credenciales y cambio de clave
 
