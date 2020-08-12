@@ -109,8 +109,6 @@ Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
 ### Dependencias Arduino
 
 Se requieren las siguientes bibliotecas de código como dependencias de YUBOX Framework:
-- `NTPClient` que es una biblioteca para realizar peticiones NTP (Network Time Protocol) para obtener y actualizar la
-  hora en el dispositivo ESP32. Esta biblioteca se la puede instalar desde el gestor de bibliotecas de Arduino IDE.
 - `ArduinoJSON` que es una biblioteca para serializar y deserializar JSON, para Arduino. Esta biblioteca se usa
   principalmente para construir respuestas JSON a las peticiones AJAX. Esta biblioteca se la puede instalar desde el
   gestor de bibliotecas del Arduino IDE. El YUBOX Framework ha sido probado con la versión 6.15.2 al 22 de julio de
@@ -497,7 +495,6 @@ Para interactuar con el servicio NTP, se debe hacer uso del objeto `YuboxNTPConf
 - `YuboxNTPConf.isNTPValid()`: devuelve TRUE si se ha sincronizado la hora NTP al menos una vez.
 - `YuboxNTPConf.getLocalTime()`: devuelve el timestamp en segundos correspondiente a la hora local configurada
 - `YuboxNTPConf.getUTCTime()`: devuelve el timestamp en segundos de la hora Unix UTC, independientemente de la zona horaria.
-- `YuboxNTPConf.getNTPClient()`: devuelve el objeto NTPClient subyacente. No se recomienda depender de esta función ya que en un futuro es posible que se requiera cambiar de implementación NTP.
 
 Si su proyecto requiere el uso de MQTT, se debe hacer uso del objeto `YuboxMQTTConf`:
 - `YuboxMQTTConf.setAutoConnect(bool)`: indica si el objeto de configuración MQTT intenta mantener automáticamente una conexión abierta si se dispone de al menos un host MQTT. Por omisión el objeto de configuración NO mantiene una conexión abierta, sino que debe de iniciarse manualmente.
