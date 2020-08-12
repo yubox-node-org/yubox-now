@@ -11,6 +11,8 @@
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
+#include "lwip/apps/sntp.h"
+
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
 YuboxNTPConfigClass::YuboxNTPConfigClass(void)
 {
@@ -19,7 +21,6 @@ YuboxNTPConfigClass::YuboxNTPConfigClass(void)
     _ntpFirst = true;
     _ntpServerName = "pool.ntp.org";
     _ntpOffset = 0;
-    _ntpClient = new NTPClient(_ntpUDP, _ntpServerName.c_str(), _ntpOffset);
 }
 
 void YuboxNTPConfigClass::begin(AsyncWebServer & srv)
@@ -33,13 +34,13 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 {
   Preferences nvram;
 
+  if (sntp_enabled()) sntp_stop();
+
   // Para cada una de las preferencias, si no está seteada se obtendrá cadena vacía
   nvram.begin(_ns_nvram_yuboxframework_ntpclient, true);
 
   _ntpServerName = nvram.getString("ntphost", _ntpServerName);
-  _ntpClient->setPoolServerName(_ntpServerName.c_str());
   _ntpOffset = nvram.getLong("ntptz", _ntpOffset);
-  _ntpClient->setTimeOffset(_ntpOffset);
 }
 
 void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
@@ -49,7 +50,7 @@ void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
   case SYSTEM_EVENT_STA_GOT_IP:
     if (!_ntpStart) {
       //Serial.println("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent - estableciendo conexión UDP para NTP...");
-      _ntpClient->begin();
+      configTime(_ntpOffset, 0, _ntpServerName.c_str());
       _ntpStart = true;
     }
     break;
@@ -70,7 +71,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerR
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
 
   // Valores informativos, no pueden cambiarse vía web
-  json_doc["ntpsync"] = _ntpValid;
+  json_doc["ntpsync"] = isNTPValid();
 
   // Valores a cambiar vía web
   json_doc["ntphost"] = _ntpServerName.c_str();
@@ -150,6 +151,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
       _ntpFirst = true;
       _ntpValid = false;
       _loadSavedCredentialsFromNVRAM();
+      if (WiFi.isConnected()) configTime(_ntpOffset, 0, _ntpServerName.c_str());
     }
   }
 
@@ -178,9 +180,40 @@ bool YuboxNTPConfigClass::update(void)
     //Serial.println("DEBUG: YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
     _ntpFirst = false;
   }
-  if (!_ntpClient->update()) return false;
-  _ntpValid = true;
-  return true;
+  _ntpValid = isNTPValid();
+  return _ntpValid;
+}
+
+bool YuboxNTPConfigClass::isNTPValid(void)
+{
+  if (_ntpValid) return true;
+
+  uint32_t start = millis();
+  time_t now;
+  struct tm info;
+  do {
+    time(&now);
+    gmtime_r(&now, &info);
+    if (info.tm_year > (2016 - 1900)) {
+      _ntpValid = true;
+      break;
+    }
+    delay(10);
+  } while (millis() - start <= 1000);
+
+  return _ntpValid;
+}
+
+unsigned long YuboxNTPConfigClass::getLocalTime(void)
+{
+  return getUTCTime() + _ntpOffset;
+}
+
+unsigned long YuboxNTPConfigClass::getUTCTime(void)
+{
+  time_t now;
+  time(&now);
+  return now;
 }
 
 bool YuboxNTPConfigClass::_isValidHostname(String & h)

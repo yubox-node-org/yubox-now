@@ -9,7 +9,7 @@
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
-#include <NTPClient.h>
+#include "time.h"
 
 class YuboxNTPConfigClass
 {
@@ -17,9 +17,7 @@ private:
   static const char * _ns_nvram_yuboxframework_ntpclient;
 
   // El cliente NTP que se administra con esta clase
-  WiFiUDP _ntpUDP;
   String _ntpServerName;
-  NTPClient * _ntpClient;
   long _ntpOffset;
   bool _ntpStart;
   bool _ntpValid;
@@ -40,17 +38,14 @@ public:
   YuboxNTPConfigClass(void);
   void begin(AsyncWebServer & srv);
 
-  // Obtener referencia al cliente MQTT que se maneja, para agregar callbacks
-  NTPClient & getNTPClient(void) { return *_ntpClient; }
-
-  bool isNTPValid(void) { return _ntpValid; }
+  bool isNTPValid(void);
 
   // Función a llamar regularmente para actualizar el cliente NTPClient
   bool update(void);
 
   // Mantener separación entre hora local y hora UTC
-  unsigned long getLocalTime(void) { return _ntpClient->getEpochTime(); }
-  unsigned long getUTCTime(void) { return _ntpClient->getEpochTime() - _ntpOffset; }
+  unsigned long getLocalTime(void);
+  unsigned long getUTCTime(void);
 };
 
 extern YuboxNTPConfigClass YuboxNTPConf;
