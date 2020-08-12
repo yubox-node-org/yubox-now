@@ -492,6 +492,17 @@ En el código C++ del sketch de Arduino, se debe realizar una inicialización de
   del YUBOX Framework. Ya que los manejadores de las rutas se ejecutan en tareas separadas, no es necesario realizar operaciones
   adicionales para poder servir la interfaz web.
 
+Para interactuar con el servicio NTP, se debe hacer uso del objeto `YuboxNTPConf`:
+- `YuboxNTPConf.update()`: actualizar regularmente la hora del día usando NTP.
+- `YuboxNTPConf.isNTPValid()`: devuelve TRUE si se ha sincronizado la hora NTP al menos una vez.
+- `YuboxNTPConf.getLocalTime()`: devuelve el timestamp en segundos correspondiente a la hora local configurada
+- `YuboxNTPConf.getUTCTime()`: devuelve el timestamp en segundos de la hora Unix UTC, independientemente de la zona horaria.
+- `YuboxNTPConf.getNTPClient()`: devuelve el objeto NTPClient subyacente. No se recomienda depender de esta función ya que en un futuro es posible que se requiera cambiar de implementación NTP.
+
+Si su proyecto requiere el uso de MQTT, se debe hacer uso del objeto `YuboxMQTTConf`:
+- `YuboxMQTTConf.setAutoConnect(bool)`: indica si el objeto de configuración MQTT intenta mantener automáticamente una conexión abierta si se dispone de al menos un host MQTT. Por omisión el objeto de configuración NO mantiene una conexión abierta, sino que debe de iniciarse manualmente.
+- `YuboxMQTTConf.getMQTTClient()`: devuelve una referencia al objeto cliente de tipo `AsyncMqttClient` mantenido por el objeto de configuración. Una vez obtenido este objeto, debe de usarse como lo indica las instrucciones en https://github.com/marvinroger/async-mqtt-client .
+
 **TODO: terminar**
 
 ### Transferencia de sketch al ESP32
