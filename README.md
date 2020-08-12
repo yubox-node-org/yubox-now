@@ -569,5 +569,13 @@ Al elegir la opción de Hora de red, se muestra un formulario que permite ingres
 
 ### Actualización de firmware
 
+Al elegir la opción de Firmware, se muestra un formulario que permite realizar tres operaciones. Primera, se tiene un control de subida de archivo que se usa para cargar una nueva versión del firmware para el YUBOX. Al cargar el firmware se muestra una barra de progreso que indica la recepción de cada componente del firmware nuevo, e indica una alerta cuando se ha terminado de cargar el firmware y se reinicia el YUBOX. Como segunda opción, se puede mandar a restaurar el último firmware que haya existido antes de cargar el firmware actualmente en ejecución (opción de rollback). La tercera opción permite, simplemente, reiniciar el YUBOX sin modificar el firmware existente.
+
 ### Configuración MQTT (según proyecto)
+
+Al elegir la opción de Envío de datos, se muestra un formulario para la configuración de la conexión MQTT con un servidor que recibe los datos. En este formulario se exhibe el estado actual de la conexión (CONECTADO, DESCONECTADO, NO REQUERIDO), y las siguientes opciones de configuración:
+- Broker MQTT para envío de datos: la IP o nombre de host a contactar
+- Autenticación: opción de contactar sin autenticación o con autenticación de usuario y clave
+- Nombre de usuario (sólo mostrado si se elige proveer autenticación)
+- Contraseña (sólo mostrado si se elige proveer autenticación)
 
