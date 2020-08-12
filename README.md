@@ -561,7 +561,11 @@ Si la red ya estaba correctamente asociada, en lugar del diálogo descrito se mo
 
 ### Credenciales y cambio de clave
 
+Al elegir la opción de Cambio de clave del menú superior, se muestra un formulario para cambiar la contraseña para el ingreso a la interfaz web. El usuario es siempre "admin", y la contraseña es la que se almacena a través del formulario. Por omisión la contraseña es "yubox".
+
 ### Configuración NTP
+
+Al elegir la opción de Hora de red, se muestra un formulario que permite ingresar un servidor NTP vía IP o nombre de host. Por omisión el host usado es pool.ntp.org pero debe ser cambiado si la red WiFi no permite el tráfico NTP al internet público y se configura un servidor NTP privado en la red local. El formulario permite indicar también la zona horaria como horas y minutos de adelanto o atraso respecto a UTC. Por último, al mostrar esta pantalla, se realiza una petición al YUBOX para interrogar si está sincronizado, y se muestra el resultado SINCRONIZADO o NO SINCRONIZADO en la parte superior del formulario.
 
 ### Actualización de firmware
 
