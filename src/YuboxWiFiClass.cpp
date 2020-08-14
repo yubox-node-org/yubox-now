@@ -348,7 +348,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
 
 String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 {
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(10));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(11));
   String json_output;
 
   json_output = "[";
@@ -386,6 +386,7 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
     }
 
     // Asignar clave conocida desde NVRAM si está disponible
+    json_doc["saved"] = false;
     json_doc["psk"] = (char *)NULL;
     json_doc["identity"] = (char *)NULL;
     json_doc["password"] = (char *)NULL;
@@ -395,6 +396,8 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
       if (_savedNetworks[j].ssid == temp_ssid) break;
     }
     if (j < _savedNetworks.size()) {
+      json_doc["saved"] = true;       // Se tiene disponible información sobre la red
+
       temp_psk = _savedNetworks[j].psk;
       if (!temp_psk.isEmpty()) json_doc["psk"] = temp_psk.c_str();
 

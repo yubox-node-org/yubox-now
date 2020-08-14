@@ -257,7 +257,7 @@ function yuboxWiFi_actualizarRedes(data)
             if (max_rssi == null || max_rssi < wifidata.ap[0].net.rssi) max_rssi = wifidata.ap[0].rssi;
         }
 
-        // Mostrar candado según si hay o no autenticación para la red
+        // Mostrar estado de conexión y si hay credenciales guardadas
         tr_wifiscan.children('td#ssid').text(wifidata.ssid);
         if (wifidata.connected) {
             var sm_connlabel = $('<small class="form-text text-muted" />').text('Conectado');
@@ -267,7 +267,13 @@ function yuboxWiFi_actualizarRedes(data)
             var sm_connlabel = $('<small class="form-text text-muted" />').text('Ha fallado la conexión');
             tr_wifiscan.addClass('table-danger');
             tr_wifiscan.children('td#ssid').append(sm_connlabel);
+        } else if (wifidata.saved) {
+            // Si hay credenciales guardadas se muestra que existen
+            var sm_connlabel = $('<small class="form-text text-muted" />').text('Guardada');
+            tr_wifiscan.children('td#ssid').append(sm_connlabel);
         }
+
+        // Mostrar candado según si hay o no autenticación para la red
         tr_wifiscan.children('td#auth').attr('title',
             'Seguridad: ' + wifiauth_desc(wifidata.authmode));
         tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(wifidata.authmode != 0 ? 'locked' : 'unlocked')).show();

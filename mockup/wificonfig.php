@@ -150,6 +150,7 @@ switch ($_SERVER['PATH_INFO']) {
                     $nets[$idx]['connfail'] = TRUE;
                 } else {
                     $nets[$idx]['connected'] = TRUE;
+                    $nets[$idx]['saved'] = TRUE;
                 }
                 $json = json_encode($nets);
                 file_put_contents(MOCKUP_WIFI, $json);
@@ -214,6 +215,7 @@ switch ($_SERVER['PATH_INFO']) {
                         'authmode'  =>  rand(0, 5),
                         'connected' =>  FALSE,
                         'connfail'  =>  FALSE,
+                        'saved'     =>  FALSE,
                     );
                     if ($mocknet['authmode'] == 5) {
                         $mocknet['identity'] = $mocknet['password'] = NULL;
