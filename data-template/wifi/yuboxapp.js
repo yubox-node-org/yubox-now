@@ -254,7 +254,7 @@ function yuboxWiFi_actualizarRedes(data)
 
         // Verificar si se está mostrando la red activa en el diálogo
         if (ssid_visible != null && ssid_visible == wifidata.ssid) {
-            if (max_rssi == null || max_rssi < wifidata.ap[0].net.rssi) max_rssi = wifidata.ap[0].rssi;
+            if (max_rssi == null || max_rssi < wifidata.ap[0].rssi) max_rssi = wifidata.ap[0].rssi;
         }
 
         // Mostrar estado de conexión y si hay credenciales guardadas
