@@ -225,35 +225,54 @@ function yuboxWiFi_actualizarRedes(data)
     }
     var max_rssi = null;
     data.forEach(function (net) {
-        var tr_wifiscan = wifipane.data('wifiscan-template').clone();
+        // Buscar en la lista existente la fila de quien tenga el SSID indicado.
+        var tr_wifiscan;
+        var f = tbody_wifiscan.children('tr').filter(function(idx) { return ($(this).data('ssid') == net.ssid); });
+        if (f.length > 0) {
+            // Se encontró SSID duplicado. Se asume que primero aparece el más potente
+            tr_wifiscan = $(f[0]);
+        } else {
+            // Primera vez que aparece SSID en lista
+            tr_wifiscan = wifipane.data('wifiscan-template').clone();
+            for (var k in net) {
+                if (['bssid', 'channel', 'rssi'].indexOf(k) == -1) tr_wifiscan.data(k, net[k]);
+            }
+            tr_wifiscan.data('ap', []);
+            tbody_wifiscan.append(tr_wifiscan);
+        }
+        delete f;
+        tr_wifiscan.data('ap').push({
+            bssid:      net.bssid,
+            channel:    net.channel,
+            rssi:       net.rssi
+        });
+        var wifidata = tr_wifiscan.data();
 
         // Mostrar dibujo de intensidad de señal a partir de RSSI
-        var res = evaluarIntensidadRedWifi(tr_wifiscan.find('td#rssi > svg.wifipower'), net.rssi);
+        var res = evaluarIntensidadRedWifi(tr_wifiscan.find('td#rssi > svg.wifipower'), wifidata.ap[0].rssi);
         tr_wifiscan.children('td#rssi').attr('title', 'Intensidad de señal: '+res.pwr+' %');
 
         // Verificar si se está mostrando la red activa en el diálogo
-        if (ssid_visible != null && ssid_visible == net.ssid) {
-            if (max_rssi == null || max_rssi < net.rssi) max_rssi = net.rssi;
+        if (ssid_visible != null && ssid_visible == wifidata.ssid) {
+            if (max_rssi == null || max_rssi < wifidata.ap[0].net.rssi) max_rssi = wifidata.ap[0].rssi;
         }
 
-
         // Mostrar candado según si hay o no autenticación para la red
-        tr_wifiscan.children('td#ssid').text(net.ssid);
-        if (net.connected) {
+        tr_wifiscan.children('td#ssid').text(wifidata.ssid);
+        if (wifidata.connected) {
             var sm_connlabel = $('<small class="form-text text-muted" />').text('Conectado');
             tr_wifiscan.addClass('table-success');
             tr_wifiscan.children('td#ssid').append(sm_connlabel);
-        } else if (net.connfail) {
+        } else if (wifidata.connfail) {
             var sm_connlabel = $('<small class="form-text text-muted" />').text('Ha fallado la conexión');
             tr_wifiscan.addClass('table-danger');
             tr_wifiscan.children('td#ssid').append(sm_connlabel);
         }
         tr_wifiscan.children('td#auth').attr('title',
-            'Seguridad: ' + wifiauth_desc(net.authmode));
-        tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
+            'Seguridad: ' + wifiauth_desc(wifidata.authmode));
+        tr_wifiscan.find('td#auth > svg.wifiauth > path.'+(wifidata.authmode != 0 ? 'locked' : 'unlocked')).show();
 
-        tr_wifiscan.data(net);
-        tbody_wifiscan.append(tr_wifiscan);
+        tr_wifiscan.data(wifidata);
     });
 
     // Verificar si se está mostrando la red activa en el diálogo
