@@ -52,6 +52,18 @@
             <input type="hidden" name="authmode" id="authmode" value="0" />
           </div>
         </div>
+        <div class="form-group row">
+          <legend class="col-sm-2 col-form-label">BSSID:</legend>
+          <div class="col-sm-10">
+            <input type="text" readonly class="form-control-plaintext" id="bssid" value="???" />
+          </div>
+        </div>
+        <div class="form-group row">
+          <legend class="col-sm-2 col-form-label">Canal:</legend>
+          <div class="col-sm-10">
+            <input type="text" readonly class="form-control-plaintext" id="channel" value="0" />
+          </div>
+        </div>
         <div class="form-group wifi-auth wifi-auth-psk">
           <label for="psk">Contraseña:</label>
           <input type="password" id="psk" name="psk" maxlength="64" minlength="8" class="form-control" pattern=".{8,64}"/>
@@ -133,6 +145,16 @@
               </td>
               <td>Seguridad</td>
               <td class="text-muted">HACKEADA</td>
+            </tr>
+            <tr id="bssid">
+              <td>&nbsp;</td>
+              <td>BSSID</td>
+              <td class="text-muted">Ni idea</td>
+            </tr>
+            <tr id="channel">
+              <td>&nbsp;</td>
+              <td>Canal</td>
+              <td class="text-muted">0</td>
             </tr>
           </tbody>
         </table>

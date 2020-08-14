@@ -39,6 +39,9 @@ function setupWiFiTab()
                 dlg_wifiinfo.find('tr#auth > td > svg.wifiauth > path.'+(net.authmode != 0 ? 'locked' : 'unlocked')).show();
                 dlg_wifiinfo.find('tr#auth > td.text-muted').text(wifiauth_desc(net.authmode));
 
+                dlg_wifiinfo.find('tr#bssid > td.text-muted').text(net.ap[0].bssid);
+                dlg_wifiinfo.find('tr#channel > td.text-muted').text(net.ap[0].channel);
+
                 dlg_wifiinfo.find('h5#wifi-details-title').text(data.ssid);
                 dlg_wifiinfo.find('input#ssid').val(data.ssid);
                 dlg_wifiinfo.find('div#netinfo div#mac').text(data.mac);
@@ -64,6 +67,8 @@ function setupWiFiTab()
             dlg_wificred.find('input#ssid').val(net.ssid);
             dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
             dlg_wificred.find('input#authmode').val(net.authmode);
+            dlg_wificred.find('input#bssid').val(net.ap[0].bssid);
+            dlg_wificred.find('input#channel').val(net.ap[0].channel);
             dlg_wificred.find('div.form-group.wifi-auth').hide();
             dlg_wificred.find('div.form-group.wifi-auth input').val('');
             dlg_wificred.find('button[name=connect]').prop('disabled', true);
