@@ -85,7 +85,7 @@ private:
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
-  void _routeHandler_yuboxAPI_wificonfig_networks_onConnect(AsyncEventSourceClient *);
+  void _routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *);
   void _routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request);

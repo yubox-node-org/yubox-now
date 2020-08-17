@@ -197,7 +197,7 @@ function yuboxWiFi_setupWiFiScanListener()
 
     var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
     if (!!window.EventSource) {
-        var sse = new EventSource(yuboxAPI('wificonfig')+'/networks');
+        var sse = new EventSource(yuboxAPI('wificonfig')+'/netscan');
         sse.addEventListener('WiFiScanResult', function (e) {
           var data = $.parseJSON(e.data);
           yuboxWiFi_actualizarRedes(data);

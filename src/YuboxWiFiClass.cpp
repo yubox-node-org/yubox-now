@@ -340,10 +340,10 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
   srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
   srv.on("/_spiffslist.html", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
-  _pEvents = new AsyncEventSource("/yubox-api/wificonfig/networks");
+  _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
-  _pEvents->onConnect(std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_onConnect, this, std::placeholders::_1));
+  _pEvents->onConnect(std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect, this, std::placeholders::_1));
 }
 
 String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
@@ -415,7 +415,7 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
   return json_output;
 }
 
-void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_onConnect(AsyncEventSourceClient *)
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
 {
   // Por ahora no me interesa el cliente individual, sólo el hecho de que se debe iniciar escaneo
   if (!xTimerIsTimerActive(_timer_wifiRescan)) {

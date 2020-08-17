@@ -188,7 +188,7 @@ switch ($_SERVER['PATH_INFO']) {
             break;
         }
         break;
-    case '/networks':
+    case '/netscan':
         ignore_user_abort(true);
         set_time_limit(0);
         ob_end_clean();
