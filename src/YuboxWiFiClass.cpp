@@ -26,6 +26,8 @@ YuboxWiFiClass::YuboxWiFiClass(void)
     (void*)this,
     &_cb_YuboxWiFiClass_wifiRescan);
 
+  WiFi.persistent(false);
+
   _scannedNetworks_timestamp = 0;
   setMDNSHostname(tpl);
   setAPName(tpl);
@@ -117,8 +119,14 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
 
 void YuboxWiFiClass::_startWiFi(void)
 {
+  // Estos deberían ser los valores por omisión del SDK. Se establecen
+  // explícitamente para recuperar control luego de cederlo a otra lib.
+  IPAddress apIp(192, 168, 4, 1);
+  IPAddress apNetmask(255, 255, 255, 0);
+
   //Serial.println("DEBUG: Iniciando modo dual WiFi (AP+STA)...");
   WiFi.mode(WIFI_AP_STA);
+  WiFi.softAPConfig(apIp, apIp, apNetmask);
   WiFi.softAP(_apName.c_str());
   WiFi.setSleep(false);
 
