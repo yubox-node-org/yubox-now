@@ -17,6 +17,8 @@ YuboxWiFiClass::YuboxWiFiClass(void)
 {
   String tpl = "YUBOX-{MAC}";
 
+  _assumeControlOfWiFi = true;
+
   _pEvents = NULL;
   _disconnectBeforeRescan = false;
   _timer_wifiRescan = xTimerCreate(
@@ -65,8 +67,27 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
   _loadSavedNetworksFromNVRAM();
   _setupHTTPRoutes(srv);
 
-  WiFi.onEvent(std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
+  if (_assumeControlOfWiFi) {
+    takeControlOfWiFi();
+  }
+}
+
+void YuboxWiFiClass::takeControlOfWiFi(void)
+{
+  _assumeControlOfWiFi = true;
+  _eventId_cbHandler_WiFiEvent = WiFi.onEvent(std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
   _startWiFi();
+}
+
+void YuboxWiFiClass::releaseControlOfWiFi(void)
+{
+  _assumeControlOfWiFi = false;
+  WiFi.removeEvent(_eventId_cbHandler_WiFiEvent);
+  if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect();
+  if (xTimerIsTimerActive(_timer_wifiRescan)) {
+    xTimerStop(_timer_wifiRescan, 0);
+  }
+  _disconnectBeforeRescan = false;
 }
 
 void YuboxWiFiClass::_startCondRescanTimer(bool disconn)
@@ -303,6 +324,9 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
     r.numFails = 0;
     _savedNetworks.push_back(r);
   }
+
+  // Estado de control WiFi
+  _assumeControlOfWiFi = nvram.getBool("net/ctrl", true);
 }
 
 void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
@@ -425,6 +449,11 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
 {
+  // TODO: emitir estado actual de control de WiFi
+
+  // No iniciar escaneo a menos que se tenga control del WiFi
+  if (!_assumeControlOfWiFi) return;
+
   // Por ahora no me interesa el cliente individual, sólo el hecho de que se debe iniciar escaneo
   if (!xTimerIsTimerActive(_timer_wifiRescan)) {
     //Serial.println("DEBUG: Iniciando escaneo de redes WiFi (2)...");
@@ -601,8 +630,10 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
 
     // Mandar a guardar el vector modificado
     _saveNetworksToNVRAM();
-    _useTrialNetworkFirst = true;
-    _trialNetwork = tempNetwork;
+    if (_assumeControlOfWiFi) {
+      _useTrialNetworkFirst = true;
+      _trialNetwork = tempNetwork;
+    }
   }
 
   if (!clientError && !serverError) {
@@ -621,7 +652,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
   serializeJson(json_doc, *response);
   request->send(response);
 
-  if (!clientError && !serverError) {
+  if (_assumeControlOfWiFi && !clientError && !serverError) {
     _startCondRescanTimer(true);
   }
 }
@@ -637,6 +668,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
   }
 
   // Buscar cuál índice de red guardada hay que eliminar
+  // TODO: debe hacerse un rewrite para poder indicar parámetro de red guardada a borrar
   String ssid = WiFi.SSID();
   int idx = -1;
   for (auto i = 0; i < _savedNetworks.size(); i++) {
@@ -663,7 +695,9 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
 
   request->send(204);
 
-  _startCondRescanTimer(true);
+  if (_assumeControlOfWiFi) {
+    _startCondRescanTimer(true);
+  }
 }
 
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)

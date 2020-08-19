@@ -44,6 +44,12 @@ private:
   // La cadena que corresponde al nombre de AP de WiFi construido
   String _apName;
 
+  // ID de evento para Wifi, para poderlo desinstalar
+  WiFiEventId_t _eventId_cbHandler_WiFiEvent;
+
+  // Bandera de asumir control del WiFi o no.
+  bool _assumeControlOfWiFi;
+
   // La siguiente es una caché de los valores de las redes guardadas en NVRAM.
   // En estado estable, .size() se corresponde con valor de net/n en NVRAM
   // NOTA: elemento i-ésimo contando desde 0 se corresponde a net/n/... donde
@@ -101,6 +107,11 @@ public:
   // Para estas funciones, la plantilla {MAC} se reemplazará con la cadena hex de la MAC WiFi.
   void setMDNSHostname(String &);
   void setAPName(String &);
+
+  // Asumir control del WiFi, y ceder control. Para pasar la posta a otras bibliotecas WiFi
+  void takeControlOfWiFi(void);
+  void releaseControlOfWiFi(void);
+  bool haveControlOfWiFi(void) { return _assumeControlOfWiFi; }
 
   friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 };
