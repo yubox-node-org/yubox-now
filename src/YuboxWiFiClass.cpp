@@ -130,6 +130,7 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
     case SYSTEM_EVENT_STA_GOT_IP:
         //Serial.print("DEBUG: Conectado al WiFi. Dirección IP: ");Serial.println(WiFi.localIP());
         WiFi.setAutoReconnect(true);
+        _updateActiveNetworkNVRAM();
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         //Serial.println("DEBUG: Se perdió conexión WiFi.");
@@ -200,8 +201,8 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
       // Hay una red seleccionada. Buscar si está presente en el escaneo
       //Serial.println("DEBUG: red fijada, verificando si existe en escaneo...");
       for (int i = 0; i < n; i++) {
-        if (_scannedNetworks[i].ssid == _savedNetworks[_selNetwork].ssid) {
-          //Serial.printf("DEBUG: red seleccionada %u existe en escaneo (%s)\r\n", _selNetwork, _savedNetworks[_selNetwork].ssid.c_str());
+        if (_scannedNetworks[i].ssid == _savedNetworks[_selNetwork].cred.ssid) {
+          //Serial.printf("DEBUG: red seleccionada %u existe en escaneo (%s)\r\n", _selNetwork, _savedNetworks[_selNetwork].cred.ssid.c_str());
           netIdx = _selNetwork;
           break;
         }
@@ -218,7 +219,7 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
 
         // Primero la red debe ser conocida
         for (int j = 0; j < _savedNetworks.size(); j++) {
-          if (_scannedNetworks[i].ssid == _savedNetworks[j].ssid) {
+          if (_scannedNetworks[i].ssid == _savedNetworks[j].cred.ssid) {
             netFound = j;
             netFound_rssi =_scannedNetworks[i].rssi;
             break;
@@ -239,9 +240,9 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
             netBest = netFound;
             netBest_rssi = netFound_rssi;
           } else if (
-            (_savedNetworks[netBest].psk.isEmpty() && _savedNetworks[netBest].identity.isEmpty() && _savedNetworks[netBest].password.isEmpty()) 
+            (_savedNetworks[netBest].cred.psk.isEmpty() && _savedNetworks[netBest].cred.identity.isEmpty() && _savedNetworks[netBest].cred.password.isEmpty())
             &&
-            !(_savedNetworks[netFound].psk.isEmpty() && _savedNetworks[netFound].identity.isEmpty() && _savedNetworks[netFound].password.isEmpty())) {
+            !(_savedNetworks[netFound].cred.psk.isEmpty() && _savedNetworks[netFound].cred.identity.isEmpty() && _savedNetworks[netFound].cred.password.isEmpty())) {
             // Seleccionar como mejor red si tiene credenciales y la red anterior
             // elegida no tenía (red abierta)
             netBest = netFound;
@@ -256,7 +257,7 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
       }
 
       if (netBest != -1) {
-        //Serial.printf("DEBUG: se ha elegido red %u presente en escaneo (%s)\r\n", netBest, _savedNetworks[netBest].ssid.c_str());
+        //Serial.printf("DEBUG: se ha elegido red %u presente en escaneo (%s)\r\n", netBest, _savedNetworks[netBest].cred.ssid.c_str());
         netIdx = netBest;
       }
     }
@@ -277,7 +278,7 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
       esp_wifi_sta_wpa2_ent_clear_cert_key();
       esp_wifi_sta_wpa2_ent_disable();
 
-      _activeNetwork = _savedNetworks[netIdx];
+      _activeNetwork = _savedNetworks[netIdx].cred;
       _connectToActiveNetwork();
     }
   }
@@ -333,10 +334,11 @@ void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx,
 {
     char key[64];
 
-    sprintf(key, "net/%u/ssid", idx); r.ssid = nvram.getString(key);
-    sprintf(key, "net/%u/psk", idx); r.psk = nvram.getString(key);
-    sprintf(key, "net/%u/identity", idx); r.identity = nvram.getString(key);
-    sprintf(key, "net/%u/password", idx); r.password = nvram.getString(key);
+    sprintf(key, "net/%u/ssid", idx); r.cred.ssid = nvram.getString(key);
+    sprintf(key, "net/%u/psk", idx); r.cred.psk = nvram.getString(key);
+    sprintf(key, "net/%u/identity", idx); r.cred.identity = nvram.getString(key);
+    sprintf(key, "net/%u/password", idx); r.cred.password = nvram.getString(key);
+    sprintf(key, "net/%u/lastsel", idx); r.selectedNet = nvram.getBool(key, false);
     r._dirty = false;
 }
 
@@ -359,11 +361,40 @@ void YuboxWiFiClass::_saveOneNetworkToNVRAM(Preferences & nvram, uint32_t idx, Y
 {
     char key[64];
 
-    sprintf(key, "net/%u/ssid", idx); NVRAM_PUTSTRING(nvram, key, r.ssid);
-    sprintf(key, "net/%u/psk", idx); NVRAM_PUTSTRING(nvram, key, r.psk);
-    sprintf(key, "net/%u/identity", idx); NVRAM_PUTSTRING(nvram, key, r.identity);
-    sprintf(key, "net/%u/password", idx); NVRAM_PUTSTRING(nvram, key, r.password);
+    sprintf(key, "net/%u/ssid", idx); NVRAM_PUTSTRING(nvram, key, r.cred.ssid);
+    sprintf(key, "net/%u/psk", idx); NVRAM_PUTSTRING(nvram, key, r.cred.psk);
+    sprintf(key, "net/%u/identity", idx); NVRAM_PUTSTRING(nvram, key, r.cred.identity);
+    sprintf(key, "net/%u/password", idx); NVRAM_PUTSTRING(nvram, key, r.cred.password);
+    sprintf(key, "net/%u/lastsel", idx); nvram.putBool(key, r.selectedNet);
     r._dirty = false;
+}
+
+void YuboxWiFiClass::_updateActiveNetworkNVRAM(void)
+{
+  String currNet = WiFi.SSID();
+
+  Preferences nvram;
+  char key[64];
+  nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+  for (auto i = 0; i < _savedNetworks.size(); i++) {
+    bool nv = (_savedNetworks[i].cred.ssid == currNet);
+
+    if (nv != _savedNetworks[i].selectedNet) {
+      _savedNetworks[i].selectedNet = nv;
+      sprintf(key, "net/%u/lastsel", i+1); nvram.putBool(key, _savedNetworks[i].selectedNet);
+    }
+  }
+}
+
+YuboxWiFi_cred YuboxWiFiClass::getLastActiveNetwork(void)
+{
+  for (auto i = 0; i < _savedNetworks.size(); i++) {
+    if (_savedNetworks[i].selectedNet) {
+      return _savedNetworks[i].cred;
+    }
+  }
+  return _activeNetwork;  // Sólo para devolver algo, probablemente tiene cadenas vacías
 }
 
 void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
@@ -425,18 +456,18 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
     unsigned int j;
     for (j = 0; j < _savedNetworks.size(); j++) {
-      if (_savedNetworks[j].ssid == temp_ssid) break;
+      if (_savedNetworks[j].cred.ssid == temp_ssid) break;
     }
     if (j < _savedNetworks.size()) {
       json_doc["saved"] = true;       // Se tiene disponible información sobre la red
 
-      temp_psk = _savedNetworks[j].psk;
+      temp_psk = _savedNetworks[j].cred.psk;
       if (!temp_psk.isEmpty()) json_doc["psk"] = temp_psk.c_str();
 
-      temp_identity = _savedNetworks[j].identity;
+      temp_identity = _savedNetworks[j].cred.identity;
       if (!temp_identity.isEmpty()) json_doc["identity"] = temp_identity.c_str();
 
-      temp_password = _savedNetworks[j].password;
+      temp_password = _savedNetworks[j].cred.password;
       if (!temp_password.isEmpty()) json_doc["password"] = temp_password.c_str();
     }
 
@@ -552,7 +583,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
       responseMsg = "Se requiere SSID para conectarse";
     } else {
       p = request->getParam("ssid", true);
-      tempNetwork.ssid = p->value();
+      tempNetwork.cred.ssid = p->value();
     }
   }
   if (!clientError) {
@@ -585,14 +616,14 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
         responseMsg = "Se requiere una identidad para esta red";
       } else {
         p = request->getParam("identity", true);
-        tempNetwork.identity = p->value();
+        tempNetwork.cred.identity = p->value();
       }
       if (!clientError && !request->hasParam("password", true)) {
         clientError = true;
         responseMsg = "Se requiere contraseña para esta red";
       } else {
         p = request->getParam("password", true);
-        tempNetwork.password = p->value();
+        tempNetwork.cred.password = p->value();
       }
     } else if (authmode != WIFI_AUTH_OPEN) {
       if (!request->hasParam("psk", true)) {
@@ -604,7 +635,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
           clientError = true;
           responseMsg = "Contraseña para esta red debe ser como mínimo de 8 caracteres";
         } else {
-          tempNetwork.psk = p->value();
+          tempNetwork.cred.psk = p->value();
         }
       }
     }
@@ -616,7 +647,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
 
     tempNetwork._dirty = true;
     for (auto i = 0; i < _savedNetworks.size(); i++) {
-      if (_savedNetworks[i].ssid == tempNetwork.ssid) {
+      if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
         idx = i;
         _savedNetworks[idx] = tempNetwork;
         break;
@@ -632,7 +663,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
     _saveNetworksToNVRAM();
     if (_assumeControlOfWiFi) {
       _useTrialNetworkFirst = true;
-      _trialNetwork = tempNetwork;
+      _trialNetwork = tempNetwork.cred;
     }
   }
 
@@ -672,7 +703,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
   String ssid = WiFi.SSID();
   int idx = -1;
   for (auto i = 0; i < _savedNetworks.size(); i++) {
-    if (_savedNetworks[i].ssid == ssid) {
+    if (_savedNetworks[i].cred.ssid == ssid) {
       idx = i;
       break;
     }

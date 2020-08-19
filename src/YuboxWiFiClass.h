@@ -11,12 +11,24 @@
 
 #include "YuboxWebAuthClass.h"
 
+// Estructura para representar credenciales de una red WiFi
 typedef struct {
-  // Los siguientes 4 parámetros se leen de la NVRAM al arranque
   String ssid;
   String psk;
   String identity;
   String password;
+} YuboxWiFi_cred;
+
+typedef struct {
+  // Los siguientes 4 parámetros se leen de la NVRAM al arranque
+  YuboxWiFi_cred cred;
+
+  // Bandera de red usada por última vez. Esta bandera no debe confundirse con
+  // la bandera de pin de red (net/sel). La bandera de pin de red indica la
+  // red que TIENE que usarse como activa. La bandera de aquí es la red que
+  // EFECTIVAMENTE fue seleccionada. Esto es necesario para implementar la
+  // función getLastActiveNetwork().
+  bool selectedNet;
 
   // Los siguientes parámetros son para monitorear resultado de conexión a red
   uint32_t numFails;
@@ -62,8 +74,8 @@ private:
   unsigned long _scannedNetworks_timestamp;
 
   // Copia de las credenciales elegidas, para asegurar vida de cadenas
-  YuboxWiFi_nvramrec _activeNetwork;
-  YuboxWiFi_nvramrec _trialNetwork;
+  YuboxWiFi_cred _activeNetwork;
+  YuboxWiFi_cred _trialNetwork;
   bool _useTrialNetworkFirst;
 
   AsyncEventSource * _pEvents;
@@ -77,6 +89,7 @@ private:
   void _saveOneNetworkToNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
   void _loadSavedNetworksFromNVRAM(void);
   void _saveNetworksToNVRAM(void);
+  void _updateActiveNetworkNVRAM(void);
   void _startWiFi(void);
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
@@ -112,6 +125,7 @@ public:
   void takeControlOfWiFi(void);
   void releaseControlOfWiFi(void);
   bool haveControlOfWiFi(void) { return _assumeControlOfWiFi; }
+  YuboxWiFi_cred getLastActiveNetwork(void);
 
   friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 };
