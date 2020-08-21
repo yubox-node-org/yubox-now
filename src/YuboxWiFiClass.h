@@ -125,6 +125,7 @@ public:
   void takeControlOfWiFi(void);
   void releaseControlOfWiFi(void);
   bool haveControlOfWiFi(void) { return _assumeControlOfWiFi; }
+  void saveControlOfWiFi(void);
   YuboxWiFi_cred getLastActiveNetwork(void);
 
   friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);

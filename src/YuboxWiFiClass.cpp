@@ -387,6 +387,15 @@ void YuboxWiFiClass::_updateActiveNetworkNVRAM(void)
   }
 }
 
+void YuboxWiFiClass::saveControlOfWiFi(void)
+{
+  Preferences nvram;
+  nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+  // Estado de control WiFi
+  nvram.putBool("net/ctrl", _assumeControlOfWiFi);
+}
+
 YuboxWiFi_cred YuboxWiFiClass::getLastActiveNetwork(void)
 {
   for (auto i = 0; i < _savedNetworks.size(); i++) {
