@@ -55,7 +55,8 @@ void setup()
   YuboxOTA.begin(server);
   YuboxMQTTConf.begin(server);
   server.onNotFound(notFound);
-  server.begin();
+
+  YuboxWiFi.beginServerOnWiFiReady(&server);
 
   if (!sensor_bmp280.begin(BMP280_ADDRESS_ALT)) {
     Serial.println("ERR: no puede inicializarse el sensor BMP280!");

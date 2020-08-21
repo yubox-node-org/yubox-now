@@ -56,8 +56,13 @@ private:
   // La cadena que corresponde al nombre de AP de WiFi construido
   String _apName;
 
+  // Si != NULL, este AsyncWebServer debe iniciarse con ->begin() cuando WiFi esté listo
+  AsyncWebServer * _pWebSrvBootstrap;
+
   // ID de evento para Wifi, para poderlo desinstalar
   WiFiEventId_t _eventId_cbHandler_WiFiEvent;
+  WiFiEventId_t _eventId_cbHandler_WiFiEvent_ready;
+  bool _wifiReadyEventReceived;
 
   // Bandera de asumir control del WiFi o no.
   bool _assumeControlOfWiFi;
@@ -100,6 +105,7 @@ private:
 
   // Callbacks y timers
   void _cbHandler_WiFiEvent(WiFiEvent_t event);
+  void _cbHandler_WiFiEvent_ready(WiFiEvent_t event);
   void _cbHandler_WiFiRescan(TimerHandle_t);
 
   void _setupHTTPRoutes(AsyncWebServer &);
@@ -113,6 +119,7 @@ private:
 public:
   YuboxWiFiClass();
   void begin(AsyncWebServer & srv);
+  void beginServerOnWiFiReady(AsyncWebServer *);
 
   String getMDNSHostname() { return _mdnsName; }
   String getAPName() { return _apName; }

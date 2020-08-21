@@ -19,6 +19,10 @@ YuboxWiFiClass::YuboxWiFiClass(void)
 
   _assumeControlOfWiFi = true;
 
+  _pWebSrvBootstrap = NULL;
+  _eventId_cbHandler_WiFiEvent = 0;
+  _eventId_cbHandler_WiFiEvent_ready = 0;
+  _wifiReadyEventReceived = false;
   _pEvents = NULL;
   _disconnectBeforeRescan = false;
   _timer_wifiRescan = xTimerCreate(
@@ -67,6 +71,11 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
   _loadSavedNetworksFromNVRAM();
   _setupHTTPRoutes(srv);
 
+  // SIEMPRE instalar el manejador de evento de WiFi listo
+  _eventId_cbHandler_WiFiEvent_ready = WiFi.onEvent(
+    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_ready, this, std::placeholders::_1),
+    SYSTEM_EVENT_WIFI_READY);
+
   if (_assumeControlOfWiFi) {
     takeControlOfWiFi();
   }
@@ -82,7 +91,8 @@ void YuboxWiFiClass::takeControlOfWiFi(void)
 void YuboxWiFiClass::releaseControlOfWiFi(void)
 {
   _assumeControlOfWiFi = false;
-  WiFi.removeEvent(_eventId_cbHandler_WiFiEvent);
+  if (_eventId_cbHandler_WiFiEvent) WiFi.removeEvent(_eventId_cbHandler_WiFiEvent);
+  _eventId_cbHandler_WiFiEvent = 0;
   if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect();
   if (xTimerIsTimerActive(_timer_wifiRescan)) {
     xTimerStop(_timer_wifiRescan, 0);
@@ -96,6 +106,41 @@ void YuboxWiFiClass::_startCondRescanTimer(bool disconn)
   if (!xTimerIsTimerActive(_timer_wifiRescan)) {
     xTimerStart(_timer_wifiRescan, 0);
   }
+}
+
+void YuboxWiFiClass::beginServerOnWiFiReady(AsyncWebServer * pSrv)
+{
+  if (_wifiReadyEventReceived) {
+    //Serial.println("DEBUG: beginServerOnWiFiReady iniciando webserver de inmediato...");
+    pSrv->begin();
+  } else {
+    //Serial.println("DEBUG: beginServerOnWiFiReady almacenando ptr para inicio retardado");
+    _pWebSrvBootstrap = pSrv;
+  }
+}
+
+void YuboxWiFiClass::_cbHandler_WiFiEvent_ready(WiFiEvent_t event)
+{
+  //Serial.println("DEBUG: _cbHandler_WiFiEvent_ready recibido");
+
+  // Manejar el evento una sola vez
+  _wifiReadyEventReceived = true;
+  WiFi.removeEvent(_eventId_cbHandler_WiFiEvent_ready);
+  _eventId_cbHandler_WiFiEvent_ready = 0;
+
+  if (!MDNS.begin(_mdnsName.c_str())) {
+    Serial.println("ERROR: no se puede iniciar mDNS para anunciar hostname!");
+  } else {
+    //Serial.print("DEBUG: Iniciando mDNS con nombre de host: ");Serial.print(_mdnsName);Serial.println(".local");
+  }
+
+  MDNS.addService("http", "tcp", 80);
+
+  if (_pWebSrvBootstrap != NULL) {
+    //Serial.println("DEBUG: _cbHandler_WiFiEvent_ready arrancando webserver...");
+    _pWebSrvBootstrap->begin();
+  }
+  _pWebSrvBootstrap = NULL;
 }
 
 void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
@@ -151,14 +196,6 @@ void YuboxWiFiClass::_startWiFi(void)
   WiFi.softAPConfig(apIp, apIp, apNetmask);
   WiFi.softAP(_apName.c_str());
   WiFi.setSleep(false);
-
-  if (!MDNS.begin(_mdnsName.c_str())) {
-    Serial.println("ERROR: no se puede iniciar mDNS para anunciar hostname!");
-  } else {
-    //Serial.print("DEBUG: Iniciando mDNS con nombre de host: ");Serial.print(_mdnsName);Serial.println(".local");
-  }
-
-  MDNS.addService("http", "tcp", 80);
 
   //Serial.println("DEBUG: Iniciando escaneo de redes WiFi (1)...");
   WiFi.setAutoReconnect(false);
