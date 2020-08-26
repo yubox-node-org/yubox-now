@@ -44,8 +44,7 @@ void setup()
 
   // Activar y agregar todas las rutas que requieren autenticación
   YuboxWebAuth.setEnabled(true);	// <-- activar explícitamente la autenticación
-  AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");
-  YuboxWebAuth.addManagedHandler(&h);
+
   YuboxWebAuth.addManagedHandler(&eventosLector);
   server.addHandler(&eventosLector);
 
@@ -54,6 +53,9 @@ void setup()
   YuboxNTPConf.begin(server);
   YuboxOTA.begin(server);
   YuboxMQTTConf.begin(server);
+
+  AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");
+  YuboxWebAuth.addManagedHandler(&h);
   server.onNotFound(notFound);
 
   YuboxWiFi.beginServerOnWiFiReady(&server);
