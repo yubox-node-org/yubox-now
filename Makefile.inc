@@ -1,22 +1,41 @@
 YUBOX_PROJECT=$(shell basename *.ino .ino)
 SERIALPORT=/dev/ttyUSB0
 ARDUINO_INSTALL=system
+UNAME_S=$(shell uname -s)
 
-ifeq ($(ARDUINO_INSTALL),system)
-	ARDUINO_BUILDER=/usr/bin/arduino-builder
-	ARDUINO_STDHARDWARE=/usr/share/arduino/hardware
+ARDUINO_HOME=$(HOME)
+ifeq ($(UNAME_S),Linux)
+	ifeq ($(ARDUINO_INSTALL),system)
+		ARDUINO_BUILDER=/usr/bin/arduino-builder
+		ARDUINO_STDHARDWARE=/usr/share/arduino/hardware
+		ARDUINO_TOOLSPARAM=
+		ARDUINO_BUILTIN_LIBS=
+	else
+		ARDUINO_BUILDER=$(ARDUINO_INSTALL)/arduino-builder
+		ARDUINO_STDHARDWARE=$(ARDUINO_INSTALL)/hardware
+		ARDUINO_TOOLSPARAM=-tools $(ARDUINO_INSTALL)/tools-builder -tools $(ARDUINO_INSTALL)/hardware/tools/avr
+		ARDUINO_BUILTIN_LIBS=-built-in-libraries $(ARDUINO_INSTALL)/libraries
+	endif
+	ARDUINO_LIBUSR=$(ARDUINO_HOME)/Arduino/libraries
+	ARDUINO_PKGS=$(ARDUINO_HOME)/.arduino15/packages
+	ARDUINO_CTAGS=
+endif
+ifeq ($(UNAME_S),Darwin)
+	ARDUINO_BUILDER=$(HOME)/arduino-builder/arduino-builder
+	ARDUINO_STDHARDWARE=
 	ARDUINO_TOOLSPARAM=
 	ARDUINO_BUILTIN_LIBS=
-else
-	ARDUINO_BUILDER=$(ARDUINO_INSTALL)/arduino-builder
-	ARDUINO_STDHARDWARE=$(ARDUINO_INSTALL)/hardware
-	ARDUINO_TOOLSPARAM=-tools $(ARDUINO_INSTALL)/tools-builder -tools $(ARDUINO_INSTALL)/hardware/tools/avr
-	ARDUINO_BUILTIN_LIBS=-built-in-libraries $(ARDUINO_INSTALL)/libraries
+	ARDUINO_LIBUSR=$(ARDUINO_HOME)/Documents/Arduino/libraries
+	ARDUINO_PKGS=$(ARDUINO_HOME)Library/Arduino15/packages
+	ARDUINO_CTAGS=-prefs=runtime.tools.ctags.path=/Applications/Arduino.app/Contents/Java/tools-builder/ctags/5.8-arduino11/
 endif
-ARDUINO_HOME=$(HOME)
-ARDUINO_LIBUSR=$(ARDUINO_HOME)/Arduino/libraries
-ARDUINO_PKGS=$(ARDUINO_HOME)/.arduino15/packages
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
+
+ifeq ($(ARDUINO_STDHARDWARE),)
+	ARDUINO_STDHARDWARE_PARAM=
+else
+	ARDUINO_STDHARDWARE_PARAM=-hardware $(ARDUINO_STDHARDWARE)
+endif
 
 YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *.h),*.h,)
 
@@ -45,7 +64,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 	$(ARDUINO_BUILDER) \
 		-compile \
 		-logger=machine \
-		-hardware $(ARDUINO_STDHARDWARE) \
+		$(ARDUINO_STDHARDWARE_PARAM) \
 		-hardware $(ARDUINO_PKGS) \
 		$(ARDUINO_TOOLSPARAM) \
 		-tools $(ARDUINO_PKGS) \
@@ -63,6 +82,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		-prefs=runtime.tools.mkspiffs-0.2.3.path=$(ARDUINO_ESP32)/tools/mkspiffs/0.2.3 \
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/1.22.0-80-g6c4433a-5.2.0 \
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc-1.22.0-80-g6c4433a-5.2.0.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/1.22.0-80-g6c4433a-5.2.0 \
+		$(ARDUINO_CTAGS) \
 		./$(YUBOX_PROJECT).ino
 
 clean:
