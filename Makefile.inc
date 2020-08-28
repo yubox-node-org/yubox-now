@@ -1,6 +1,18 @@
 YUBOX_PROJECT=$(shell basename *.ino .ino)
 SERIALPORT=/dev/ttyUSB0
-ARDUINO_BUILDER=/usr/bin/arduino-builder
+ARDUINO_INSTALL=system
+
+ifeq ($(ARDUINO_INSTALL),system)
+	ARDUINO_BUILDER=/usr/bin/arduino-builder
+	ARDUINO_STDHARDWARE=/usr/share/arduino/hardware
+	ARDUINO_TOOLSPARAM=
+	ARDUINO_BUILTIN_LIBS=
+else
+	ARDUINO_BUILDER=$(ARDUINO_INSTALL)/arduino-builder
+	ARDUINO_STDHARDWARE=$(ARDUINO_INSTALL)/hardware
+	ARDUINO_TOOLSPARAM=-tools $(ARDUINO_INSTALL)/tools-builder -tools $(ARDUINO_INSTALL)/hardware/tools/avr
+	ARDUINO_BUILTIN_LIBS=-built-in-libraries $(ARDUINO_INSTALL)/libraries
+endif
 ARDUINO_HOME=$(HOME)
 ARDUINO_LIBUSR=$(ARDUINO_HOME)/Arduino/libraries
 ARDUINO_PKGS=$(ARDUINO_HOME)/.arduino15/packages
@@ -33,9 +45,11 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 	$(ARDUINO_BUILDER) \
 		-compile \
 		-logger=machine \
-		-hardware /usr/share/arduino/hardware \
+		-hardware $(ARDUINO_STDHARDWARE) \
 		-hardware $(ARDUINO_PKGS) \
+		$(ARDUINO_TOOLSPARAM) \
 		-tools $(ARDUINO_PKGS) \
+		$(ARDUINO_BUILTIN_LIBS) \
 		-libraries $(ARDUINO_LIBUSR) \
 		-fqbn=esp32:esp32:nodemcu-32s:FlashFreq=80,UploadSpeed=921600 \
 		-ide-version=10812 \
