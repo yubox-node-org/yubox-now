@@ -18,6 +18,11 @@ ARDUINO_LIBUSR=$(ARDUINO_HOME)/Arduino/libraries
 ARDUINO_PKGS=$(ARDUINO_HOME)/.arduino15/packages
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
 
+ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
+ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
+ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=build.defines="$(ARDUINO_BUILD_EXTRA_FLAGS)"
+endif
+
 YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *.h),*.h,)
 
 all: $(YUBOX_PROJECT).tar.gz
@@ -63,6 +68,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		-prefs=runtime.tools.mkspiffs-0.2.3.path=$(ARDUINO_ESP32)/tools/mkspiffs/0.2.3 \
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/1.22.0-80-g6c4433a-5.2.0 \
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc-1.22.0-80-g6c4433a-5.2.0.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/1.22.0-80-g6c4433a-5.2.0 \
+		$(ARDUINO_BUILD_EXTRA_FLAGS_PARAM) \
 		./$(YUBOX_PROJECT).ino
 
 clean:
