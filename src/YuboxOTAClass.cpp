@@ -17,6 +17,8 @@ extern "C" {
 
 #include "esp_task_wdt.h"
 
+//#define DEBUG_YUBOX_OTA
+
 #define GZIP_DICT_SIZE 32768
 #define GZIP_BUFF_SIZE 4096
 
@@ -277,7 +279,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   vTaskDelay(1);
 
   if (_tar_eof) {
+#ifdef DEBUG_YUBOX_OTA
     Serial.println("YUBOX OTA: DESACTIVANDO WATCHDOG EN CORE-0");
+#endif
     disableCore0WDT();
     esp_task_wdt_delete(NULL);
 
@@ -292,24 +296,34 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       vTaskDelay(1);
 
       // Finalizar operación de flash de firmware, si es necesaria
+#ifdef DEBUG_YUBOX_OTA
       Serial.println("YUBOX OTA: firmware-commit-start");
+#endif
       if (!Update.end()) {
         _tgzupload_serverError = true;
         _tgzupload_responseMsg = _updater_errstr(Update.getError());
         _uploadRejected = true;
+#ifdef DEBUG_YUBOX_OTA
         Serial.print("YUBOX OTA: firmware-commit-failed ");
         Serial.print(_tgzupload_responseMsg);
+#endif
       } else if (!Update.isFinished()) {
         _tgzupload_serverError = true;
         _tgzupload_responseMsg = "Actualización no ha podido finalizarse: ";
         _tgzupload_responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
+#ifdef DEBUG_YUBOX_OTA
         Serial.print("YUBOX OTA: firmware-commit-failed ");
         Serial.print(_tgzupload_responseMsg);
+#endif
       } else {
+#ifdef DEBUG_YUBOX_OTA
         Serial.print("YUBOX OTA: firmware-commit-end");
+#endif
       }
+#ifdef DEBUG_YUBOX_OTA
       Serial.println(" ...done");
+#endif
 
       vTaskDelay(1);
     }
@@ -320,40 +334,57 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       vTaskDelay(1);
 
       // Cargar lista de archivos viejos a preservar
+#ifdef DEBUG_YUBOX_OTA
       Serial.print("YUBOX OTA: datafiles-load-oldmanifest");
+#endif
       _loadManifest(old_filelist);
+#ifdef DEBUG_YUBOX_OTA
       Serial.println(" ...done");
+#endif
       vTaskDelay(1);
 
       // Se BORRA cualquier archivo que empiece con el prefijo "b," reservado para rollback
+#ifdef DEBUG_YUBOX_OTA
       Serial.print("YUBOX OTA: datafiles-delete-oldbackup");
+#endif
       _deleteFilesWithPrefix("b,");
+#ifdef DEBUG_YUBOX_OTA
       Serial.println(" ...done");
+#endif
       vTaskDelay(1);
 
       // Se RENOMBRA todos los archivos en old_filelist con prefijo "b,"
+#ifdef DEBUG_YUBOX_OTA
       Serial.print("YUBOX OTA: datafiles-rename-oldfiles");
+#endif
       _changeFileListPrefix(old_filelist, "", "b,");
+#ifdef DEBUG_YUBOX_OTA
       Serial.println(" ...done");
+#endif
       vTaskDelay(1);
       old_filelist.clear();
 
       // Se RENOMBRA todos los archivos en _tgzupload_filelist quitando prefijo "n,"
+#ifdef DEBUG_YUBOX_OTA
       Serial.print("YUBOX OTA: datafiles-rename-newfiles");
+#endif
       _changeFileListPrefix(_tgzupload_filelist, "n,", "");
+#ifdef DEBUG_YUBOX_OTA
       Serial.println(" ...done");
+#endif
       vTaskDelay(1);
       _tgzupload_filelist.clear();
-
+#ifdef DEBUG_YUBOX_OTA
       Serial.print("YUBOX OTA: datafiles-end");
       Serial.println(" ...done");
-
+#endif
       vTaskDelay(1);
     }
 
     if (_uploadRejected) _firmwareAbort();
-
+#ifdef DEBUG_YUBOX_OTA
     Serial.println("YUBOX OTA: REACTIVANDO WATCHDOG EN CORE-0");
+#endif
     enableCore0WDT();
   } else if (final) {
     // Se ha llegado al último chunk y no se ha detectado el fin del tar.
@@ -923,7 +954,9 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
 
 void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
+#ifdef DEBUG_YUBOX_OTA
   Serial.println("YUBOX OTA: reiniciando luego de cambio de firmware...");
+#endif
   ESP.restart();
 }
 
