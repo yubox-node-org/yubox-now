@@ -32,7 +32,7 @@ $(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.nodemcu-32s.bin
 	mkdir dist
 	cp data/* $(YUBOX_PROJECT).ino.nodemcu-32s.bin dist/
 	rm -f $(YUBOX_PROJECT).tar.gz
-	tar --transform 's,^dist/,,' -cf $(YUBOX_PROJECT).tar dist/*
+	cd dist && tar -cf ../$(YUBOX_PROJECT).tar * && cd ..
 	gzip -9 $(YUBOX_PROJECT).tar
 	rm -rf dist/
 
