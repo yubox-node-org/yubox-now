@@ -1,14 +1,14 @@
 function setupYuboxOTATab()
 {
-    var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
+    var otapane = getYuboxPane('yuboxOTA');
     var data = {
         'sse':  null
     };
     otapane.data(data);
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
-    $('ul#yuboxMainTab a#yuboxOTA-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
+    getYuboxNavTab('yuboxOTA').on('shown.bs.tab', function (e) {
+        var otapane = getYuboxPane('yuboxOTA');
 
         $.get(yuboxAPI('yuboxOTA')+'/rollback')
         .done(function (data) {
@@ -131,7 +131,7 @@ function setupYuboxOTATab()
 
 function yuboxOTAUpload_init()
 {
-    var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
+    var otapane = getYuboxPane('yuboxOTA');
     otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', true);
     yuboxOTAUpload_setProgressBar(0);
     otapane.find('div.upload-progress span#filename').text('-');
@@ -200,7 +200,7 @@ function yuboxOTAUpload_init()
 
 function yuboxOTAUpload_shutdown()
 {
-    var otapane = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA');
+    var otapane = getYuboxPane('yuboxOTA');
     otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
     otapane.find('div.upload-progress').hide();
     if (otapane.data('sse') != null) {
@@ -216,7 +216,8 @@ function yuboxOTAUpload_setProgressBar(v)
 
 function yuboxOTAUpload_setProgressBarMessage(v, msg)
 {
-    var pb = $('div#yuboxMainTabContent > div.tab-pane#yuboxOTA div.progress-bar');
+    var otapane = getYuboxPane('yuboxOTA');
+    var pb = otapane.find('div.progress-bar');
     pb.css('width', v+'%');
     pb.attr('aria-valuenow', v);
     pb.text(msg);

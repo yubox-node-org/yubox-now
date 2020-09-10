@@ -1,7 +1,7 @@
 
 function setupWiFiTab()
 {
-    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    var wifipane = getYuboxPane('wifi');
     var data = {
         'sse': null,
         'wifiscan-template':
@@ -12,11 +12,12 @@ function setupWiFiTab()
     wifipane.data(data);
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
-    $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+    getYuboxNavTab('wifi')
+    .on('shown.bs.tab', function (e) {
         yuboxWiFi_setupWiFiScanListener();
-    });
-    $('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').on('hide.bs.tab', function (e) {
-        var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    })
+    .on('hide.bs.tab', function (e) {
+        var wifipane = getYuboxPane('wifi');
         if (wifipane.data('sse') != null) {
           wifipane.data('sse').close();
           wifipane.data('sse', null);
@@ -24,13 +25,14 @@ function setupWiFiTab()
     });
 
     // Qué hay que hacer al hacer clic en una fila que representa la red
-    $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody').on('click', 'tr', function(e) {
+    wifipane.find('table#wifiscan > tbody').on('click', 'tr', function(e) {
+        var wifipane = getYuboxPane('wifi');
         var net = $(e.currentTarget).data();
 
         if (net.connected) {
             $.getJSON(yuboxAPI('wificonfig')+'/connection')
             .done(function (data) {
-                var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+                var dlg_wifiinfo = wifipane.find('div#wifi-details');
 
                 var res = evaluarIntensidadRedWifi(dlg_wifiinfo.find('tr#rssi > td > svg.wifipower'), data.rssi);
                 dlg_wifiinfo.find('tr#rssi > td.text-muted').text(res.diag + ' ('+res.pwr+' %)');
@@ -62,7 +64,7 @@ function setupWiFiTab()
             })
             .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
         } else {
-            var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+            var dlg_wificred = wifipane.find('div#wifi-credentials');
             dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
             dlg_wificred.find('input#ssid').val(net.ssid);
             dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
@@ -96,7 +98,7 @@ function setupWiFiTab()
     });
 
     // Comportamiento de controles de diálogo de ingresar credenciales red
-    var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+    var dlg_wificred = wifipane.find('div#wifi-credentials');
     dlg_wificred.find('div.form-group.wifi-auth-eap input')
         .change(checkValidWifiCred_EAP)
         .keypress(checkValidWifiCred_EAP)
@@ -106,7 +108,8 @@ function setupWiFiTab()
         .keypress(checkValidWifiCred_PSK)
         .blur(checkValidWifiCred_PSK);
     dlg_wificred.find('div.modal-footer button[name=connect]').click(function () {
-        var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+        var wifipane = getYuboxPane('wifi');
+        var dlg_wificred = wifipane.find('div#wifi-credentials');
         var st = {
             url:    yuboxAPI('wificonfig')+'/connection',
             method: 'PUT',
@@ -127,7 +130,7 @@ function setupWiFiTab()
 
         // Puede ocurrir que la red ya no exista según el escaneo más reciente
         var existe = (
-            $('div#yuboxMainTabContent > div.tab-pane#wifi table#wifiscan > tbody > tr')
+            wifipane.find('table#wifiscan > tbody > tr')
             .filter(function() { return ($(this).data('ssid') == st.data.ssid);  })
             .length > 0);
         if (!existe) {
@@ -149,9 +152,10 @@ function setupWiFiTab()
     });
 
     // Comportamiento de controles de diálogo de mostrar estado de red conectada
-    var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+    var dlg_wifiinfo = wifipane.find('div#wifi-details');
     dlg_wifiinfo.find('div.modal-footer button[name=forget]').click(function () {
-        var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+        var wifipane = getYuboxPane('wifi');
+        var dlg_wifiinfo = wifipane.find('div#wifi-details');
         var st = {
             url:    yuboxAPI('wificonfig')+'/connection',
             method: 'DELETE'
@@ -172,7 +176,8 @@ function setupWiFiTab()
 function checkValidWifiCred_EAP()
 {
     // Activar el botón de enviar credenciales si ambos valores son no-vacíos
-    var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+    var wifipane = getYuboxPane('wifi');
+    var dlg_wificred = wifipane.find('div#wifi-credentials');
     var numLlenos = dlg_wificred
         .find('div.form-group.wifi-auth-eap input')
         .filter(function() { return ($(this).val() != ''); })
@@ -183,19 +188,20 @@ function checkValidWifiCred_EAP()
 function checkValidWifiCred_PSK()
 {
     // Activar el botón de enviar credenciales si la clave es de al menos 8 caracteres
-    var dlg_wificred = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-credentials');
+    var wifipane = getYuboxPane('wifi');
+    var dlg_wificred = wifipane.find('div#wifi-credentials');
     var psk = dlg_wificred.find('div.form-group.wifi-auth-psk input#psk').val();
     dlg_wificred.find('button[name=connect]').prop('disabled', !(psk.length >= 8));
 }
 
 function yuboxWiFi_setupWiFiScanListener()
 {
-    if (!$('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
+    if (!getYuboxNavTab('wifi').hasClass('active')) {
         // El tab de WIFI ya no está visible, no se hace nada
         return;
     }
 
-    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    var wifipane = getYuboxPane('wifi');
     if (!!window.EventSource) {
         var sse = new EventSource(yuboxAPI('wificonfig')+'/netscan');
         sse.addEventListener('WiFiScanResult', function (e) {
@@ -213,7 +219,7 @@ function yuboxWiFi_setupWiFiScanListener()
 
 function yuboxWiFi_actualizarRedes(data)
 {
-    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    var wifipane = getYuboxPane('wifi');
 
     data.sort(function (a, b) {
         if (a.connected || a.connfail) return -1;
@@ -223,7 +229,7 @@ function yuboxWiFi_actualizarRedes(data)
 
     var tbody_wifiscan = wifipane.find('table#wifiscan > tbody');
     tbody_wifiscan.empty();
-    var dlg_wifiinfo = $('div#yuboxMainTabContent > div.tab-pane#wifi div#wifi-details');
+    var dlg_wifiinfo = wifipane.find('div#wifi-details');
     var ssid_visible = null;
     if (dlg_wifiinfo.is(':visible')) {
         ssid_visible = dlg_wifiinfo.find('input#ssid').val();
@@ -319,7 +325,7 @@ function evaluarIntensidadRedWifi(svg_wifi, rssi)
 
 function mostrarReintentoScanWifi(msg)
 {
-    if (!$('ul#yuboxMainTab a#wifi-tab[data-toggle="tab"]').hasClass('active')) {
+    if (!getYuboxNavTab('wifi').hasClass('active')) {
         // El tab de WIFI ya no está visible, no se hace nada
         return;
     }
@@ -362,7 +368,7 @@ function rssi2signalpercent(rssi)
 
 function marcarRedDesconectandose(ssid)
 {
-    var wifipane = $('div#yuboxMainTabContent > div.tab-pane#wifi');
+    var wifipane = getYuboxPane('wifi');
     var tr_connected = wifipane.find('table#wifiscan > tbody > tr.table-success');
     if (tr_connected.length <= 0) return;
     if (ssid != null && tr_connected.data('ssid') != ssid) return;

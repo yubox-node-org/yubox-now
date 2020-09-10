@@ -1,6 +1,6 @@
 function setupNTPConfTab()
 {
-    var ntppane = $('div#yuboxMainTabContent > div.tab-pane#ntpconfig');
+    var ntppane = getYuboxPane('ntpconfig');
 
     // Llenar los select con valores para elegir zona horaria
     var sel_tzh = ntppane.find('select#ntptz_hh');
@@ -18,7 +18,7 @@ function setupNTPConfTab()
             .appendTo(sel_tzm);
     }
     ntppane.find('button[name=apply]').click(function () {
-        var ntppane = $('div#yuboxMainTabContent > div.tab-pane#ntpconfig');
+        var ntppane = getYuboxPane('ntpconfig');
         var sel_tzh = ntppane.find('select#ntptz_hh');
         var sel_tzm = ntppane.find('select#ntptz_mm');
     
@@ -45,7 +45,7 @@ function setupNTPConfTab()
     });
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
-    $('ul#yuboxMainTab a#ntpconfig-tab[data-toggle="tab"]')
+    getYuboxNavTab('ntpconfig')
     .on('shown.bs.tab', function (e) {
         yuboxLoadNTPConfig();
     });
@@ -53,7 +53,7 @@ function setupNTPConfTab()
 
 function yuboxLoadNTPConfig()
 {
-    var ntppane = $('div#yuboxMainTabContent > div.tab-pane#ntpconfig');
+    var ntppane = getYuboxPane('ntpconfig');
     ntppane.find('form span#ntp_connstatus')
         .removeClass('badge-success badge-danger')
         .addClass('badge-secondary')

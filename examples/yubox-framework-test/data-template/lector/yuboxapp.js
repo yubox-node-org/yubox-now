@@ -1,6 +1,6 @@
 function setupLectorTab()
 {
-    var lectorpane = $('div#yuboxMainTabContent > div.tab-pane#lector');
+    var lectorpane = getYuboxPane('lector');
     var data = {
         'sse':  null,
         'chart': null,
@@ -68,7 +68,7 @@ function setupLectorTab()
 
 function yuboxLector_actualizar(d, p, t)
 {
-    var lectorpane = $('div#yuboxMainTabContent > div.tab-pane#lector');
+    var lectorpane = getYuboxPane('lector');
     lectorpane.find('h3#temp').text(t.toFixed(2));
     lectorpane.find('h3#press').text(p.toFixed(2));
     var cht = lectorpane.data('chart');

@@ -1,9 +1,9 @@
 function setupMqttTab()
 {
-    var mqttpane = $('div#yuboxMainTabContent > div.tab-pane#mqtt');
+    var mqttpane = getYuboxPane('mqtt');
 
     mqttpane.find('input[name=mqttauth]').click(function() {
-        var mqttpane = $('div#yuboxMainTabContent > div.tab-pane#mqtt');
+        var mqttpane = getYuboxPane('mqtt');
 
         var nstat = mqttpane.find('input[name=mqttauth]:checked').val();
         if (nstat == 'on') {
@@ -15,7 +15,7 @@ function setupMqttTab()
         }
     });
     mqttpane.find('button[name=apply]').click(function () {
-        var mqttpane = $('div#yuboxMainTabContent > div.tab-pane#mqtt');
+        var mqttpane = getYuboxPane('mqtt');
 
         var postData = {
             host:           mqttpane.find('input#mqtthost').val(),
@@ -43,7 +43,7 @@ function setupMqttTab()
     });
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
-    $('ul#yuboxMainTab a#mqtt-tab[data-toggle="tab"]')
+    getYuboxNavTab('mqtt')
     .on('shown.bs.tab', function (e) {
         yuboxLoadMqttConfig();
     });
@@ -51,7 +51,7 @@ function setupMqttTab()
 
 function yuboxLoadMqttConfig()
 {
-    var mqttpane = $('div#yuboxMainTabContent > div.tab-pane#mqtt');
+    var mqttpane = getYuboxPane('mqtt');
     mqttpane.find('form span#mqtt_connstatus')
         .removeClass('badge-success badge-danger')
         .addClass('badge-secondary')

@@ -1,11 +1,11 @@
 function setupWebAuthTab()
 {
     //
-    var authpane = $('div#yuboxMainTabContent > div.tab-pane#webauth');
+    var authpane = getYuboxPane('webauth');
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
-    $('ul#yuboxMainTab a#webauth-tab[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        var authpane = $('div#yuboxMainTabContent > div.tab-pane#webauth');
+    getYuboxNavTab('webauth').on('shown.bs.tab', function (e) {
+        var authpane = getYuboxPane('webauth');
         $.getJSON(yuboxAPI('authconfig'))
         .done(function (data) {
             authpane.find('input#yubox_username').val(data.username);

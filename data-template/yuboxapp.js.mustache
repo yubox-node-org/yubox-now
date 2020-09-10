@@ -75,3 +75,6 @@ function yuboxStdAjaxFailHandlerDlg(basesel, e, timeout)
     }
     yuboxDlgMostrarAlertText(basesel, 'danger', msg, timeout);
 }
+
+function getYuboxPane(modname) { return $('div#yuboxMainTabContent > div.tab-pane#'+modname); }
+function getYuboxNavTab(modname) { return $('ul#yuboxMainTab a#'+modname+'-tab[data-toggle="tab"]'); }
