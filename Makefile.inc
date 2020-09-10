@@ -26,7 +26,7 @@ ifeq ($(UNAME_S),Darwin)
 	ARDUINO_TOOLSPARAM=
 	ARDUINO_BUILTIN_LIBS=
 	ARDUINO_LIBUSR=$(ARDUINO_HOME)/Documents/Arduino/libraries
-	ARDUINO_PKGS=$(ARDUINO_HOME)Library/Arduino15/packages
+	ARDUINO_PKGS=$(ARDUINO_HOME)/Library/Arduino15/packages
 	ARDUINO_CTAGS=-prefs=runtime.tools.ctags.path=/Applications/Arduino.app/Contents/Java/tools-builder/ctags/5.8-arduino11/
 endif
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
