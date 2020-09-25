@@ -208,6 +208,14 @@ function yuboxWiFi_setupWiFiScanListener()
           var data = $.parseJSON(e.data);
           yuboxWiFi_actualizarRedes(data);
         });
+        sse.addEventListener('WiFiStatus', function (e) {
+            var data = $.parseJSON(e.data);
+            if (!data.yubox_control_wifi) {
+              yuboxMostrarAlertText('warning',
+                'YUBOX Now ha cedido control del WiFi a otra librería. El escaneo WiFi podría no refrescarse, o mostrar datos desactualizados.',
+                5000);
+            }
+        });
         sse.addEventListener('error', function (e) {
           mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');
         });

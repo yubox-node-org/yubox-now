@@ -76,6 +76,13 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
     std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_ready, this, std::placeholders::_1),
     SYSTEM_EVENT_WIFI_READY);
 
+  // SIEMPRE instalar el manejador de escaneo, para reportar incluso
+  // si hay otro controlando el WiFi. El manejador evita tocar estado
+  // global del WiFi si no está en control del WiFi
+  WiFi.onEvent(
+    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_scandone, this, std::placeholders::_1),
+    SYSTEM_EVENT_SCAN_DONE);
+
   if (_assumeControlOfWiFi) {
     takeControlOfWiFi();
   }
@@ -143,35 +150,39 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent_ready(WiFiEvent_t event)
   _pWebSrvBootstrap = NULL;
 }
 
+void YuboxWiFiClass::_cbHandler_WiFiEvent_scandone(WiFiEvent_t event)
+{
+  if (_assumeControlOfWiFi) WiFi.setAutoReconnect(true);
+  _collectScannedNetworks();
+
+  // Reportar las redes a cualquier cliente SSE que esté escuchando
+  if (_pEvents != NULL && _pEvents->count() > 0) {
+    //Serial.printf("DEBUG: hay %d clientes SSE conectados, se reporta resultado scan...\r\n", _pEvents->count());
+    String json_report = _buildAvailableNetworksJSONReport();
+    _pEvents->send(json_report.c_str(), "WiFiScanResult");
+    if (_assumeControlOfWiFi) _startCondRescanTimer(false);
+  }
+
+  if (_assumeControlOfWiFi) {
+    if (WiFi.status() != WL_CONNECTED) {
+      //Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
+      if (_useTrialNetworkFirst) {
+        _activeNetwork = _trialNetwork;
+        _useTrialNetworkFirst = false;
+        _connectToActiveNetwork();
+      } else {
+        _chooseKnownScannedNetwork();
+      }
+    } else {
+      //
+    }
+  }
+}
+
 void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
 {
     //Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
     switch(event) {
-    case SYSTEM_EVENT_SCAN_DONE:
-      WiFi.setAutoReconnect(true);
-      _collectScannedNetworks();
-
-      // Reportar las redes a cualquier cliente SSE que esté escuchando
-      if (_pEvents != NULL && _pEvents->count() > 0) {
-        //Serial.printf("DEBUG: hay %d clientes SSE conectados, se reporta resultado scan...\r\n", _pEvents->count());
-        String json_report = _buildAvailableNetworksJSONReport();
-        _pEvents->send(json_report.c_str(), "WiFiScanResult");
-        _startCondRescanTimer(false);
-      }
-
-      if (WiFi.status() != WL_CONNECTED) {
-        //Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
-        if (_useTrialNetworkFirst) {
-          _activeNetwork = _trialNetwork;
-          _useTrialNetworkFirst = false;
-          _connectToActiveNetwork();
-        } else {
-          _chooseKnownScannedNetwork();
-        }
-      } else {
-        //
-      }
-      break;
     case SYSTEM_EVENT_STA_GOT_IP:
         //Serial.print("DEBUG: Conectado al WiFi. Dirección IP: ");Serial.println(WiFi.localIP());
         WiFi.setAutoReconnect(true);
@@ -219,7 +230,7 @@ void YuboxWiFiClass::_collectScannedNetworks(void)
 
     t.push_back(e);
   }
-  WiFi.scanDelete();
+  if (_assumeControlOfWiFi) WiFi.scanDelete();
 
   // TODO: candados en este acceso?
   _scannedNetworks_timestamp = ts;
@@ -526,7 +537,16 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
 {
-  // TODO: emitir estado actual de control de WiFi
+  // Emitir estado actual de control de WiFi
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(1));
+  json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
+  String json_str;
+  serializeJson(json_doc, json_str);
+  _pEvents->send(json_str.c_str(), "WiFiStatus");
+
+  // Emitir cualquier lista disponible de inmediato, posiblemente poblada por otro dueño de WiFi
+  String json_report = _buildAvailableNetworksJSONReport();
+  _pEvents->send(json_report.c_str(), "WiFiScanResult");
 
   // No iniciar escaneo a menos que se tenga control del WiFi
   if (!_assumeControlOfWiFi) return;

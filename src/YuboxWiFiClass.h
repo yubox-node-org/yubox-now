@@ -106,6 +106,7 @@ private:
   // Callbacks y timers
   void _cbHandler_WiFiEvent(WiFiEvent_t event);
   void _cbHandler_WiFiEvent_ready(WiFiEvent_t event);
+  void _cbHandler_WiFiEvent_scandone(WiFiEvent_t event);
   void _cbHandler_WiFiRescan(TimerHandle_t);
 
   void _setupHTTPRoutes(AsyncWebServer &);
