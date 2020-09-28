@@ -459,6 +459,9 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
   srv.on("/yubox-api/wificonfig/connection", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/networks", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/networks", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/networks", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_DELETE, this, std::placeholders::_1));
   srv.on("/_spiffslist.html", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
@@ -634,7 +637,12 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request)
 {
   YUBOX_RUN_AUTH(request);
-  
+
+  _addOneSavedNetwork(request, true);
+}
+
+void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool switch2net)
+{
   bool clientError = false;
   bool serverError = false;
   String responseMsg = "";
@@ -711,8 +719,23 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
   if (!clientError) {
     int idx = -1;
 
+    // Información de conexión actual (si existe)
+    wl_status_t currNetStatus = WiFi.status();
+    String currNet = WiFi.SSID();
+    if (currNet.isEmpty()) {
+      currNet = _activeNetwork.ssid;
+    }
+
     tempNetwork._dirty = true;
     for (auto i = 0; i < _savedNetworks.size(); i++) {
+      // Aunque no se haya indicado cambiar a esta red, si la red modificada es la red
+      // a la que se requiere conectar, se debe activar el switcheo
+      if (!switch2net) {
+        if (currNetStatus == WL_CONNECTED && tempNetwork.cred.ssid == currNet) {
+          switch2net = true;
+        }
+      }
+
       if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
         idx = i;
         _savedNetworks[idx] = tempNetwork;
@@ -727,7 +750,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
 
     // Mandar a guardar el vector modificado
     _saveNetworksToNVRAM();
-    if (_assumeControlOfWiFi) {
+    if (switch2net && _assumeControlOfWiFi) {
       _useTrialNetworkFirst = true;
       _trialNetwork = tempNetwork.cred;
     }
@@ -749,7 +772,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
   serializeJson(json_doc, *response);
   request->send(response);
 
-  if (_assumeControlOfWiFi && !clientError && !serverError) {
+  if (switch2net && _assumeControlOfWiFi && !clientError && !serverError) {
     _startCondRescanTimer(true);
   }
 }
@@ -757,16 +780,19 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebSe
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request)
 {
   YUBOX_RUN_AUTH(request);
-  
+
   wl_status_t currNetStatus = WiFi.status();
   if (currNetStatus != WL_CONNECTED) {
     request->send(404, "application/json", "{\"msg\":\"No hay conexi\\u00f3nn actualmente activa\"}");
     return;
   }
 
+  _delOneSavedNetwork(request, WiFi.SSID(), true);
+}
+
+void YuboxWiFiClass::_delOneSavedNetwork(AsyncWebServerRequest *request, String ssid, bool deleteconnected)
+{
   // Buscar cuál índice de red guardada hay que eliminar
-  // TODO: debe hacerse un rewrite para poder indicar parámetro de red guardada a borrar
-  String ssid = WiFi.SSID();
   int idx = -1;
   for (auto i = 0; i < _savedNetworks.size(); i++) {
     if (_savedNetworks[i].cred.ssid == ssid) {
@@ -775,8 +801,6 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
     }
   }
   if (idx != -1) {
-    //Serial.print("DEBUG: se eliminan credenciales de red: "); Serial.println(ssid);
-
     // Manipular el vector de redes para compactar
     if (_selNetwork == idx) _selNetwork = -1;
     if (idx < _savedNetworks.size() - 1) {
@@ -788,13 +812,92 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWe
 
     // Mandar a guardar el vector modificado
     _saveNetworksToNVRAM();
+  } else if (!deleteconnected) {
+    request->send(404, "application/json", "{\"msg\":\"No existe la red indicada\"}");
+    return;
   }
 
   request->send(204);
 
-  if (_assumeControlOfWiFi) {
+  if (deleteconnected && _assumeControlOfWiFi) {
     _startCondRescanTimer(true);
   }
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  if (request->hasParam("ssid")) {
+    AsyncWebParameter* p = request->getParam("ssid");
+
+    // Buscar cuál índice de red guardada corresponde a este SSID
+    auto idx = -1;
+    for (auto i = 0; i < _savedNetworks.size(); i++) {
+      if (_savedNetworks[i].cred.ssid == p->value()) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx == -1) {
+      // Red indicada no se encuentra
+      request->send(404, "application/json", "{\"msg\":\"No existe la red indicada\"}");
+    } else {
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+
+      _serializeOneSavedNetwork(response, idx);
+
+      request->send(response);
+    }
+  } else {
+    // Volcar todas las redes guardadas en NVRAM
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    response->print("[");
+    for (auto i = 0; i < _savedNetworks.size(); i++) {
+      if (i > 0) response->print(",");
+
+      _serializeOneSavedNetwork(response, i);
+    }
+    response->print("]");
+    request->send(response);
+  }
+}
+
+void YuboxWiFiClass::_serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i)
+{
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(4));
+
+  json_doc["ssid"] = _savedNetworks[i].cred.ssid.c_str();
+  json_doc["psk"] = (const char *)NULL;
+  json_doc["identity"] = (const char *)NULL;
+  json_doc["password"] = (const char *)NULL;
+  if (_savedNetworks[i].cred.psk.length() > 0) json_doc["psk"] = _savedNetworks[i].cred.psk.c_str();
+  if (_savedNetworks[i].cred.identity.length() > 0) json_doc["identity"] = _savedNetworks[i].cred.identity.c_str();
+  if (_savedNetworks[i].cred.password.length() > 0) json_doc["password"] = _savedNetworks[i].cred.password.c_str();
+
+  serializeJson(json_doc, *response);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_POST(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  _addOneSavedNetwork(request, false);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  if (!request->hasParam("ssid")) {
+    request->send(400, "application/json", "{\"success\":false,\"msg\":\"No hay conexi\\u00f3nn actualmente activa\"}");
+    return;
+  }
+  AsyncWebParameter* p = request->getParam("ssid");
+  String ssid = p->value();
+  bool deleteconnected = (WiFi.status() == WL_CONNECTED && ssid == WiFi.SSID());
+
+  _delOneSavedNetwork(request, ssid, deleteconnected);
 }
 
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)

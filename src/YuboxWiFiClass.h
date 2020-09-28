@@ -115,7 +115,15 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_PUT(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_DELETE(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_networks_POST(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request);
   void _routeHandler_spiffslist_GET(AsyncWebServerRequest *request);
+
+  // Funciones de ayuda para responder a peticiones web
+  void _serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i);
+  void _addOneSavedNetwork(AsyncWebServerRequest *request, bool switch2net);
+  void _delOneSavedNetwork(AsyncWebServerRequest *request, String ssid, bool deleteconnected);
 
 public:
   YuboxWiFiClass();
