@@ -10,6 +10,8 @@
 
 #include <functional>
 
+#include "Yubox_internal_LastParamRewrite.hpp"
+
 const char * YuboxWiFiClass::_ns_nvram_yuboxframework_wifi = "YUBOX/WiFi";
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 
@@ -463,6 +465,10 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
   srv.on("/yubox-api/wificonfig/networks", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_POST, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/networks", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_DELETE, this, std::placeholders::_1));
   srv.on("/_spiffslist.html", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
+  srv.addRewrite(new Yubox_internal_LastParamRewrite(
+    "/yubox-api/wificonfig/networks/{SSID}",
+    "/yubox-api/wificonfig/networks?ssid={SSID}"
+  ));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
