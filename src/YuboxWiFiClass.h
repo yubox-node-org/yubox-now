@@ -88,6 +88,7 @@ private:
   // Timers asociados a llamadas de métodos
   TimerHandle_t _timer_wifiRescan;
   bool _disconnectBeforeRescan;
+  uint32_t _interval_wifiRescan;
 
   String _getWiFiMAC(void);
   void _loadOneNetworkFromNVRAM(Preferences &, uint32_t, YuboxWiFi_nvramrec &);
