@@ -79,7 +79,7 @@ void loop()
     String json_output;
     serializeJson(json_doc, json_output);
 
-    if (WiFi.isConnected() && eventosLector.count() > 0) {
+    if (eventosLector.count() > 0) {
       eventosLector.send(json_output.c_str());
     }
   }
