@@ -47,6 +47,72 @@ def buildDataTemplateDirList(customdirs):
 
     return template_dirs
 
+# Recolectar contenido y módulos disponibles de la lista de directorios
+def loadAvailableModules(template_dirs):
+    content = {}
+    modules = {}
+    for d in template_dirs:
+        ls = os.listdir(d)
+        for fn in ls:
+            # Ruta absoluta al recurso a analizar
+            filepath = os.path.join(d, fn)
+
+            #print ('DEBUG: %s' % (filepath))
+            if os.path.isdir(filepath):
+                # Este directorio podría ser un módulo. Se lee si tiene un module.ini
+                #print ('DEBUG: verificando si existe module.ini en %s' % (filepath,))
+                module_ini = os.path.join(filepath, 'module.ini')
+                if os.path.isfile(module_ini):
+                    # Hay un module.ini presente. Se lo abre para agregar configuración
+                    config = configparser.ConfigParser()
+                    config.read(module_ini)
+                    if not fn in modules:
+                        modules[fn] = {
+                            'module_name': fn,
+                            'templates': {}
+                        }
+                    modules[fn]['module_path'] = filepath
+
+                    # Cada sección del module.ini define un archivo final para el cual
+                    # definir claves y valores
+                    for tpl in config.sections():
+                        if not tpl in modules[fn]['templates']:
+                            modules[fn]['templates'][tpl] = {
+                                'module_content': None
+                            }
+                        for key in config[tpl]:
+                            modules[fn]['templates'][tpl]['module_'+key] = config[tpl][key]
+
+                    # Dentro del directorio, además del module.ini hay archivos con
+                    # los nombres del archivo final. Si existen, son la fuente del
+                    # contenido de module_content
+                    lsmod = os.listdir(filepath)
+                    for fnmod in lsmod:
+                        if fnmod == 'module.ini':
+                            continue
+                        if not fnmod in modules[fn]['templates']:
+                            modules[fn]['templates'][fnmod] = {
+                                'module_content': None
+                            }
+                        modules[fn]['templates'][fnmod]['module_content_path'] = os.path.join(filepath, fnmod)
+            elif fn.endswith('.mustache'):
+                # Este archivo es una plantilla. Se agrega al contenido para ser parseado.
+                target = fn[:-9]    # Se quita la extensión .mustache
+                if not target in content:
+                    content[target] = {
+                        'target': target
+                    }
+                content[target]['template_path'] = filepath
+            else:
+                # Este archivo es un archivo a copiar directamente
+                if not fn in content:
+                    content[fn] = {
+                        'target': fn
+                    }
+                content[fn]['source_path'] = filepath
+
+    return content, modules
+
 if len(sys.argv) < 3:
     sys.stderr.write('Uso: %s /data/template/dir1:/data/template/dir2:(...) module1 (module2 ...)\n' % (sys.argv[0],))
     exit(1)
@@ -59,70 +125,10 @@ if len(template_dirs) <= 0:
     sys.stderr.write('\nFATAL: ninguno de los directorios en la lista es usable!\n')
     exit(1)
 
-# Recolectar contenido y módulos disponibles de la lista de directorios
-content = {}
-modules = {}
+content, modules = loadAvailableModules(template_dirs)
+
 modules_enabled = []
 module_active = None
-for d in template_dirs:
-    ls = os.listdir(d)
-    for fn in ls:
-        # Ruta absoluta al recurso a analizar
-        filepath = os.path.join(d, fn)
-
-        #print ('DEBUG: %s' % (filepath))
-        if os.path.isdir(filepath):
-            # Este directorio podría ser un módulo. Se lee si tiene un module.ini
-            #print ('DEBUG: verificando si existe module.ini en %s' % (filepath,))
-            module_ini = os.path.join(filepath, 'module.ini')
-            if os.path.isfile(module_ini):
-                # Hay un module.ini presente. Se lo abre para agregar configuración
-                config = configparser.ConfigParser()
-                config.read(module_ini)
-                if not fn in modules:
-                    modules[fn] = {
-                        'module_name': fn,
-                        'templates': {}
-                    }
-                modules[fn]['module_path'] = filepath
-
-                # Cada sección del module.ini define un archivo final para el cual
-                # definir claves y valores
-                for tpl in config.sections():
-                    if not tpl in modules[fn]['templates']:
-                        modules[fn]['templates'][tpl] = {
-                            'module_content': None
-                        }
-                    for key in config[tpl]:
-                        modules[fn]['templates'][tpl]['module_'+key] = config[tpl][key]
-
-                # Dentro del directorio, además del module.ini hay archivos con
-                # los nombres del archivo final. Si existen, son la fuente del
-                # contenido de module_content
-                lsmod = os.listdir(filepath)
-                for fnmod in lsmod:
-                    if fnmod == 'module.ini':
-                        continue
-                    if not fnmod in modules[fn]['templates']:
-                        modules[fn]['templates'][fnmod] = {
-                            'module_content': None
-                        }
-                    modules[fn]['templates'][fnmod]['module_content_path'] = os.path.join(filepath, fnmod)
-        elif fn.endswith('.mustache'):
-            # Este archivo es una plantilla. Se agrega al contenido para ser parseado.
-            target = fn[:-9]    # Se quita la extensión .mustache
-            if not target in content:
-                content[target] = {
-                    'target': target
-                }
-            content[target]['template_path'] = filepath
-        else:
-            # Este archivo es un archivo a copiar directamente
-            if not fn in content:
-                content[fn] = {
-                    'target': fn
-                }
-            content[fn]['source_path'] = filepath
 
 # Reporte antes de generación
 print ('\nINFO: Módulos disponibles y habilitados en proyecto:')
