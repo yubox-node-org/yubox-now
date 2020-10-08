@@ -14,11 +14,39 @@ if len(sys.argv) < 3:
 
 # Construir lista de directorios a usar para HTML
 template_dirs = []
+
+# Se examina el directorio que contiene a este script, por la presencia de data-template
+yf_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+yf_tpldir = os.path.join(yf_dir, 'data-template')
+if os.path.isdir(yf_tpldir):
+    template_dirs.append(yf_tpldir)
+
+# A continuación, se sube de nivel para localizar el directorio de librerías Arduino
+# y se verifica si alguna de ellas tiene bibliotecas compatibles con YUBOX Framework
+arduino_libraries = os.path.dirname(yf_dir)
+arduino_libdirs = os.listdir(arduino_libraries)
+for arduino_libdir in arduino_libdirs:
+    arduino_libdir = os.path.join(arduino_libraries, arduino_libdir)
+    if os.path.isdir(arduino_libdir):
+        yf_testdir = os.path.join(arduino_libdir, 'data-template')
+        if os.path.isdir(yf_testdir) and not yf_testdir in template_dirs:
+            template_dirs.append(yf_testdir)
+
+# Luego se verifica si el directorio actual (presuntamente el del sketch) tiene un
+# directorio data-template, y se lo añade.
+sketch_testdir = os.path.join(os.path.abspath(os.curdir), 'data-template')
+if os.path.isdir(sketch_testdir) and not sketch_testdir in template_dirs:
+    template_dirs.append(sketch_testdir)
+
+# Por último se agregan los directorios indicados en la línea de comando, si no constan
+# ya en el listado autodetectado.
 for d in sys.argv[1].split(os.pathsep):
     if not os.path.isdir(d):
         sys.stderr.write('WARN: ruta %s no existe o no es un directorio, se ignora.\n' % (d,))
     else:
-        template_dirs.append(os.path.realpath(d))
+        d = os.path.abspath(d)
+        if not d in template_dirs:
+            template_dirs.append(d)
 print ('Se buscará contenido para ensamblar en los siguientes directorios:')
 for d in template_dirs:
     print ('\t%s' % (d,))

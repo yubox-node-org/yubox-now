@@ -58,7 +58,7 @@ $(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.nodemcu-32s.bin
 data/manifest.txt: modules.txt $(YF)/data-template $(YF)/data-template/* $(YF)/data-template/*/* ./data-template ./data-template/* ./data-template/*/*
 	rm -rf data/
 	mkdir data/
-	$(YF)/yubox-framework-assemble $(YF)/data-template:./data-template $(shell cat modules.txt)
+	$(YF)/yubox-framework-assemble ./data-template $(shell cat modules.txt)
 	gzip -9 data/*.htm data/*.js data/*.css
 
 $(YUBOX_PROJECT).ino.nodemcu-32s.bin: build/$(YUBOX_PROJECT).ino.bin
