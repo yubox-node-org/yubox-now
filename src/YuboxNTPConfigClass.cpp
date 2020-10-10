@@ -41,6 +41,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 
   _ntpServerName = nvram.getString("ntphost", _ntpServerName);
   _ntpOffset = nvram.getLong("ntptz", _ntpOffset);
+  configTime(_ntpOffset, 0, _ntpServerName.c_str());
 }
 
 void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
