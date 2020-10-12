@@ -24,6 +24,7 @@ private:
   bool _ntpFirst;
 
   void _loadSavedCredentialsFromNVRAM(void);
+  void _configTime(void);
 
   void _setupHTTPRoutes(AsyncWebServer &);
 

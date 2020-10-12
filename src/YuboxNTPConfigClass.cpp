@@ -13,13 +13,15 @@
 
 #include "lwip/apps/sntp.h"
 
+static const char * yubox_default_ntpserver = "pool.ntp.org";
+
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
 YuboxNTPConfigClass::YuboxNTPConfigClass(void)
 {
     _ntpStart = false;
     _ntpValid = false;
     _ntpFirst = true;
-    _ntpServerName = "pool.ntp.org";
+    _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
 }
 
@@ -41,7 +43,17 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 
   _ntpServerName = nvram.getString("ntphost", _ntpServerName);
   _ntpOffset = nvram.getLong("ntptz", _ntpOffset);
-  configTime(_ntpOffset, 0, _ntpServerName.c_str());
+  _configTime();
+}
+
+void YuboxNTPConfigClass::_configTime(void)
+{
+  // Arduino ESP32 no acepta más de 1 servidor NTP a pesar de pasarle hasta 3
+  if (_ntpServerName == yubox_default_ntpserver) {
+    configTime(_ntpOffset, 0, _ntpServerName.c_str());
+  } else {
+    configTime(_ntpOffset, 0, _ntpServerName.c_str(), yubox_default_ntpserver);
+  }
 }
 
 void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
@@ -51,7 +63,7 @@ void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
   case SYSTEM_EVENT_STA_GOT_IP:
     if (!_ntpStart) {
       //Serial.println("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent - estableciendo conexión UDP para NTP...");
-      configTime(_ntpOffset, 0, _ntpServerName.c_str());
+      _configTime();
       _ntpStart = true;
     }
     break;
@@ -152,7 +164,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
       _ntpFirst = true;
       _ntpValid = false;
       _loadSavedCredentialsFromNVRAM();
-      if (WiFi.isConnected()) configTime(_ntpOffset, 0, _ntpServerName.c_str());
+      if (WiFi.isConnected()) _configTime();
     }
   }
 
