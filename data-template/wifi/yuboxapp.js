@@ -7,6 +7,10 @@ function setupWiFiTab()
         'wifiscan-template':
             wifipane.find('table#wifiscan > tbody > tr.template')
             .removeClass('template')
+            .detach(),
+        'wifinetworks-template':
+            wifipane.find('div#wifi-networks table#wifi-saved-networks > tbody > tr.template')
+            .removeClass('template')
             .detach()
     }
     wifipane.data(data);
@@ -95,6 +99,62 @@ function setupWiFiTab()
             }
             dlg_wificred.modal({ focus: true });
         }
+    });
+
+    // Qué hay que hacer al hacer clic en el botón de Redes Guardadas
+    wifipane.find('button[name=networks]').click(function () {
+        $.getJSON(yuboxAPI('wificonfig')+'/networks')
+        .done(function (data) {
+            var wifipane = getYuboxPane('wifi');
+            var dlg_wifinetworks = wifipane.find('div#wifi-networks');
+            var tbody_wifinetworks = dlg_wifinetworks.find('table#wifi-saved-networks > tbody');
+            tbody_wifinetworks.empty();
+
+            data.forEach(function (net) {
+                var tr_wifinet = wifipane.data('wifinetworks-template').clone();
+                tr_wifinet.data('ssid', net.ssid);
+                tr_wifinet.children('td#ssid').text(net.ssid);
+                if (net.identity != null) {
+                    // Autenticación WPA-ENTERPRISE
+                    tr_wifinet.children('td#auth').attr('title', 'Seguridad: ' + wifiauth_desc(5));
+                    tr_wifinet.find('td#auth > svg.wifiauth > path.locked').show();
+                } else if (net.psk != null) {
+                    // Autenticación PSK
+                    tr_wifinet.children('td#auth').attr('title', 'Seguridad: ' + wifiauth_desc(4));
+                    tr_wifinet.find('td#auth > svg.wifiauth > path.locked').show();
+                } else {
+                    // Sin autenticación
+                    tr_wifinet.children('td#auth').attr('title', 'Seguridad: ' + wifiauth_desc(0));
+                    tr_wifinet.find('td#auth > svg.wifiauth > path.unlocked').show();
+                }
+                tbody_wifinetworks.append(tr_wifinet);
+            });
+
+            dlg_wifinetworks.modal({ focus: true });
+        })
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
+    });
+
+    wifipane.find('div#wifi-networks table#wifi-saved-networks > tbody').on('click', 'tr td#delete button.btn-danger', function (e) {
+        var wifipane = getYuboxPane('wifi');
+        var dlg_wifinetworks = wifipane.find('div#wifi-networks');
+        var tr_wifinet = $(e.currentTarget).parents('tr').first();
+        var ssid = tr_wifinet.data('ssid');
+
+        if (!confirm("Presione OK para OLVIDAR las credenciales de la red "+ssid)) return;
+
+        var st = {
+            method: 'DELETE',
+            url:    yuboxAPI('wificonfig')+'/networks/'+ssid
+        };
+        $.ajax(st)
+        .done(function (data) {
+            // Credenciales borradas
+            tr_wifinet.detach();
+        })
+        .fail(function (e) {
+            yuboxStdAjaxFailHandlerDlg(dlg_wifinetworks.find('div.modal-body'), e, 2000);
+        });
     });
 
     // Comportamiento de controles de diálogo de ingresar credenciales red
