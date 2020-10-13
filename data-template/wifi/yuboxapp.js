@@ -69,35 +69,60 @@ function setupWiFiTab()
             .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
         } else {
             var dlg_wificred = wifipane.find('div#wifi-credentials');
+
+            // Preparar diálogo para red escaneada
+            dlg_wificred.find('div.modal-body').removeClass('manual').addClass('scanned');
+
             dlg_wificred.find('h5#wifi-credentials-title').text(net.ssid);
             dlg_wificred.find('input#ssid').val(net.ssid);
             dlg_wificred.find('input#key_mgmt').val(wifiauth_desc(net.authmode));
             dlg_wificred.find('input#authmode').val(net.authmode);
             dlg_wificred.find('input#bssid').val(net.ap[0].bssid);
             dlg_wificred.find('input#channel').val(net.ap[0].channel);
-            dlg_wificred.find('div.form-group.wifi-auth').hide();
-            dlg_wificred.find('div.form-group.wifi-auth input').val('');
-            dlg_wificred.find('button[name=connect]').prop('disabled', true);
             dlg_wificred.find('input[name="pin"]#N').click();
+
+            var sel_authmode = dlg_wificred.find('select#authmode');
             if (net.authmode == 5) {
                 // Autenticación WPA-ENTERPRISE
-                dlg_wificred.find('div.form-group.wifi-auth-eap').show();
                 dlg_wificred.find('div.form-group.wifi-auth-eap input#identity')
                     .val((net.identity != null) ? net.identity : '');
                 dlg_wificred.find('div.form-group.wifi-auth-eap input#password')
-                    .val((net.password != null) ? net.password : '')
-                    .change();
+                    .val((net.password != null) ? net.password : '');
+                sel_authmode.val(5);
             } else if (net.authmode > 0) {
                 // Autenticación con contraseña
-                dlg_wificred.find('div.form-group.wifi-auth-psk').show();
                 dlg_wificred.find('div.form-group.wifi-auth-psk input#psk')
-                    .val((net.psk != null) ? net.psk : '')
-                    .change();
+                    .val((net.psk != null) ? net.psk : '');
+                sel_authmode.val(4);
             } else {
-                // Red sin autenticación, activar directamente opción de conectar
-                dlg_wificred.find('button[name=connect]').prop('disabled', false);
+                // Red sin autenticación
+                sel_authmode.val(0);
             }
+            sel_authmode.change();
+            dlg_wificred.find('div.modal-footer button[name=connect]').text('Conectar a WIFI');
             dlg_wificred.modal({ focus: true });
+        }
+    });
+    wifipane.find('div#wifi-credentials select#authmode').change(function () {
+        var dlg_wificred = wifipane.find('div#wifi-credentials');
+        var authmode = $(this).val();
+
+        dlg_wificred.find('div.form-group.wifi-auth').hide();
+        dlg_wificred.find('div.form-group.wifi-auth input').val('');
+        dlg_wificred.find('button[name=connect]').prop('disabled', true);
+        if (authmode == 5) {
+            // Autenticación WPA-ENTERPRISE
+            dlg_wificred.find('div.form-group.wifi-auth-eap').show();
+            dlg_wificred.find('div.form-group.wifi-auth-eap input#password')
+                .change();
+        } else if (authmode > 0) {
+            // Autenticación con contraseña
+            dlg_wificred.find('div.form-group.wifi-auth-psk').show();
+            dlg_wificred.find('div.form-group.wifi-auth-psk input#psk')
+                .change();
+        } else {
+            // Red sin autenticación, activar directamente opción de conectar
+            dlg_wificred.find('button[name=connect]').prop('disabled', false);
         }
     });
 
@@ -135,6 +160,32 @@ function setupWiFiTab()
         .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
 
+    // Qué hay que hacer al hacer clic en el botón de Agregar red .
+    // NOTA: hay 2 botones que se llaman igual. Uno en la interfaz principal, y el otro
+    // en el diálogo de mostrar las redes guardadas. El comportamiento a continuación
+    // define la acción para AMBOS botones.
+    wifipane.find('button[name=addnet]').click(function () {
+        var dlg_wificred = wifipane.find('div#wifi-credentials');
+
+        // Preparar diálogo para red manual
+        dlg_wificred.find('div.modal-body').removeClass('scanned').addClass('manual');
+
+        dlg_wificred.find('h5#wifi-credentials-title').text('Agregar red');
+        dlg_wificred.find('input#ssid').val('');
+        dlg_wificred.find('input[name="pin"]#N').click();
+
+        dlg_wificred.find('select#authmode').val(4);
+        dlg_wificred.find('select#authmode').change();
+
+        dlg_wificred.find('div.modal-footer button[name=connect]').text('Guardar');
+
+        var dlg_wifinetworks = wifipane.find('div#wifi-networks');
+        if (dlg_wifinetworks.is(':visible')) {
+            dlg_wifinetworks.modal('hide');
+        }
+        dlg_wificred.modal({ focus: true });
+    });
+
     wifipane.find('div#wifi-networks table#wifi-saved-networks > tbody').on('click', 'tr td#delete button.btn-danger', function (e) {
         var wifipane = getYuboxPane('wifi');
         var dlg_wifinetworks = wifipane.find('div#wifi-networks');
@@ -170,15 +221,27 @@ function setupWiFiTab()
     dlg_wificred.find('div.modal-footer button[name=connect]').click(function () {
         var wifipane = getYuboxPane('wifi');
         var dlg_wificred = wifipane.find('div#wifi-credentials');
-        var st = {
-            url:    yuboxAPI('wificonfig')+'/connection',
-            method: 'PUT',
-            data:   {
-                ssid:       dlg_wificred.find('input#ssid').val(),
-                authmode:   parseInt(dlg_wificred.find('input#authmode').val()),
-                pin:        (dlg_wificred.find('input[name="pin"]:checked').val() == '1') ? 1 : 0
-            }
-        };
+        var st;
+        if (dlg_wificred.find('div.modal-body').hasClass('scanned')) {
+            st = {
+                url:    yuboxAPI('wificonfig')+'/connection',
+                method: 'PUT',
+                data:   {
+                    ssid:       dlg_wificred.find('input#ssid').val(),
+                    authmode:   parseInt(dlg_wificred.find('input#authmode').val()),
+                    pin:        (dlg_wificred.find('input[name="pin"]:checked').val() == '1') ? 1 : 0
+                }
+            };
+        } else if (dlg_wificred.find('div.modal-body').hasClass('manual')) {
+            st = {
+                url:    yuboxAPI('wificonfig')+'/networks',
+                method: 'POST',
+                data:   {
+                    ssid:       dlg_wificred.find('input#ssid').val(),
+                    authmode:   parseInt(dlg_wificred.find('select#authmode').val())
+                }
+            };
+        }
         if ( st.data.authmode == 5 ) {
             // Autenticación WPA-ENTERPRISE
             st.data.identity = dlg_wificred.find('div.form-group.wifi-auth-eap input#identity').val();
@@ -188,22 +251,26 @@ function setupWiFiTab()
             st.data.psk = dlg_wificred.find('div.form-group.wifi-auth-psk input#psk').val();
         }
 
-        // Puede ocurrir que la red ya no exista según el escaneo más reciente
-        var existe = (
-            wifipane.find('table#wifiscan > tbody > tr')
-            .filter(function() { return ($(this).data('ssid') == st.data.ssid);  })
-            .length > 0);
-        if (!existe) {
-            dlg_wificred.modal('hide');
-            yuboxMostrarAlertText('warning', 'La red '+st.data.ssid+' ya no se encuentra disponible', 3000);
-            return;
+        if (dlg_wificred.find('div.modal-body').hasClass('scanned')) {
+            // Puede ocurrir que la red ya no exista según el escaneo más reciente
+            var existe = (
+                wifipane.find('table#wifiscan > tbody > tr')
+                .filter(function() { return ($(this).data('ssid') == st.data.ssid);  })
+                .length > 0);
+            if (!existe) {
+                dlg_wificred.modal('hide');
+                yuboxMostrarAlertText('warning', 'La red '+st.data.ssid+' ya no se encuentra disponible', 3000);
+                return;
+            }
         }
 
         // La red todavía existe en el último escaneo. Se intenta conectar.
         $.ajax(st)
         .done(function (data) {
             // Credenciales aceptadas, se espera a que se conecte
-            marcarRedDesconectandose();
+            if (dlg_wificred.find('div.modal-body').hasClass('scanned')) {
+                marcarRedDesconectandose();
+            }
             dlg_wificred.modal('hide');
         })
         .fail(function (e) {
