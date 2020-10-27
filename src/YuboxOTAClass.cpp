@@ -568,8 +568,6 @@ int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 
 int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_index)
 {
-  static const char * const firmwareSuffix = ".ino.nodemcu-32s.bin";
-
   //Serial.printf("DEBUG: _tar_cb_gotEntryHeader: %s INICIO\r\n", hdr->filename);
   switch (hdr->type)
   {
@@ -580,7 +578,8 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
     // tener un nombre que termine en ".ino.nodemcu-32s.bin" . Este es el valor por omisión
     // con el que se termina el nombre del archivo compilado exportado por Arduino IDE
     unsigned int fnLen = strlen(hdr->filename);
-    if (fnLen > strlen(firmwareSuffix) && 0 == strcmp(hdr->filename + (fnLen - strlen(firmwareSuffix)), firmwareSuffix)) {
+    if (0 == strcmp(hdr->filename + (fnLen - 4), ".bin") &&
+        NULL != strstr(hdr->filename, ".ino.")) {
       //Serial.printf("DEBUG: detectado firmware: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
       if (_tgzupload_foundFirmware) {
         Serial.printf("WARN: se ignora firmware duplicado: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
