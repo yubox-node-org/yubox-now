@@ -74,11 +74,11 @@ function setupYuboxOTATab()
                     // dispositivo está listo para ser reiniciado.
                     $.post(yuboxAPI('yuboxOTA')+'/reboot', {})
                     .fail(function (e) {
-                        yuboxStdAjaxFailHandler(e, 2000);
+                        yuboxStdAjaxFailHandler(e, 3000);
                     });
                 }
             } else {
-                yuboxMostrarAlertText('danger', data.msg, 2000);
+                yuboxMostrarAlertText('danger', data.msg, 3000);
             }
             yuboxOTAUpload_shutdown();
         })

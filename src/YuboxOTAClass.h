@@ -11,6 +11,7 @@ extern "C" {
 
 #include "FS.h"
 #include <vector>
+#include <functional>
 
 typedef enum
 {
@@ -18,6 +19,11 @@ typedef enum
   OTA_SPIFFS_WRITE,   // Se está escribiendo el archivo a SPIFFS
   OTA_FIRMWARE_FLASH  // Se está escribiendo a flash de firmware
 } YuboxOTA_operationWithFile;
+
+typedef String (*YuboxOTA_Veto_cb)(bool isReboot);
+typedef std::function<String (bool isReboot) > YuboxOTA_Veto_func_cb;
+
+typedef size_t yuboxota_event_id_t;
 
 class YuboxOTAClass
 {
@@ -73,6 +79,9 @@ private:
 
   const char * _updater_errstr(uint8_t);
 
+  // Verificación de veto sobre operación de flasheo o reinicio
+  String _checkOTA_Veto(bool isReboot);
+
   // Las siguientes funciones son llamadas por la correspondiente friend del mismo nombre
   int _tar_cb_feedFromBuffer(unsigned char *, size_t);
   int _tar_cb_gotEntryHeader(header_translated_t *, int);
@@ -93,6 +102,18 @@ private:
 public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);
+
+  // Registro de un callback que permite vetar condicionalmente el flasheo y/o
+  // el reinicio del dispositivo. Si el callback decide que la operación NO debe
+  // permitirse, debe de devolver una cadena no-vacía con un mensaje a mostrar
+  // en alguna interfaz indicando el motivo del veto. De lo contrario, se debe
+  // devolver una cadena vacía para que la operación continúe normalmente. Si se
+  // registran múltiples callbacks simultáneos, se llamarán secuencialmente y
+  // TODOS deben permitir la operación para que proceda.
+  yuboxota_event_id_t onOTAUpdateVeto(YuboxOTA_Veto_cb cbVeto);
+  yuboxota_event_id_t onOTAUpdateVeto(YuboxOTA_Veto_func_cb cbVeto);
+  void removeOTAUpdateVeto(YuboxOTA_Veto_cb cbVeto);
+  void removeOTAUpdateVeto(yuboxota_event_id_t id);
 
   // Para invocar al arranque del YUBOX y limpiar archivos de una subida fallida
   void cleanupFailedUpdateFiles(void);

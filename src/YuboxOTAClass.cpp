@@ -17,6 +17,19 @@ extern "C" {
 
 #include "esp_task_wdt.h"
 
+typedef struct YuboxOTAVetoList
+{
+  static yuboxota_event_id_t current_id;
+  yuboxota_event_id_t id;
+  YuboxOTA_Veto_cb cb;
+  YuboxOTA_Veto_func_cb fcb;
+
+  YuboxOTAVetoList() : id(current_id++), cb(NULL), fcb(NULL) {}
+} YuboxOTAVetoList_t;
+yuboxota_event_id_t YuboxOTAVetoList::current_id = 1;
+
+static std::vector<YuboxOTAVetoList_t> cbVetoList;
+
 //#define DEBUG_YUBOX_OTA
 
 #define GZIP_DICT_SIZE 32768
@@ -71,6 +84,46 @@ void YuboxOTAClass::begin(AsyncWebServer & srv)
   srv.addHandler(_pEvents);
 }
 
+yuboxota_event_id_t YuboxOTAClass::onOTAUpdateVeto(YuboxOTA_Veto_cb cbVeto)
+{
+  if (!cbVeto) return 0;
+
+  YuboxOTAVetoList_t n_evHandler;
+  n_evHandler.cb = cbVeto;
+  n_evHandler.fcb = NULL;
+  cbVetoList.push_back(n_evHandler);
+  return n_evHandler.id;
+}
+
+yuboxota_event_id_t YuboxOTAClass::onOTAUpdateVeto(YuboxOTA_Veto_func_cb cbVeto)
+{
+  if (!cbVeto) return 0;
+
+  YuboxOTAVetoList_t n_evHandler;
+  n_evHandler.fcb = NULL;
+  n_evHandler.fcb = cbVeto;
+  cbVetoList.push_back(n_evHandler);
+  return n_evHandler.id;
+}
+
+void YuboxOTAClass::removeOTAUpdateVeto(YuboxOTA_Veto_cb cbVeto)
+{
+  if (!cbVeto) return;
+
+  for (auto i = 0; i < cbVetoList.size(); i++) {
+    YuboxOTAVetoList_t entry = cbVetoList[i];
+    if (entry.cb == cbVeto) cbVetoList.erase(cbVetoList.begin() + i);
+  }
+}
+
+void YuboxOTAClass::removeOTAUpdateVeto(yuboxota_event_id_t id)
+{
+  for (auto i = 0; i < cbVetoList.size(); i++) {
+    YuboxOTAVetoList_t entry = cbVetoList[i];
+    if (entry.id == id) cbVetoList.erase(cbVetoList.begin() + i);
+  }
+}
+
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
     String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
@@ -97,9 +150,41 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
   _handle_tgzOTAchunk(index, data, len, final);
 }
 
+String YuboxOTAClass::_checkOTA_Veto(bool isReboot)
+{
+  String s;
+
+  for (auto i = 0; i < cbVetoList.size(); i++) {
+    YuboxOTAVetoList_t entry = cbVetoList[i];
+    if (entry.cb || entry.fcb) {
+      if (entry.cb) {
+        s = entry.cb(isReboot);
+      } else if (entry.fcb) {
+        s = entry.fcb(isReboot);
+      }
+
+      if (!s.isEmpty()) break;
+    }
+  }
+
+  return s;
+}
+
 void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final)
 {
   int r;
+
+  // Revisar lista de vetos
+  if (index == 0) {
+    String vetoMsg = _checkOTA_Veto(false);
+    if (!vetoMsg.isEmpty()) {
+      _tgzupload_serverError = true;
+      _tgzupload_responseMsg = vetoMsg;
+      _uploadRejected = true;
+
+      return;
+    }
+  }
 
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
@@ -898,7 +983,14 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
 
-  if (Update.rollBack()) {
+  // Revisar lista de vetos
+  String vetoMsg = _checkOTA_Veto(false); // Rollback cuenta como flasheo
+  if (!vetoMsg.isEmpty()) {
+    json_doc["success"] = false;
+    json_doc["msg"] = vetoMsg.c_str();
+
+    response->setCode(500);
+  } else if (Update.rollBack()) {
     std::vector<String> curr_filelist;
     std::vector<String> prev_filelist;
 
@@ -920,11 +1012,19 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
     curr_filelist.clear();
     prev_filelist.clear();
 
-    json_doc["success"] = true;
-    json_doc["msg"] = "Firmware restaurado correctamente. El equipo se reiniciará en unos momentos.";
-    xTimerStart(_timer_restartYUBOX, 0);
+    vetoMsg = _checkOTA_Veto(true);
+    if (!vetoMsg.isEmpty()) {
+      json_doc["success"] = false;
+      json_doc["msg"] = vetoMsg.c_str();
 
-    response->setCode(200);
+      response->setCode(500);
+    } else {
+      json_doc["success"] = true;
+      json_doc["msg"] = "Firmware restaurado correctamente. El equipo se reiniciará en unos momentos.";
+      xTimerStart(_timer_restartYUBOX, 0);
+
+      response->setCode(200);
+    }
   } else {
     json_doc["success"] = false;
     json_doc["msg"] = "No hay firmware a restaurar, o no fue restaurado correctamente.";
@@ -943,11 +1043,20 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
 
-  json_doc["success"] = true;
-  json_doc["msg"] = "El equipo se reiniciará en unos momentos.";
-  xTimerStart(_timer_restartYUBOX, 0);
+  // Revisar lista de vetos
+  String vetoMsg = _checkOTA_Veto(true);
+  if (!vetoMsg.isEmpty()) {
+    json_doc["success"] = false;
+    json_doc["msg"] = vetoMsg.c_str();
 
-  response->setCode(200);
+    response->setCode(500);
+  } else {
+    json_doc["success"] = true;
+    json_doc["msg"] = "El equipo se reiniciará en unos momentos.";
+    xTimerStart(_timer_restartYUBOX, 0);
+
+    response->setCode(200);
+  }
 
   serializeJson(json_doc, *response);
   request->send(response);
