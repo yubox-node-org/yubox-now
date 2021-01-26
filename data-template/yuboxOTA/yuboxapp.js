@@ -78,7 +78,7 @@ function setupYuboxOTATab()
                     });
                 }
             } else {
-                yuboxMostrarAlertText('danger', data.msg, 3000);
+                yuboxMostrarAlertText('danger', data.msg, 6000);
             }
             yuboxOTAUpload_shutdown();
         })
