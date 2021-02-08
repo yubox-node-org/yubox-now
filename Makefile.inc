@@ -30,6 +30,13 @@ ifeq ($(UNAME_S),Darwin)
 	ARDUINO_CTAGS=-prefs=runtime.tools.ctags.path=/Applications/Arduino.app/Contents/Java/tools-builder/ctags/5.8-arduino11/
 endif
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
+ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/partitions
+ESP32_PARTCONF=default
+ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 4 -d , )
+ESP32_OFFSET_APP0=$(shell grep ota_0 $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 4 -d , )
+ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 4 -d , )
+ESP32_SIZE_SPIFFS_HEX=$(shell grep spiffs $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 5 -d , )
+ESP32_SIZE_SPIFFS=$(shell printf "%d\n" $(ESP32_SIZE_SPIFFS_HEX))
 
 ifeq ($(ARDUINO_STDHARDWARE),)
 	ARDUINO_STDHARDWARE_PARAM=
@@ -45,6 +52,13 @@ endif
 YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *.h),*.h,)
 
 all: $(YUBOX_PROJECT).tar.gz
+
+testpartconf:
+	echo "ESP32_OFFSET_OTADATA " $(ESP32_OFFSET_OTADATA)
+	echo "ESP32_OFFSET_APP0 " $(ESP32_OFFSET_APP0)
+	echo "ESP32_OFFSET_SPIFFS " $(ESP32_OFFSET_SPIFFS)
+	echo "ESP32_SIZE_SPIFFS_HEX " $(ESP32_SIZE_SPIFFS_HEX)
+	echo "ESP32_SIZE_SPIFFS " $(ESP32_SIZE_SPIFFS)
 
 $(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.nodemcu-32s.bin
 	rm -rf dist/
@@ -105,20 +119,19 @@ codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0xe000 $(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/partitions/boot_app0.bin \
 		0x1000 $(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/sdk/bin/bootloader_dio_80m.bin \
-		0x10000 build/$(YUBOX_PROJECT).ino.bin \
-		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin
+		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
+		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
+		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin
 
 # -s SPISIZE corresponde a la configuración default de ~/.arduino15/packages/esp32/hardware/esp32/1.0.4/tools/partitions/default.csv
 build/$(YUBOX_PROJECT).spiffs: data/manifest.txt
 	$(ARDUINO_ESP32)/tools/mkspiffs/0.2.3/mkspiffs \
 		-c data \
 		-p 256 -b 4096 \
-		-s 1507328 \
+		-s $(ESP32_SIZE_SPIFFS) \
 		build/$(YUBOX_PROJECT).spiffs
 
-# Las direcciones hexadecimales corresponden a la configuración default de ~/.arduino15/packages/esp32/hardware/esp32/1.0.4/tools/partitions/default.csv
 dataupload: build/$(YUBOX_PROJECT).spiffs
 	python $(ARDUINO_ESP32)/tools/esptool_py/2.6.1/esptool.py \
 		--chip esp32 \
@@ -127,7 +140,7 @@ dataupload: build/$(YUBOX_PROJECT).spiffs
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x290000 build/$(YUBOX_PROJECT).spiffs
+		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
 fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).spiffs
 	python $(ARDUINO_ESP32)/tools/esptool_py/2.6.1/esptool.py \
@@ -137,9 +150,9 @@ fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0xe000 $(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/partitions/boot_app0.bin \
 		0x1000 $(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/sdk/bin/bootloader_dio_80m.bin \
-		0x10000 build/$(YUBOX_PROJECT).ino.bin \
-		0x290000 build/$(YUBOX_PROJECT).spiffs \
-		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin
+		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
+		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
+		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin \
+		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
