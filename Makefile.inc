@@ -38,6 +38,10 @@ ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv |
 ESP32_SIZE_SPIFFS_HEX=$(shell grep spiffs $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 5 -d , )
 ESP32_SIZE_SPIFFS=$(shell printf "%d\n" $(ESP32_SIZE_SPIFFS_HEX))
 
+XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
+ESPTOOL_PYVER=$(shell basename $(ARDUINO_ESP32)/tools/esptool_py/*)
+MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
+
 ifeq ($(ARDUINO_STDHARDWARE),)
 	ARDUINO_STDHARDWARE_PARAM=
 else
@@ -95,12 +99,12 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		-warnings=default \
 		-build-cache `pwd`/build/_cache \
 		-prefs=build.warn_data_percentage=75 \
-		-prefs=runtime.tools.esptool_py.path=$(ARDUINO_ESP32)/tools/esptool_py/2.6.1 \
-		-prefs=runtime.tools.esptool_py-2.6.1.path=$(ARDUINO_ESP32)/tools/esptool_py/2.6.1 \
-		-prefs=runtime.tools.mkspiffs.path=$(ARDUINO_ESP32)/tools/mkspiffs/0.2.3 \
-		-prefs=runtime.tools.mkspiffs-0.2.3.path=$(ARDUINO_ESP32)/tools/mkspiffs/0.2.3 \
-		-prefs=runtime.tools.xtensa-esp32-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/1.22.0-80-g6c4433a-5.2.0 \
-		-prefs=runtime.tools.xtensa-esp32-elf-gcc-1.22.0-80-g6c4433a-5.2.0.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/1.22.0-80-g6c4433a-5.2.0 \
+		-prefs=runtime.tools.esptool_py.path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
+		-prefs=runtime.tools.esptool_py-$(ESPTOOL_PYVER).path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
+		-prefs=runtime.tools.mkspiffs.path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
+		-prefs=runtime.tools.mkspiffs-$(MKSPIFFS_VER).path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
+		-prefs=runtime.tools.xtensa-esp32-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/$(XTENSA_GCCVER) \
+		-prefs=runtime.tools.xtensa-esp32-elf-gcc-$(XTENSA_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/$(XTENSA_GCCVER) \
 		$(ARDUINO_CTAGS) \
 		$(ARDUINO_BUILD_EXTRA_FLAGS_PARAM) \
 		./$(YUBOX_PROJECT).ino
@@ -112,7 +116,7 @@ clean:
 	rm -f $(YUBOX_PROJECT).ino.nodemcu-32s.bin $(YUBOX_PROJECT).tar.gz
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin
-	python $(ARDUINO_ESP32)/tools/esptool_py/2.6.1/esptool.py \
+	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
 		--chip esp32 \
 		--port $(SERIALPORT) \
 		--baud 921600 \
@@ -126,14 +130,14 @@ codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 
 # -s SPISIZE corresponde a la configuración default de ~/.arduino15/packages/esp32/hardware/esp32/1.0.4/tools/partitions/default.csv
 build/$(YUBOX_PROJECT).spiffs: data/manifest.txt
-	$(ARDUINO_ESP32)/tools/mkspiffs/0.2.3/mkspiffs \
+	$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER)/mkspiffs \
 		-c data \
 		-p 256 -b 4096 \
 		-s $(ESP32_SIZE_SPIFFS) \
 		build/$(YUBOX_PROJECT).spiffs
 
 dataupload: build/$(YUBOX_PROJECT).spiffs
-	python $(ARDUINO_ESP32)/tools/esptool_py/2.6.1/esptool.py \
+	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
 		--chip esp32 \
 		--port $(SERIALPORT) \
 		--baud 921600 \
@@ -143,7 +147,7 @@ dataupload: build/$(YUBOX_PROJECT).spiffs
 		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
 fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).spiffs
-	python $(ARDUINO_ESP32)/tools/esptool_py/2.6.1/esptool.py \
+	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
 		--chip esp32 \
 		--port $(SERIALPORT) \
 		--baud 921600 \
