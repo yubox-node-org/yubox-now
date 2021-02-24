@@ -30,12 +30,14 @@ ifeq ($(UNAME_S),Darwin)
 	ARDUINO_CTAGS=-prefs=runtime.tools.ctags.path=/Applications/Arduino.app/Contents/Java/tools-builder/ctags/5.8-arduino11/
 endif
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
-ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/partitions
+ESP32_ARDUINOVER=$(shell basename $(ARDUINO_ESP32)/hardware/esp32/*)
+ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions
 ESP32_PARTCONF=default
-ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 4 -d , )
-ESP32_OFFSET_APP0=$(shell grep ota_0 $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 4 -d , )
-ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 4 -d , )
-ESP32_SIZE_SPIFFS_HEX=$(shell grep spiffs $(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv | cut -f 5 -d , )
+ESP32_PARTCONF_CSVTABLE=$(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv
+ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
+ESP32_OFFSET_APP0=$(shell grep ota_0 $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
+ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
+ESP32_SIZE_SPIFFS_HEX=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 5 -d , )
 ESP32_SIZE_SPIFFS=$(shell printf "%d\n" $(ESP32_SIZE_SPIFFS_HEX))
 
 XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
@@ -57,7 +59,7 @@ YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *
 
 all: $(YUBOX_PROJECT).tar.gz
 
-testpartconf:
+testpartconf: $(ESP32_PARTCONF_CSVTABLE)
 	echo "ESP32_OFFSET_OTADATA " $(ESP32_OFFSET_OTADATA)
 	echo "ESP32_OFFSET_APP0 " $(ESP32_OFFSET_APP0)
 	echo "ESP32_OFFSET_SPIFFS " $(ESP32_OFFSET_SPIFFS)
@@ -115,7 +117,7 @@ clean:
 	rm -rf build/
 	rm -f $(YUBOX_PROJECT).ino.nodemcu-32s.bin $(YUBOX_PROJECT).tar.gz
 
-codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin
+codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_PARTCONF_CSVTABLE)
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
 		--chip esp32 \
 		--port $(SERIALPORT) \
@@ -123,13 +125,13 @@ codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/sdk/bin/bootloader_dio_80m.bin \
+		0x1000 $(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin
 
-# -s SPISIZE corresponde a la configuración default de ~/.arduino15/packages/esp32/hardware/esp32/1.0.4/tools/partitions/default.csv
-build/$(YUBOX_PROJECT).spiffs: data/manifest.txt
+# -s SPISIZE corresponde a la configuración default de ~/.arduino15/packages/esp32/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions/default.csv
+build/$(YUBOX_PROJECT).spiffs: data/manifest.txt $(ESP32_PARTCONF_CSVTABLE)
 	$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER)/mkspiffs \
 		-c data \
 		-p 256 -b 4096 \
@@ -154,7 +156,7 @@ fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ARDUINO_ESP32)/hardware/esp32/1.0.4/tools/sdk/bin/bootloader_dio_80m.bin \
+		0x1000 $(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin \
