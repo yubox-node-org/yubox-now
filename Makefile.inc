@@ -1,4 +1,4 @@
-YUBOX_PROJECT=$(shell basename *.ino .ino)
+YUBOX_PROJECT=$(shell basename `pwd`)
 SERIALPORT=/dev/ttyUSB0
 ARDUINO_INSTALL=system
 UNAME_S=$(shell uname -s)
