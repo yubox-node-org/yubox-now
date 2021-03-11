@@ -217,7 +217,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
     _tgzupload_responseMsg = "";
-    _tgzupload_currentOp = OTA_IDLE;
+    _tgzupload_currentOp = YBX_OTA_IDLE;
     _tgzupload_foundFirmware = false;
     _tgzupload_canFlash = false;
     _tgzupload_hasManifest = false;
@@ -680,7 +680,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
           _tgzupload_responseMsg = _updater_errstr(Update.getError());
           _uploadRejected = true;
         } else {
-          _tgzupload_currentOp = OTA_FIRMWARE_FLASH;
+          _tgzupload_currentOp = YBX_OTA_FIRMWARE_FLASH;
           _tgzupload_bytesWritten = 0;
           _emitUploadEvent_FileStart(hdr->filename, true, hdr->filesize);
         }
@@ -707,7 +707,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
           _uploadRejected = true;
         } else {
           _tgzupload_filelist.push_back((String)(hdr->filename));
-          _tgzupload_currentOp = OTA_SPIFFS_WRITE;
+          _tgzupload_currentOp = YBX_OTA_SPIFFS_WRITE;
           _tgzupload_bytesWritten = 0;
           _emitUploadEvent_FileStart(hdr->filename, false, hdr->filesize);
 
@@ -740,7 +740,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
   size_t r;
 
   switch (_tgzupload_currentOp) {
-  case OTA_SPIFFS_WRITE:
+  case YBX_OTA_SPIFFS_WRITE:
     // Esto asume que el archivo ya fue abierto previamente
     while (size > 0) {
       r = _tgzupload_rsrc.write(block, size);
@@ -750,7 +750,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
         _tgzupload_responseMsg = "Fallo al escribir archivo: ";
         _tgzupload_responseMsg += hdr->filename;
         _uploadRejected = true;
-        _tgzupload_currentOp = OTA_IDLE;
+        _tgzupload_currentOp = YBX_OTA_IDLE;
         break;
       }
       _tgzupload_bytesWritten += r;
@@ -759,7 +759,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
       block += r;
     }
     break;
-  case OTA_FIRMWARE_FLASH:
+  case YBX_OTA_FIRMWARE_FLASH:
     while (size > 0) {
       r = Update.write(block, size);
       if (r == 0) {
@@ -767,7 +767,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
         _tgzupload_responseMsg = _updater_errstr(Update.getError());
         _uploadRejected = true;
         Update.abort();
-        _tgzupload_currentOp = OTA_IDLE;
+        _tgzupload_currentOp = YBX_OTA_IDLE;
         break;
       }
       _tgzupload_bytesWritten += r;
@@ -786,14 +786,14 @@ int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_inde
 {
   //Serial.printf("\r\nDEBUG: _tar_cb_gotEntryEnd: %s FINAL\r\n", hdr->filename);
   switch (_tgzupload_currentOp) {
-  case OTA_SPIFFS_WRITE:
+  case YBX_OTA_SPIFFS_WRITE:
     // Esto asume que el archivo todavía sigue abierto
-    _tgzupload_currentOp = OTA_IDLE;
+    _tgzupload_currentOp = YBX_OTA_IDLE;
     _tgzupload_rsrc.close();
     _emitUploadEvent_FileEnd(hdr->filename, false, hdr->filesize);
     break;
-  case OTA_FIRMWARE_FLASH:
-    _tgzupload_currentOp = OTA_IDLE;
+  case YBX_OTA_FIRMWARE_FLASH:
+    _tgzupload_currentOp = YBX_OTA_IDLE;
     _tgzupload_canFlash = true;
     _emitUploadEvent_FileEnd(hdr->filename, true, hdr->filesize);
     break;

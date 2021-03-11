@@ -15,9 +15,9 @@ extern "C" {
 
 typedef enum
 {
-  OTA_IDLE,           // Código ocioso, o el archivo está siendo ignorado
-  OTA_SPIFFS_WRITE,   // Se está escribiendo el archivo a SPIFFS
-  OTA_FIRMWARE_FLASH  // Se está escribiendo a flash de firmware
+  YBX_OTA_IDLE,           // Código ocioso, o el archivo está siendo ignorado
+  YBX_OTA_SPIFFS_WRITE,   // Se está escribiendo el archivo a SPIFFS
+  YBX_OTA_FIRMWARE_FLASH  // Se está escribiendo a flash de firmware
 } YuboxOTA_operationWithFile;
 
 typedef String (*YuboxOTA_Veto_cb)(bool isReboot);
