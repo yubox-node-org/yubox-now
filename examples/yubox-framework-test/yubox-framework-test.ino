@@ -1,22 +1,6 @@
-#include <WiFi.h>
-// #include <Preferences.h>
-#include "SPIFFS.h"
-// #include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+#include <YuboxSimple.h>
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-
-#include "AsyncJson.h"
-#include "ArduinoJson.h"
-
-#include "YuboxWiFiClass.h"
-#include "YuboxNTPConfigClass.h"
-#include "YuboxOTAClass.h"
-#include "YuboxMQTTConfClass.h"
-
-AsyncWebServer server(80);
-
-void notFound(AsyncWebServerRequest *);
+#include <YuboxMQTTConfClass.h>
 
 // El modelo viejo de YUBOX tiene este sensor integrado en el board
 #include <Adafruit_Sensor.h>
@@ -33,32 +17,12 @@ void setup()
   delay(3000);
   Serial.begin(115200);
 
-  Serial.println("DEBUG: inicializando SPIFFS...");
-  if (!SPIFFS.begin(true)) {
-    Serial.println("ERR: ha ocurrido un error al montar SPIFFS");
-    return;
-  }
-
-  // Limpiar archivos que queden de actualización fallida
-  YuboxOTA.cleanupFailedUpdateFiles();
-
-  // Activar y agregar todas las rutas que requieren autenticación
-  YuboxWebAuth.setEnabled(true);	// <-- activar explícitamente la autenticación
-
   YuboxWebAuth.addManagedHandler(&eventosLector);
-  server.addHandler(&eventosLector);
+  yubox_HTTPServer.addHandler(&eventosLector);
 
-  YuboxWiFi.begin(server);
-  YuboxWebAuth.begin(server);
-  YuboxNTPConf.begin(server);
-  YuboxOTA.begin(server);
-  YuboxMQTTConf.begin(server);
+  YuboxMQTTConf.begin(yubox_HTTPServer);
 
-  AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");
-  YuboxWebAuth.addManagedHandler(&h);
-  server.onNotFound(notFound);
-
-  YuboxWiFi.beginServerOnWiFiReady(&server);
+  yuboxSimpleSetup();
 
   if (!sensor_bmp280.begin(BMP280_ADDRESS_ALT)) {
     Serial.println("ERR: no puede inicializarse el sensor BMP280!");
@@ -67,10 +31,9 @@ void setup()
 
 void loop()
 {
-  YuboxNTPConf.update();
-  if (!YuboxNTPConf.isNTPValid()) {
-    if (WiFi.isConnected()) Serial.println("ERR: fallo al obtener hora de red");
-  } else {
+  yuboxSimpleLoopTask();
+
+  if (YuboxNTPConf.isNTPValid()) {
     DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
     json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
     json_doc["temperature"] = sensor_bmp280.readTemperature();
@@ -85,9 +48,4 @@ void loop()
   }
 
   delay(3000);
-}
-
-void notFound(AsyncWebServerRequest *request)
-{
-  request->send(404, "application/json", "{\"msg\":\"El recurso indicado no existe o no ha sido implementado\"}");
 }
