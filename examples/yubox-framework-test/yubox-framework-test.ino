@@ -17,8 +17,7 @@ void setup()
   delay(3000);
   Serial.begin(115200);
 
-  YuboxWebAuth.addManagedHandler(&eventosLector);
-  yubox_HTTPServer.addHandler(&eventosLector);
+  yuboxAddManagedHandler(&eventosLector);
 
   YuboxMQTTConf.begin(yubox_HTTPServer);
 

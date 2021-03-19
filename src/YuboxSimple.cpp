@@ -33,6 +33,12 @@ void yuboxSimpleSetup(void)
   YuboxWiFi.beginServerOnWiFiReady(&yubox_HTTPServer);
 }
 
+void yuboxAddManagedHandler(AsyncWebHandler* handler)
+{
+  YuboxWebAuth.addManagedHandler(handler);
+  yubox_HTTPServer.addHandler(handler);
+}
+
 void yuboxSimpleLoopTask(void)
 {
   YuboxNTPConf.update();

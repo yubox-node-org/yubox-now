@@ -16,6 +16,7 @@
 
 void yuboxSimpleSetup(void);
 void yuboxSimpleLoopTask(void);
+void yuboxAddManagedHandler(AsyncWebHandler* handler);
 
 extern AsyncWebServer yubox_HTTPServer;
 
