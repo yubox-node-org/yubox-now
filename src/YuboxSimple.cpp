@@ -5,7 +5,7 @@ AsyncWebServer yubox_HTTPServer(80);
 
 static void yubox_json_notFound(AsyncWebServerRequest *request)
 {
-  request->send(404, "application/json", "{\"msg\":\"El recurso indicado no existe o no ha sido implementado\"}");
+  request->send(404, "application/json", "{\"success\":false,\"msg\":\"El recurso indicado no existe o no ha sido implementado\"}");
 }
 
 void yuboxSimpleSetup(void)
