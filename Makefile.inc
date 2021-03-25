@@ -44,6 +44,8 @@ XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
 ESPTOOL_PYVER=$(shell basename $(ARDUINO_ESP32)/tools/esptool_py/*)
 MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 
+ESP32_BOARD=nodemcu-32s
+
 ifeq ($(ARDUINO_STDHARDWARE),)
 	ARDUINO_STDHARDWARE_PARAM=
 else
@@ -66,10 +68,10 @@ testpartconf: $(ESP32_PARTCONF_CSVTABLE)
 	echo "ESP32_SIZE_SPIFFS_HEX " $(ESP32_SIZE_SPIFFS_HEX)
 	echo "ESP32_SIZE_SPIFFS " $(ESP32_SIZE_SPIFFS)
 
-$(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.nodemcu-32s.bin
+$(YUBOX_PROJECT).tar.gz: data/manifest.txt $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin
 	rm -rf dist/
 	mkdir dist
-	cp data/* $(YUBOX_PROJECT).ino.nodemcu-32s.bin dist/
+	cp data/* $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin dist/
 	rm -f $(YUBOX_PROJECT).tar.gz
 	cd dist && tar -cf ../$(YUBOX_PROJECT).tar * && cd ..
 	gzip -9 $(YUBOX_PROJECT).tar
@@ -81,8 +83,8 @@ data/manifest.txt: modules.txt $(YF)/data-template $(YF)/data-template/* $(YF)/d
 	$(YF)/yubox-framework-assemble ./data-template $(shell cat modules.txt)
 	gzip -9 data/*.htm data/*.js data/*.css
 
-$(YUBOX_PROJECT).ino.nodemcu-32s.bin: build/$(YUBOX_PROJECT).ino.bin
-	cp build/$(YUBOX_PROJECT).ino.bin $(YUBOX_PROJECT).ino.nodemcu-32s.bin
+$(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin: build/$(YUBOX_PROJECT).ino.bin
+	cp build/$(YUBOX_PROJECT).ino.bin $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin
 
 build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 	mkdir -p build/_cache
@@ -95,7 +97,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		-tools $(ARDUINO_PKGS) \
 		$(ARDUINO_BUILTIN_LIBS) \
 		-libraries $(ARDUINO_LIBUSR) \
-		-fqbn=esp32:esp32:nodemcu-32s:FlashFreq=80,UploadSpeed=921600 \
+		-fqbn=esp32:esp32:$(ESP32_BOARD):FlashFreq=80,UploadSpeed=921600 \
 		-ide-version=10812 \
 		-build-path `pwd`/build \
 		-warnings=default \
@@ -115,7 +117,7 @@ clean:
 	rm -f dist/*
 	rm -f data/*
 	rm -rf build/
-	rm -f $(YUBOX_PROJECT).ino.nodemcu-32s.bin $(YUBOX_PROJECT).tar.gz
+	rm -f $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin $(YUBOX_PROJECT).tar.gz
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_PARTCONF_CSVTABLE)
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
