@@ -32,6 +32,10 @@ endif
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
 ESP32_ARDUINOVER=$(shell basename $(ARDUINO_ESP32)/hardware/esp32/*)
 ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions
+# ESP32_PARTCONF can be one of the following:
+# 4MB boards: default no_ota min_spiffs huge_app noota_3g (defaultffat noota_ffat noota_3gffat)
+# 8MB boards: default_8MB
+# 16MB boards: fatflash
 ESP32_PARTCONF=default
 ESP32_PARTCONF_CSVTABLE=$(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv
 ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
@@ -44,7 +48,14 @@ XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
 ESPTOOL_PYVER=$(shell basename $(ARDUINO_ESP32)/tools/esptool_py/*)
 MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 
-ESP32_BOARD=nodemcu-32s
+ESP32_BOARD=node32s
+# ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
+ESP32_DEBUGLEVEL=none
+ifeq ($(ESP32_BOARD),esp32wrover)
+	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PartitionScheme=$(ESP32_PARTCONF),FlashMode=dio,FlashFreq=80,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
+else
+	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PartitionScheme=$(ESP32_PARTCONF),FlashFreq=80,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
+endif
 
 ifeq ($(ARDUINO_STDHARDWARE),)
 	ARDUINO_STDHARDWARE_PARAM=
@@ -97,7 +108,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		-tools $(ARDUINO_PKGS) \
 		$(ARDUINO_BUILTIN_LIBS) \
 		-libraries $(ARDUINO_LIBUSR) \
-		-fqbn=esp32:esp32:$(ESP32_BOARD):FlashFreq=80,UploadSpeed=921600 \
+		-fqbn=$(ESP32_FQBN) \
 		-ide-version=10812 \
 		-build-path `pwd`/build \
 		-warnings=default \
