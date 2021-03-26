@@ -140,7 +140,7 @@ public:
 
   // Asumir control del WiFi, y ceder control. Para pasar la posta a otras bibliotecas WiFi
   void takeControlOfWiFi(void);
-  void releaseControlOfWiFi(void);
+  void releaseControlOfWiFi(bool wifioff = false);
   bool haveControlOfWiFi(void) { return _assumeControlOfWiFi; }
   void saveControlOfWiFi(void);
   YuboxWiFi_cred getLastActiveNetwork(void);

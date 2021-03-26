@@ -104,16 +104,17 @@ void YuboxWiFiClass::takeControlOfWiFi(void)
   _startWiFi();
 }
 
-void YuboxWiFiClass::releaseControlOfWiFi(void)
+void YuboxWiFiClass::releaseControlOfWiFi(bool wifioff)
 {
   _assumeControlOfWiFi = false;
   if (_eventId_cbHandler_WiFiEvent) WiFi.removeEvent(_eventId_cbHandler_WiFiEvent);
   _eventId_cbHandler_WiFiEvent = 0;
-  if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect();
+  if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect(wifioff);
   if (xTimerIsTimerActive(_timer_wifiRescan)) {
     xTimerStop(_timer_wifiRescan, 0);
   }
   _disconnectBeforeRescan = false;
+  WiFi.softAPdisconnect(wifioff);
 }
 
 void YuboxWiFiClass::_startCondRescanTimer(bool disconn)
