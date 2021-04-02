@@ -1,4 +1,4 @@
-YUBOX_PROJECT=$(shell basename `pwd`)
+YUBOX_PROJECT=$(shell basename "`pwd`")
 SERIALPORT=/dev/ttyUSB0
 ARDUINO_INSTALL=system
 UNAME_S=$(shell uname -s)
@@ -110,9 +110,9 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		-libraries $(ARDUINO_LIBUSR) \
 		-fqbn=$(ESP32_FQBN) \
 		-ide-version=10812 \
-		-build-path `pwd`/build \
+		-build-path "`pwd`/build" \
 		-warnings=default \
-		-build-cache `pwd`/build/_cache \
+		-build-cache "`pwd`/build/_cache" \
 		-prefs=build.warn_data_percentage=75 \
 		-prefs=runtime.tools.esptool_py.path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
 		-prefs=runtime.tools.esptool_py-$(ESPTOOL_PYVER).path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
