@@ -39,10 +39,10 @@ public:
   YuboxNTPConfigClass(void);
   void begin(AsyncWebServer & srv);
 
-  bool isNTPValid(void);
+  bool isNTPValid(uint32_t ms_timeout = 1000);
 
   // Función a llamar regularmente para actualizar el cliente NTPClient
-  bool update(void);
+  bool update(uint32_t ms_timeout = 1000);
 
   // Mantener separación entre hora local y hora UTC
   unsigned long getLocalTime(void);

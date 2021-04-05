@@ -41,8 +41,13 @@ void yuboxAddManagedHandler(AsyncWebHandler* handler)
 
 void yuboxSimpleLoopTask(void)
 {
-  YuboxNTPConf.update();
-  if (!YuboxNTPConf.isNTPValid()) {
-    if (WiFi.isConnected()) Serial.println("ERR: fallo al obtener hora de red");
+  static uint32_t last_check = 0;
+
+  uint32_t t = millis();
+  if (last_check == 0 || t - last_check >= 5000) {
+    last_check = t;
+    if (!YuboxNTPConf.update(0)) {
+      if (WiFi.isConnected()) ESP_LOGE(__FILE__, "fallo al obtener hora de red");
+    }
   }
 }

@@ -185,19 +185,19 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
   request->send(response);
 }
 
-bool YuboxNTPConfigClass::update(void)
+bool YuboxNTPConfigClass::update(uint32_t ms_timeout)
 {
   if (!_ntpStart) return false;
   if (!WiFi.isConnected()) return _ntpValid;
   if (_ntpFirst) {
-    //Serial.println("DEBUG: YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
+    ESP_LOGD(__FILE__, "YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
     _ntpFirst = false;
   }
-  _ntpValid = isNTPValid();
+  _ntpValid = isNTPValid(ms_timeout);
   return _ntpValid;
 }
 
-bool YuboxNTPConfigClass::isNTPValid(void)
+bool YuboxNTPConfigClass::isNTPValid(uint32_t ms_timeout)
 {
   if (_ntpValid) return true;
 
@@ -211,8 +211,8 @@ bool YuboxNTPConfigClass::isNTPValid(void)
       _ntpValid = true;
       break;
     }
-    delay(10);
-  } while (millis() - start <= 1000);
+    if (ms_timeout > 0) delay(10);
+  } while (millis() - start <= ms_timeout);
 
   return _ntpValid;
 }
