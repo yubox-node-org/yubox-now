@@ -32,7 +32,7 @@ void loop()
 {
   yuboxSimpleLoopTask();
 
-  if (YuboxNTPConf.isNTPValid()) {
+  if (YuboxNTPConf.isNTPValid(0)) {
     DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
     json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
     json_doc["temperature"] = sensor_bmp280.readTemperature();
