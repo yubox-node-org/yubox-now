@@ -388,7 +388,8 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 #endif
       if (!Update.end()) {
         _tgzupload_serverError = true;
-        _tgzupload_responseMsg = _updater_errstr(Update.getError());
+        _tgzupload_responseMsg = "OTA Code update: fallo al finalizar - ";
+        _tgzupload_responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
 #ifdef DEBUG_YUBOX_OTA
         Serial.print("YUBOX OTA: firmware-commit-failed ");
@@ -396,7 +397,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 #endif
       } else if (!Update.isFinished()) {
         _tgzupload_serverError = true;
-        _tgzupload_responseMsg = "Actualización no ha podido finalizarse: ";
+        _tgzupload_responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
         _tgzupload_responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
 #ifdef DEBUG_YUBOX_OTA
@@ -673,11 +674,13 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
         if ((unsigned long)(hdr->filesize >> 32) != 0) {
           // El firmware excede de 4GB. Un dispositivo así de grande no existe
           _tgzupload_serverError = true;
-          _tgzupload_responseMsg = _updater_errstr(UPDATE_ERROR_SIZE);
+          _tgzupload_responseMsg = "OTA Code update: ";
+          _tgzupload_responseMsg += _updater_errstr(UPDATE_ERROR_SIZE);
           _uploadRejected = true;
         } else if (!Update.begin(hdr->filesize, U_FLASH)) {
           _tgzupload_serverError = true;
-          _tgzupload_responseMsg = _updater_errstr(Update.getError());
+          _tgzupload_responseMsg = "OTA Code update: no se puede iniciar actualización - ";
+          _tgzupload_responseMsg += _updater_errstr(Update.getError());
           _uploadRejected = true;
         } else {
           _tgzupload_currentOp = YBX_OTA_FIRMWARE_FLASH;
@@ -764,7 +767,8 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
       r = Update.write(block, size);
       if (r == 0) {
         _tgzupload_serverError = true;
-        _tgzupload_responseMsg = _updater_errstr(Update.getError());
+        _tgzupload_responseMsg = "OTA Code update: fallo al escribir en flash - ";
+        _tgzupload_responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
         Update.abort();
         _tgzupload_currentOp = YBX_OTA_IDLE;
