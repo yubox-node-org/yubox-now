@@ -9,7 +9,7 @@ extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
-#include "YuboxOTA_Flasher_ESP32.h"
+#include "YuboxOTA_Flasher.h"
 
 #include "FS.h"
 #include <vector>
@@ -52,7 +52,7 @@ private:
   String _tgzupload_responseMsg;
 
   // Operación de actualización en sí
-  YuboxOTA_Flasher_ESP32 * _flasherImpl;
+  YuboxOTA_Flasher * _flasherImpl;
   TimerHandle_t _timer_restartYUBOX;
 
   AsyncEventSource * _pEvents;
@@ -82,7 +82,7 @@ private:
   void _emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset);
   void _emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size);
 
-  YuboxOTA_Flasher_ESP32 * _getFlasherImpl(void);
+  YuboxOTA_Flasher * _getFlasherImpl(void);
 
 public:
   YuboxOTAClass(void);

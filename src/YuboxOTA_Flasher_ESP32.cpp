@@ -12,11 +12,8 @@ YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(
     YuboxOTA_Flasher_FileProgress_func_cb fileprogress_cb,
     YuboxOTA_Flasher_FileEnd_func_cb fileend_cb
 )
+ : YuboxOTA_Flasher(filestart_cb, fileprogress_cb, fileend_cb)
 {
-    _filestart_cb = filestart_cb;
-    _fileprogress_cb = fileprogress_cb;
-    _fileend_cb = fileend_cb;
-
     _responseMsg = "";
     _tgzupload_currentOp = YBX_OTA_IDLE;
     _tgzupload_foundFirmware = false;

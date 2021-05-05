@@ -1,24 +1,12 @@
 #ifndef _YUBOX_OTA_FLASHER_ESP32_H_
 #define _YUBOX_OTA_FLASHER_ESP32_H_
 
+#include "YuboxOTA_Flasher.h"
+
 #include "FS.h"
 #include <vector>
-#include <functional>
 
-//#define DEBUG_YUBOX_OTA
-
-typedef enum
-{
-  YBX_OTA_IDLE,           // Código ocioso, o el archivo está siendo ignorado
-  YBX_OTA_SPIFFS_WRITE,   // Se está escribiendo el archivo a SPIFFS
-  YBX_OTA_FIRMWARE_FLASH  // Se está escribiendo a flash de firmware
-} YuboxOTA_operationWithFile;
-
-typedef std::function<void (const char *, bool, unsigned long) > YuboxOTA_Flasher_FileStart_func_cb;
-typedef std::function<void (const char *, bool, unsigned long, unsigned long) > YuboxOTA_Flasher_FileProgress_func_cb;
-typedef std::function<void (const char *, bool, unsigned long) > YuboxOTA_Flasher_FileEnd_func_cb;
-
-class YuboxOTA_Flasher_ESP32
+class YuboxOTA_Flasher_ESP32 : public YuboxOTA_Flasher
 {
 private:
     bool _uploadRejected;
@@ -31,11 +19,6 @@ private:
     unsigned long _tgzupload_bytesWritten;
     std::vector<String> _tgzupload_filelist;
     bool _tgzupload_hasManifest;
-
-    // Function objects to invoke for progress callbacks
-    YuboxOTA_Flasher_FileStart_func_cb _filestart_cb;
-    YuboxOTA_Flasher_FileProgress_func_cb _fileprogress_cb;
-    YuboxOTA_Flasher_FileEnd_func_cb _fileend_cb;
 
     const char * _updater_errstr(uint8_t);
 

@@ -14,6 +14,8 @@ extern "C" {
 
 #include "esp_task_wdt.h"
 
+#include "YuboxOTA_Flasher_ESP32.h"
+
 typedef struct YuboxOTAVetoList
 {
   static yuboxota_event_id_t current_id;
@@ -168,7 +170,7 @@ String YuboxOTAClass::_checkOTA_Veto(bool isReboot)
   return s;
 }
 
-YuboxOTA_Flasher_ESP32 * YuboxOTAClass::_getFlasherImpl(void)
+YuboxOTA_Flasher * YuboxOTAClass::_getFlasherImpl(void)
 {
     return new YuboxOTA_Flasher_ESP32(
       std::bind(&YuboxOTAClass::_emitUploadEvent_FileStart, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
@@ -412,7 +414,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
 void YuboxOTAClass::cleanupFailedUpdateFiles(void)
 {
-  YuboxOTA_Flasher_ESP32 * fi = _getFlasherImpl();
+  YuboxOTA_Flasher_ESP32 * fi = (YuboxOTA_Flasher_ESP32 *)_getFlasherImpl();
   fi->cleanupFailedUpdateFiles();
   delete fi;
 }
@@ -642,7 +644,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerR
 {
   YUBOX_RUN_AUTH(request);
 
-  YuboxOTA_Flasher_ESP32 * fi = _getFlasherImpl();
+  YuboxOTA_Flasher * fi = _getFlasherImpl();
   bool canRollBack = fi->canRollBack();
   delete fi;
 
@@ -671,7 +673,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
 
     response->setCode(500);
   } else {
-    YuboxOTA_Flasher_ESP32 * fi = _getFlasherImpl();
+    YuboxOTA_Flasher * fi = _getFlasherImpl();
 
     if (!fi->doRollBack()) {
       errMsg = fi->getLastErrorMessage();
