@@ -12,9 +12,6 @@ extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
-#include <Update.h>
-#include "SPIFFS.h"
-
 #include "esp_task_wdt.h"
 
 typedef struct YuboxOTAVetoList
@@ -29,8 +26,6 @@ typedef struct YuboxOTAVetoList
 yuboxota_event_id_t YuboxOTAVetoList::current_id = 1;
 
 static std::vector<YuboxOTAVetoList_t> cbVetoList;
-
-//#define DEBUG_YUBOX_OTA
 
 #define GZIP_DICT_SIZE 32768
 #define GZIP_BUFF_SIZE 4096
@@ -48,7 +43,10 @@ int _tar_cb_gotEntryEnd(header_translated_t *, int, void *);
 
 YuboxOTAClass::YuboxOTAClass(void)
 {
+  _flasherImpl = NULL;
+
   _uploadRejected = false;
+  _shouldReboot = false;
   _gz_srcdata = NULL;
   _gz_dstdata = NULL;
   _gz_dict = NULL;
@@ -170,6 +168,15 @@ String YuboxOTAClass::_checkOTA_Veto(bool isReboot)
   return s;
 }
 
+YuboxOTA_Flasher_ESP32 * YuboxOTAClass::_getFlasherImpl(void)
+{
+    return new YuboxOTA_Flasher_ESP32(
+      std::bind(&YuboxOTAClass::_emitUploadEvent_FileStart, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+      std::bind(&YuboxOTAClass::_emitUploadEvent_FileProgress, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
+      std::bind(&YuboxOTAClass::_emitUploadEvent_FileEnd, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+    );
+}
+
 void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final)
 {
   int r;
@@ -189,6 +196,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
     _tgzupload_rawBytesReceived = 0;
+    _shouldReboot = false;
 
     /* El valor de GZIP_BUFF_SIZE es suficiente para al menos dos fragmentos de datos entrantes.
      * Se descomprime únicamente TAR_BLOCK_SIZE a la vez para simplificar el código y para que
@@ -216,12 +224,12 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     // Inicialización de estado de actualización
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
-    _tgzupload_responseMsg = "";
-    _tgzupload_currentOp = YBX_OTA_IDLE;
-    _tgzupload_foundFirmware = false;
-    _tgzupload_canFlash = false;
-    _tgzupload_hasManifest = false;
-    _tgzupload_filelist.clear();
+    if (_flasherImpl != NULL) {
+      Serial.println("WARN: no se ha borrado instancia previa de procesador de upload!");
+      delete _flasherImpl;
+      _flasherImpl = NULL;
+    }
+    _flasherImpl = _getFlasherImpl();
   }
 
   _tgzupload_rawBytesReceived += len;
@@ -366,118 +374,23 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   vTaskDelay(pdMS_TO_TICKS(25));
 
   if (_tar_eof) {
-#ifdef DEBUG_YUBOX_OTA
-    Serial.println("YUBOX OTA: DESACTIVANDO WATCHDOG EN CORE-0");
-#endif
-    disableCore0WDT();
-    esp_task_wdt_delete(NULL);
-
-    if (!_tgzupload_hasManifest) {
-      // No existe manifest.txt, esto no era un targz de firmware
-      _tgzupload_clientError = true;
-      _tgzupload_responseMsg = "No se encuentra manifest.txt, archivo subido no es un firmware";
-      _uploadRejected = true;
-    }
-
-    if (!_uploadRejected && _tgzupload_canFlash) {
-      vTaskDelay(1);
-
-      // Finalizar operación de flash de firmware, si es necesaria
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println("YUBOX OTA: firmware-commit-start");
-#endif
-      if (!Update.end()) {
+    if (_flasherImpl != NULL) {
+      bool ok = _flasherImpl->finishUpdate();
+      if (!ok) {
+        // TODO: distinguir entre error de formato y error de flasheo
         _tgzupload_serverError = true;
-        _tgzupload_responseMsg = "OTA Code update: fallo al finalizar - ";
-        _tgzupload_responseMsg += _updater_errstr(Update.getError());
+        _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
         _uploadRejected = true;
-#ifdef DEBUG_YUBOX_OTA
-        Serial.print("YUBOX OTA: firmware-commit-failed ");
-        Serial.print(_tgzupload_responseMsg);
-#endif
-      } else if (!Update.isFinished()) {
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
-        _tgzupload_responseMsg += _updater_errstr(Update.getError());
-        _uploadRejected = true;
-#ifdef DEBUG_YUBOX_OTA
-        Serial.print("YUBOX OTA: firmware-commit-failed ");
-        Serial.print(_tgzupload_responseMsg);
-#endif
       } else {
-#ifdef DEBUG_YUBOX_OTA
-        Serial.print("YUBOX OTA: firmware-commit-end");
-#endif
+        _shouldReboot = _flasherImpl->shouldReboot();
       }
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
-
-      vTaskDelay(1);
     }
-
-    if (!_uploadRejected) {
-      std::vector<String> old_filelist;
-
-      vTaskDelay(1);
-
-      // Cargar lista de archivos viejos a preservar
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-load-oldmanifest");
-#endif
-      _loadManifest(old_filelist);
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
-      vTaskDelay(1);
-
-      // Se BORRA cualquier archivo que empiece con el prefijo "b," reservado para rollback
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-delete-oldbackup");
-#endif
-      _deleteFilesWithPrefix("b,");
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
-      vTaskDelay(1);
-
-      // Se RENOMBRA todos los archivos en old_filelist con prefijo "b,"
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-rename-oldfiles");
-#endif
-      _changeFileListPrefix(old_filelist, "", "b,");
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
-      vTaskDelay(1);
-      old_filelist.clear();
-
-      // Se RENOMBRA todos los archivos en _tgzupload_filelist quitando prefijo "n,"
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-rename-newfiles");
-#endif
-      _changeFileListPrefix(_tgzupload_filelist, "n,", "");
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
-      vTaskDelay(1);
-      _tgzupload_filelist.clear();
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-end");
-      Serial.println(" ...done");
-#endif
-      vTaskDelay(1);
-    }
-
-    if (_uploadRejected) _firmwareAbort();
-#ifdef DEBUG_YUBOX_OTA
-    Serial.println("YUBOX OTA: REACTIVANDO WATCHDOG EN CORE-0");
-#endif
-    enableCore0WDT();
   } else if (final) {
     // Se ha llegado al último chunk y no se ha detectado el fin del tar.
     // Esto o es un tar corrupto dentro de gzip, o un bug del código
-    _firmwareAbort();
+    if (_flasherImpl != NULL) {
+      _flasherImpl->truncateUpdate();
+    }
     _tgzupload_clientError = true;
     _tgzupload_responseMsg = "No se ha detectado final del tar al término del upload";
     _uploadRejected = true;
@@ -490,137 +403,18 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     if (_gz_dstdata != NULL) { delete _gz_dstdata; _gz_dstdata = NULL; }
     memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
   }
-}
 
-void YuboxOTAClass::_firmwareAbort(void)
-{
-  if (_tgzupload_foundFirmware) {
-    // Abortar la operación de firmware si se estaba escribiendo
-    Update.abort();
+  if (final && _flasherImpl != NULL) {
+    delete _flasherImpl;
+    _flasherImpl = NULL;
   }
-
-  cleanupFailedUpdateFiles();
 }
 
 void YuboxOTAClass::cleanupFailedUpdateFiles(void)
 {
-  // Se BORRA cualquier archivo que empiece con el prefijo "n,"
-  _deleteFilesWithPrefix("n,");
-}
-
-void YuboxOTAClass::_loadManifest(std::vector<String> & flist)
-{
-  if (SPIFFS.exists("/manifest.txt")) {
-    // Lista de archivos a preservar para rollback futuro
-    // Se asume archivo de texto ordinario con líneas formato UNIX
-    File h = SPIFFS.open("/manifest.txt", FILE_READ);
-    if (!h) {
-      Serial.println("WARN: /manifest.txt existe pero no se puede abrir. Los archivos de recursos podrían ser sobreescritos.");
-    } else {
-      bool selfref = false;
-      while (h.available()) {
-        String s = h.readStringUntil('\n');
-        if (s == "manifest.txt") selfref = true;
-        String sn = "/"; sn += s;
-        if (!SPIFFS.exists(sn)) {
-          // Si el archivo no existe pero existe el correspondiente .gz se arregla aquí
-          sn += ".gz";
-          if (SPIFFS.exists(sn)) {
-            s += ".gz";
-            flist.push_back(s);
-          } else {
-            Serial.printf("WARN: %s no existe de forma ordinaria o comprimida, se omite!\r\n", s.c_str());
-          }
-        } else {
-          // Archivo existe ordinariamente
-          flist.push_back(s);
-        }
-      }
-      h.close();
-      if (!selfref) flist.push_back("manifest.txt");
-    }
-  } else {
-    Serial.println("WARN: /manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
-  }
-}
-
-void YuboxOTAClass::_listFilesWithPrefix(std::vector<String> & flist, const char * p)
-{
-  std::vector<String>::iterator it;
-  File h = SPIFFS.open("/");
-  if (!h) {
-    Serial.println("WARN: no es posible listar directorio.");
-  } else if (!h.isDirectory()) {
-    Serial.println("WARN: no es posible listar no-directorio.");
-  } else {
-    String prefix = "/";
-    prefix += p;
-
-    File f = h.openNextFile();
-    while (f) {
-      String s = f.name();
-      f.close();
-      //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
-      if (s.startsWith(prefix)) {
-        //Serial.println("DEBUG: se agrega a lista a borrar...");
-        flist.push_back(s.substring(prefix.length()));
-      }
-
-      f = h.openNextFile();
-    }
-    h.close();
-  }
-}
-
-void YuboxOTAClass::_deleteFilesWithPrefix(const char * p)
-{
-  std::vector<String> del_filelist;
-  std::vector<String>::iterator it;
-  File h = SPIFFS.open("/");
-  if (!h) {
-    Serial.println("WARN: no es posible listar directorio.");
-  } else if (!h.isDirectory()) {
-    Serial.println("WARN: no es posible listar no-directorio.");
-  } else {
-    String prefix = "/";
-    prefix += p;
-
-    File f = h.openNextFile();
-    while (f) {
-      String s = f.name();
-      f.close();
-      //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
-      if (s.startsWith(prefix)) {
-        //Serial.println("DEBUG: se agrega a lista a borrar...");
-        del_filelist.push_back(s);
-      }
-
-      f = h.openNextFile();
-    }
-    h.close();
-  }
-  for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
-    //Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
-    if (!SPIFFS.remove(*it)) {
-      Serial.printf("WARN: no se pudo borrar %s !\r\n", it->c_str());
-    }
-  }
-  del_filelist.clear();
-}
-
-void YuboxOTAClass::_changeFileListPrefix(std::vector<String> & flist, const char * op, const char * np)
-{
-  std::vector<String>::iterator it;
-  String s, sn;
-
-  for (it = flist.begin(); it != flist.end(); it++) {
-    s = "/"; s += op; s += *it;      // Ruta original del archivo
-    sn = "/"; sn += np; sn += *it;  // Ruta nueva del archivo
-    //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
-    if (!SPIFFS.rename(s, sn)) {
-      Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
-    }
-  }
+  YuboxOTA_Flasher_ESP32 * fi = _getFlasherImpl();
+  fi->cleanupFailedUpdateFiles();
+  delete fi;
 }
 
 int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
@@ -659,66 +453,15 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
   {
   case T_NORMAL:
     //Serial.printf("DEBUG: archivo ordinario tamaño 0x%08x%08x\r\n", (unsigned long)(hdr->filesize >> 32), (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
-
-    // Verificar si el archivo que se presenta es un firmware a flashear. El firmware debe
-    // tener un nombre que termine en ".ino.nodemcu-32s.bin" . Este es el valor por omisión
-    // con el que se termina el nombre del archivo compilado exportado por Arduino IDE
-    unsigned int fnLen = strlen(hdr->filename);
-    if (0 == strcmp(hdr->filename + (fnLen - 4), ".bin") &&
-        NULL != strstr(hdr->filename, ".ino.")) {
-      //Serial.printf("DEBUG: detectado firmware: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
-      if (_tgzupload_foundFirmware) {
-        Serial.printf("WARN: se ignora firmware duplicado: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
-      } else {
-        _tgzupload_foundFirmware = true;
-        if ((unsigned long)(hdr->filesize >> 32) != 0) {
-          // El firmware excede de 4GB. Un dispositivo así de grande no existe
-          _tgzupload_serverError = true;
-          _tgzupload_responseMsg = "OTA Code update: ";
-          _tgzupload_responseMsg += _updater_errstr(UPDATE_ERROR_SIZE);
-          _uploadRejected = true;
-        } else if (!Update.begin(hdr->filesize, U_FLASH)) {
-          _tgzupload_serverError = true;
-          _tgzupload_responseMsg = "OTA Code update: no se puede iniciar actualización - ";
-          _tgzupload_responseMsg += _updater_errstr(Update.getError());
-          _uploadRejected = true;
-        } else {
-          _tgzupload_currentOp = YBX_OTA_FIRMWARE_FLASH;
-          _tgzupload_bytesWritten = 0;
-          _emitUploadEvent_FileStart(hdr->filename, true, hdr->filesize);
-        }
-      }
-    } else {
-      //Serial.printf("DEBUG: detectado archivo ordinario: %s longitud %d bytes\r\n", hdr->filename, (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
-      // Verificar si tengo suficiente espacio en SPIFFS para este archivo
-      if (SPIFFS.totalBytes() < SPIFFS.usedBytes() + hdr->filesize) {
-        Serial.printf("ERR: no hay suficiente espacio: total=%lu usado=%u\r\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
-        // No hay suficiente espacio para escribir este archivo
+    if (_flasherImpl != NULL) {
+      bool ok = _flasherImpl->startFile(hdr->filename, hdr->filesize);
+      if (!ok) {
         _tgzupload_serverError = true;
-        _tgzupload_responseMsg = "No hay suficiente espacio en SPIFFS para archivo: ";
-        _tgzupload_responseMsg += hdr->filename;
+        _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
         _uploadRejected = true;
-      } else {
-        // Abrir archivo y agregarlo a lista de archivos a procesar al final
-        String tmpname = "/n,"; tmpname += hdr->filename;
-        //Serial.printf("DEBUG: abriendo archivo %s ...\r\n", tmpname.c_str());
-        _tgzupload_rsrc = SPIFFS.open(tmpname, FILE_WRITE);
-        if (!_tgzupload_rsrc) {
-          _tgzupload_serverError = true;
-          _tgzupload_responseMsg = "Fallo al abrir archivo para escribir: ";
-          _tgzupload_responseMsg += hdr->filename;
-          _uploadRejected = true;
-        } else {
-          _tgzupload_filelist.push_back((String)(hdr->filename));
-          _tgzupload_currentOp = YBX_OTA_SPIFFS_WRITE;
-          _tgzupload_bytesWritten = 0;
-          _emitUploadEvent_FileStart(hdr->filename, false, hdr->filesize);
-
-          // Detectar si el tar contiene el manifest.txt
-          if (strcmp(hdr->filename, "manifest.txt") == 0) _tgzupload_hasManifest = true;
-        }
       }
     }
+
     break;
 /*
   case T_HARDLINK:       Serial.printf("Ignoring hard link to %s.\r\n", hdr->filename); break;
@@ -740,46 +483,13 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
 
 int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_index, unsigned char * block, int size)
 {
-  size_t r;
-
-  switch (_tgzupload_currentOp) {
-  case YBX_OTA_SPIFFS_WRITE:
-    // Esto asume que el archivo ya fue abierto previamente
-    while (size > 0) {
-      r = _tgzupload_rsrc.write(block, size);
-      if (r == 0) {
-        _tgzupload_rsrc.close();
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = "Fallo al escribir archivo: ";
-        _tgzupload_responseMsg += hdr->filename;
-        _uploadRejected = true;
-        _tgzupload_currentOp = YBX_OTA_IDLE;
-        break;
-      }
-      _tgzupload_bytesWritten += r;
-      _emitUploadEvent_FileProgress(hdr->filename, false, hdr->filesize, _tgzupload_bytesWritten);
-      size -= r;
-      block += r;
+  if (_flasherImpl != NULL) {
+    bool ok = _flasherImpl->appendFileData(hdr->filename, hdr->filesize, block, size);
+    if (!ok) {
+      _tgzupload_serverError = true;
+      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
+      _uploadRejected = true;
     }
-    break;
-  case YBX_OTA_FIRMWARE_FLASH:
-    while (size > 0) {
-      r = Update.write(block, size);
-      if (r == 0) {
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = "OTA Code update: fallo al escribir en flash - ";
-        _tgzupload_responseMsg += _updater_errstr(Update.getError());
-        _uploadRejected = true;
-        Update.abort();
-        _tgzupload_currentOp = YBX_OTA_IDLE;
-        break;
-      }
-      _tgzupload_bytesWritten += r;
-      _emitUploadEvent_FileProgress(hdr->filename, true, hdr->filesize, _tgzupload_bytesWritten);
-      size -= r;
-      block += r;
-    }
-    break;
   }
 
   _tar_emptyChunk = 0;
@@ -788,58 +498,19 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
 
 int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_index)
 {
-  //Serial.printf("\r\nDEBUG: _tar_cb_gotEntryEnd: %s FINAL\r\n", hdr->filename);
-  switch (_tgzupload_currentOp) {
-  case YBX_OTA_SPIFFS_WRITE:
-    // Esto asume que el archivo todavía sigue abierto
-    _tgzupload_currentOp = YBX_OTA_IDLE;
-    _tgzupload_rsrc.close();
-    _emitUploadEvent_FileEnd(hdr->filename, false, hdr->filesize);
-    break;
-  case YBX_OTA_FIRMWARE_FLASH:
-    _tgzupload_currentOp = YBX_OTA_IDLE;
-    _tgzupload_canFlash = true;
-    _emitUploadEvent_FileEnd(hdr->filename, true, hdr->filesize);
-    break;
+  if (_flasherImpl != NULL) {
+    bool ok = _flasherImpl->finishFile(hdr->filename, hdr->filesize);
+    if (!ok) {
+      _tgzupload_serverError = true;
+      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
+      _uploadRejected = true;
+    }
   }
 
   _tar_emptyChunk = 0;
   return _uploadRejected ? -1 : 0;
 }
 
-const char * YuboxOTAClass::_updater_errstr(uint8_t e)
-{
-  switch (e) {
-  case UPDATE_ERROR_OK:
-    return "(no hay error)";
-  case UPDATE_ERROR_WRITE:
-    return "Fallo al escribir al flash";
-  case UPDATE_ERROR_ERASE:
-    return "Fallo al borrar bloque flash";
-  case UPDATE_ERROR_READ:
-    return "Fallo al leer del flash";
-  case UPDATE_ERROR_SPACE:
-    return "No hay suficiente espacio en búfer para actualización";
-  case UPDATE_ERROR_SIZE:
-    return "Firmware demasiado grande para flash de dispositivo";
-  case UPDATE_ERROR_STREAM:
-    return "Error de lectura en stream fuente";
-  case UPDATE_ERROR_MD5:
-    return "Error en checksum MD5";
-  case UPDATE_ERROR_MAGIC_BYTE:
-    return "Firma incorrecta en firmware";
-  case UPDATE_ERROR_ACTIVATE:
-    return "Error en activación de firmware actualizado";
-  case UPDATE_ERROR_NO_PARTITION:
-    return "No puede localizarse partición para escribir firmware";
-  case UPDATE_ERROR_BAD_ARGUMENT:
-    return "Argumemto incorrecto";
-  case UPDATE_ERROR_ABORT:
-    return "Actualización abortada";
-  default:
-    return "(error desconocido)";
-  }
-}
 
 int _tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 {
@@ -961,7 +632,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
-  json_doc["reboot"] = (_tgzupload_foundFirmware && !clientError && !serverError);
+  json_doc["reboot"] = (_shouldReboot && !clientError && !serverError);
 
   serializeJson(json_doc, *response);
   request->send(response);
@@ -971,10 +642,14 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerR
 {
   YUBOX_RUN_AUTH(request);
 
+  YuboxOTA_Flasher_ESP32 * fi = _getFlasherImpl();
+  bool canRollBack = fi->canRollBack();
+  delete fi;
+
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(1));
   response->setCode(200);
-  json_doc["canrollback"] = Update.canRollBack();
+  json_doc["canrollback"] = canRollBack;
 
   serializeJson(json_doc, *response);
   request->send(response);
@@ -989,51 +664,38 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(false); // Rollback cuenta como flasheo
+  String errMsg;
   if (!vetoMsg.isEmpty()) {
     json_doc["success"] = false;
     json_doc["msg"] = vetoMsg.c_str();
 
     response->setCode(500);
-  } else if (Update.rollBack()) {
-    std::vector<String> curr_filelist;
-    std::vector<String> prev_filelist;
+  } else {
+    YuboxOTA_Flasher_ESP32 * fi = _getFlasherImpl();
 
-    // Cargar lista de archivos actuales a preservar
-    _loadManifest(curr_filelist);
-
-    // Cargar lista de archivos preservados, sin su prefijo
-    _listFilesWithPrefix(prev_filelist, "b,");
-
-    // Se RENOMBRA todos los archivos actuales con prefijo "R,"
-    _changeFileListPrefix(curr_filelist, "", "R,");
-
-    // Se RENOMBRA todos los archivos preservados quitando prefijo "b,"
-    _changeFileListPrefix(prev_filelist, "b,", "");
-
-    // Se renombra los archivos que eran actuales con prefijo "b,"
-    _changeFileListPrefix(curr_filelist, "R,", "b,");
-
-    curr_filelist.clear();
-    prev_filelist.clear();
-
-    vetoMsg = _checkOTA_Veto(true);
-    if (!vetoMsg.isEmpty()) {
+    if (!fi->doRollBack()) {
+      errMsg = fi->getLastErrorMessage();
       json_doc["success"] = false;
-      json_doc["msg"] = vetoMsg.c_str();
+      json_doc["msg"] = errMsg.c_str();
 
       response->setCode(500);
     } else {
-      json_doc["success"] = true;
-      json_doc["msg"] = "Firmware restaurado correctamente. El equipo se reiniciará en unos momentos.";
-      xTimerStart(_timer_restartYUBOX, 0);
+      vetoMsg = _checkOTA_Veto(true);
+      if (!vetoMsg.isEmpty()) {
+        json_doc["success"] = false;
+        json_doc["msg"] = vetoMsg.c_str();
 
-      response->setCode(200);
+        response->setCode(500);
+      } else {
+        json_doc["success"] = true;
+        json_doc["msg"] = "Firmware restaurado correctamente. El equipo se reiniciará en unos momentos.";
+        xTimerStart(_timer_restartYUBOX, 0);
+
+        response->setCode(200);
+      }
     }
-  } else {
-    json_doc["success"] = false;
-    json_doc["msg"] = "No hay firmware a restaurar, o no fue restaurado correctamente.";
 
-    response->setCode(500);
+    delete fi;
   }
 
   serializeJson(json_doc, *response);

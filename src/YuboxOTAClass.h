@@ -9,16 +9,11 @@ extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
+#include "YuboxOTA_Flasher_ESP32.h"
+
 #include "FS.h"
 #include <vector>
 #include <functional>
-
-typedef enum
-{
-  YBX_OTA_IDLE,           // Código ocioso, o el archivo está siendo ignorado
-  YBX_OTA_SPIFFS_WRITE,   // Se está escribiendo el archivo a SPIFFS
-  YBX_OTA_FIRMWARE_FLASH  // Se está escribiendo a flash de firmware
-} YuboxOTA_operationWithFile;
 
 typedef String (*YuboxOTA_Veto_cb)(bool isReboot);
 typedef std::function<String (bool isReboot) > YuboxOTA_Veto_func_cb;
@@ -30,6 +25,9 @@ class YuboxOTAClass
 private:
   // Rechazar el resto de los fragmentos de upload si primera revisión falla
   bool _uploadRejected;
+
+  // Bandera de reinicio requerido para aplicar cambios
+  bool _shouldReboot;
 
   // Cuenta de datos subidos del archivo para reportar en eventos
   unsigned long _tgzupload_rawBytesReceived;
@@ -54,13 +52,7 @@ private:
   String _tgzupload_responseMsg;
 
   // Operación de actualización en sí
-  YuboxOTA_operationWithFile _tgzupload_currentOp;
-  bool _tgzupload_foundFirmware;
-  bool _tgzupload_canFlash;
-  File _tgzupload_rsrc;
-  unsigned long _tgzupload_bytesWritten;
-  std::vector<String> _tgzupload_filelist;
-  bool _tgzupload_hasManifest;
+  YuboxOTA_Flasher_ESP32 * _flasherImpl;
   TimerHandle_t _timer_restartYUBOX;
 
   AsyncEventSource * _pEvents;
@@ -77,8 +69,6 @@ private:
 
   void _handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final);
 
-  const char * _updater_errstr(uint8_t);
-
   // Verificación de veto sobre operación de flasheo o reinicio
   String _checkOTA_Veto(bool isReboot);
 
@@ -92,12 +82,7 @@ private:
   void _emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset);
   void _emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size);
 
-  void _listFilesWithPrefix(std::vector<String> &, const char *);
-  void _deleteFilesWithPrefix(const char *);
-  void _changeFileListPrefix(std::vector<String> &, const char *, const char *);
-  void _loadManifest(std::vector<String> &);
-
-  void _firmwareAbort(void);
+  YuboxOTA_Flasher_ESP32 * _getFlasherImpl(void);
 
 public:
   YuboxOTAClass(void);
