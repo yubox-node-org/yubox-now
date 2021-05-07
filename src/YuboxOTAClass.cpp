@@ -29,6 +29,19 @@ yuboxota_event_id_t YuboxOTAVetoList::current_id = 1;
 
 static std::vector<YuboxOTAVetoList_t> cbVetoList;
 
+typedef struct YuboxOTA_Flasher_Factory_rec{
+  String _tag;
+  String _desc;
+  String _route_tgzupload;
+  String _route_rollback;
+  YuboxOTA_Flasher_Factory_func_cb _factory;
+
+  YuboxOTA_Flasher_Factory_rec(String t, String d, String upload, String rb, YuboxOTA_Flasher_Factory_func_cb f)
+    : _tag(t), _desc(d), _route_tgzupload(upload), _route_rollback(rb), _factory(f) {}
+} YuboxOTA_Flasher_Factory_rec_t;
+
+static std::vector<YuboxOTA_Flasher_Factory_rec_t> flasherFactoryList;
+
 #define GZIP_DICT_SIZE 32768
 #define GZIP_BUFF_SIZE 4096
 
@@ -69,19 +82,55 @@ YuboxOTAClass::YuboxOTAClass(void)
 
 void YuboxOTAClass::begin(AsyncWebServer & srv)
 {
-  srv.on("/yubox-api/yuboxOTA/tgzupload", HTTP_POST,
-    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST, this, std::placeholders::_1),
-    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload, this, std::placeholders::_1,
-      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
-  srv.on("/yubox-api/yuboxOTA/rollback", HTTP_GET,
-    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET, this, std::placeholders::_1));
-  srv.on("/yubox-api/yuboxOTA/rollback", HTTP_POST,
-    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST, this, std::placeholders::_1));
   srv.on("/yubox-api/yuboxOTA/reboot", HTTP_POST,
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST, this, std::placeholders::_1));
+  addFirmwareFlasher(srv, "esp32", "YUBOX ESP32 Firmware", std::bind(&YuboxOTAClass::_getESP32FlasherImpl, this));
+
   _pEvents = new AsyncEventSource("/yubox-api/yuboxOTA/events");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
+}
+
+void YuboxOTAClass::addFirmwareFlasher(AsyncWebServer & srv, const char * tag, const char * desc, YuboxOTA_Flasher_Factory_func_cb factory_cb)
+{
+  String route_tgzupload = "/yubox-api/yuboxOTA/";
+  route_tgzupload += tag;
+  route_tgzupload += "/tgzupload";
+  String route_rollback = "/yubox-api/yuboxOTA/";
+  route_rollback += tag;
+  route_rollback += "/rollback";
+
+  flasherFactoryList.emplace_back(tag, desc, route_tgzupload, route_rollback, factory_cb);
+
+  srv.on(route_tgzupload.c_str(), HTTP_POST,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST, this, std::placeholders::_1),
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+  srv.on(route_rollback.c_str(), HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET, this, std::placeholders::_1));
+  srv.on(route_rollback.c_str(), HTTP_POST,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST, this, std::placeholders::_1));
+}
+
+int YuboxOTAClass::_idxFlasherFromURL(String url)
+{
+  for (auto i = 0; i < flasherFactoryList.size(); i++) {
+    if (url == flasherFactoryList[i]._route_tgzupload) return i;
+    if (url == flasherFactoryList[i]._route_rollback) return i;
+  }
+  return -1;
+}
+
+YuboxOTA_Flasher * YuboxOTAClass::_buildFlasherFromIdx(int idx)
+{
+  if (idx < 0 || idx >= flasherFactoryList.size()) return NULL;
+  return flasherFactoryList[idx]._factory();
+}
+
+YuboxOTA_Flasher * YuboxOTAClass::_buildFlasherFromURL(String url)
+{
+  int idx = _idxFlasherFromURL(url);
+  return (idx >= 0) ? _buildFlasherFromIdx(idx) : NULL;
 }
 
 yuboxota_event_id_t YuboxOTAClass::onOTAUpdateVeto(YuboxOTA_Veto_cb cbVeto)
@@ -142,6 +191,33 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
     if (!YuboxWebAuth.authenticate((request))) {
       // Credenciales incorrectas
       _uploadRejected = true;
+    } else {
+      if (_flasherImpl != NULL) {
+        _tgzupload_responseMsg = "El flasheo concurrente de firmwares no está soportado.";
+        _tgzupload_clientError = true;
+        _uploadRejected = true;
+      } else {
+        int idxFlash = _idxFlasherFromURL(request->url());
+        if (idxFlash < 0) {
+          _tgzupload_responseMsg = "No implementado flasheo para ruta: ";
+          _tgzupload_responseMsg += request->url();
+          _tgzupload_serverError = true;
+          _uploadRejected = true;
+        } else {
+          _flasherImpl = _buildFlasherFromIdx(idxFlash);
+          if (_flasherImpl == NULL) {
+            _tgzupload_responseMsg = "Fallo al instanciar flasheador";
+            _tgzupload_serverError = true;
+            _uploadRejected = true;
+          }
+        }
+      }
+    }
+  } else {
+    if (!_uploadRejected && _flasherImpl == NULL) {
+      _tgzupload_responseMsg = "No se ha instanciado flasheador y se sigue recibiendo datos!";
+      _tgzupload_serverError = true;
+      _uploadRejected = true;
     }
   }
   
@@ -170,7 +246,7 @@ String YuboxOTAClass::_checkOTA_Veto(bool isReboot)
   return s;
 }
 
-YuboxOTA_Flasher * YuboxOTAClass::_getFlasherImpl(void)
+YuboxOTA_Flasher * YuboxOTAClass::_getESP32FlasherImpl(void)
 {
     return new YuboxOTA_Flasher_ESP32(
       std::bind(&YuboxOTAClass::_emitUploadEvent_FileStart, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
@@ -194,6 +270,8 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       return;
     }
   }
+
+  assert(_flasherImpl != NULL);
 
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
@@ -226,12 +304,6 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     // Inicialización de estado de actualización
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
-    if (_flasherImpl != NULL) {
-      Serial.println("WARN: no se ha borrado instancia previa de procesador de upload!");
-      delete _flasherImpl;
-      _flasherImpl = NULL;
-    }
-    _flasherImpl = _getFlasherImpl();
   }
 
   _tgzupload_rawBytesReceived += len;
@@ -414,7 +486,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
 void YuboxOTAClass::cleanupFailedUpdateFiles(void)
 {
-  YuboxOTA_Flasher_ESP32 * fi = (YuboxOTA_Flasher_ESP32 *)_getFlasherImpl();
+  YuboxOTA_Flasher_ESP32 * fi = (YuboxOTA_Flasher_ESP32 *)_getESP32FlasherImpl();
   fi->cleanupFailedUpdateFiles();
   delete fi;
 }
@@ -623,7 +695,16 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
   }
 
+  if (_flasherImpl != NULL) {
+    Serial.println("WARN: flasheador no fue destruido al terminar manejo upload, se destruye ahora...");
+    delete _flasherImpl;
+    _flasherImpl = NULL;
+  }
+
   _uploadRejected = false;
+  _tgzupload_clientError = false;
+  _tgzupload_serverError = false;
+  _tgzupload_responseMsg = "";
 
   unsigned int httpCode = 200;
   if (clientError) httpCode = 400;
@@ -644,7 +725,12 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerR
 {
   YUBOX_RUN_AUTH(request);
 
-  YuboxOTA_Flasher * fi = _getFlasherImpl();
+  YuboxOTA_Flasher * fi = _buildFlasherFromURL(request->url());
+  if (fi == NULL) {
+    request->send(404, "application/json", "{\"success\":false,\"msg\":\"El flasheador indicado no existe o no ha sido implementado\"}");
+    return;
+  }
+
   bool canRollBack = fi->canRollBack();
   delete fi;
 
@@ -673,9 +759,12 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
 
     response->setCode(500);
   } else {
-    YuboxOTA_Flasher * fi = _getFlasherImpl();
+    YuboxOTA_Flasher * fi = _buildFlasherFromURL(request->url());
 
-    if (!fi->doRollBack()) {
+    if (fi == NULL) {
+      json_doc["success"] = false;
+      json_doc["msg"] = "El flasheador indicado no existe o no ha sido implementado";
+    } else if (!fi->doRollBack()) {
       errMsg = fi->getLastErrorMessage();
       json_doc["success"] = false;
       json_doc["msg"] = errMsg.c_str();
@@ -697,7 +786,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
       }
     }
 
-    delete fi;
+    if (fi != NULL) delete fi;
   }
 
   serializeJson(json_doc, *response);

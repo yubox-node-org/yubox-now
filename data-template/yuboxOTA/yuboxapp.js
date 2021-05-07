@@ -10,7 +10,7 @@ function setupYuboxOTATab()
     getYuboxNavTab('yuboxOTA').on('shown.bs.tab', function (e) {
         var otapane = getYuboxPane('yuboxOTA');
 
-        $.get(yuboxAPI('yuboxOTA')+'/rollback')
+        $.get(yuboxAPI('yuboxOTA')+'/esp32/rollback')
         .done(function (data) {
             var spanRB = otapane.find('span#canrollback');
             var btnRB = otapane.find('button[name="rollback"]');
@@ -56,7 +56,7 @@ function setupYuboxOTATab()
         postData.append('tgzupload', fi[0].files[0]);
         yuboxOTAUpload_init();
         $.post({
-            url: yuboxAPI('yuboxOTA')+'/tgzupload',
+            url: yuboxAPI('yuboxOTA')+'/esp32/tgzupload',
             data: postData,
             processData: false,
             contentType: false
@@ -89,7 +89,7 @@ function setupYuboxOTATab()
     });
     otapane.find('button[name=rollback]').click(function () {
         otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', true);
-        $.post(yuboxAPI('yuboxOTA')+'/rollback', {})
+        $.post(yuboxAPI('yuboxOTA')+'/esp32/rollback', {})
         .done(function (data) {
             if (data.success) {
                 // Al aplicar actualización debería recargarse más tarde

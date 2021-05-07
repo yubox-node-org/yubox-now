@@ -20,6 +20,8 @@ typedef std::function<String (bool isReboot) > YuboxOTA_Veto_func_cb;
 
 typedef size_t yuboxota_event_id_t;
 
+typedef std::function<YuboxOTA_Flasher * (void)> YuboxOTA_Flasher_Factory_func_cb;
+
 class YuboxOTAClass
 {
 private:
@@ -82,7 +84,11 @@ private:
   void _emitUploadEvent_FileProgress(const char * filename, bool isfirmware, unsigned long size, unsigned long offset);
   void _emitUploadEvent_FileEnd(const char * filename, bool isfirmware, unsigned long size);
 
-  YuboxOTA_Flasher * _getFlasherImpl(void);
+  YuboxOTA_Flasher * _getESP32FlasherImpl(void);
+
+  int _idxFlasherFromURL(String);
+  YuboxOTA_Flasher * _buildFlasherFromIdx(int);
+  YuboxOTA_Flasher * _buildFlasherFromURL(String);
 
 public:
   YuboxOTAClass(void);
@@ -102,6 +108,8 @@ public:
 
   // Para invocar al arranque del YUBOX y limpiar archivos de una subida fallida
   void cleanupFailedUpdateFiles(void);
+
+  void addFirmwareFlasher(AsyncWebServer & srv, const char *, const char *, YuboxOTA_Flasher_Factory_func_cb);
 
   friend int _tar_cb_feedFromBuffer(unsigned char *, size_t);
   friend int _tar_cb_gotEntryHeader(header_translated_t *, int, void *);
