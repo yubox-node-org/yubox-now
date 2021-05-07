@@ -82,6 +82,8 @@ YuboxOTAClass::YuboxOTAClass(void)
 
 void YuboxOTAClass::begin(AsyncWebServer & srv)
 {
+  srv.on("/yubox-api/yuboxOTA/firmwarelist.json", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/yuboxOTA/reboot", HTTP_POST,
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST, this, std::placeholders::_1));
   addFirmwareFlasher(srv, "esp32", "YUBOX ESP32 Firmware", std::bind(&YuboxOTAClass::_getESP32FlasherImpl, this));
@@ -171,6 +173,30 @@ void YuboxOTAClass::removeOTAUpdateVeto(yuboxota_event_id_t id)
     YuboxOTAVetoList_t entry = cbVetoList[i];
     if (entry.id == id) cbVetoList.erase(cbVetoList.begin() + i);
   }
+}
+
+void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWebServerRequest * request)
+{
+    YUBOX_RUN_AUTH(request);
+
+    // Construir tabla de flasheadores disponibles
+    String json_tableOutput = "[";
+    DynamicJsonDocument json_tablerow(JSON_OBJECT_SIZE(4));
+    for (auto it = flasherFactoryList.begin(); it != flasherFactoryList.end(); it++) {
+      if (json_tableOutput.length() > 1) json_tableOutput += ",";
+
+      json_tablerow["tag"] = it->_tag.c_str();
+      json_tablerow["desc"] = it->_desc.c_str();
+      json_tablerow["tgzupload"] = it->_route_tgzupload.c_str();
+      json_tablerow["rollback"] = it->_route_rollback.c_str();
+
+      serializeJson(json_tablerow, json_tableOutput);
+    }
+    json_tableOutput += "]";
+
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    response->print(json_tableOutput);
+    request->send(response);
 }
 
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,

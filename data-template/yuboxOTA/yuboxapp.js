@@ -10,7 +10,31 @@ function setupYuboxOTATab()
     getYuboxNavTab('yuboxOTA').on('shown.bs.tab', function (e) {
         var otapane = getYuboxPane('yuboxOTA');
 
-        $.get(yuboxAPI('yuboxOTA')+'/esp32/rollback')
+        $.get(yuboxAPI('yuboxOTA')+'/firmwarelist.json')
+        .done(function (data) {
+            var sel_firmwarelist = otapane.find('select#yuboxfirmwarelist');
+            sel_firmwarelist.empty();
+            for (var i = 0; i < data.length; i++) {
+                var opt = $('<option></option>');
+                opt.attr('value', data[i].tag)
+                opt.text(data[i].desc);
+                opt.data(data[i])
+                sel_firmwarelist.append(opt);
+            }
+            sel_firmwarelist.val(data[0].tag);
+            sel_firmwarelist.change();
+        })
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
+
+    });
+
+    otapane.find('select#yuboxfirmwarelist').change(function() {
+        var otapane = getYuboxPane('yuboxOTA');
+
+        var opt = $(this).find('option:selected').first();
+        otapane.find('span.yubox-firmware-desc').text(opt.data('desc'));
+
+        $.get(opt.data('rollback'))
         .done(function (data) {
             var spanRB = otapane.find('span#canrollback');
             var btnRB = otapane.find('button[name="rollback"]');
@@ -43,6 +67,8 @@ function setupYuboxOTATab()
         lbl.text(txt);
     });
     otapane.find('button[name=apply]').click(function () {
+        var route_tgzupload = otapane.find('select#yuboxfirmwarelist > option:selected').first().data('tgzupload');
+
         var fi = otapane.find('input[type=file]#tgzupload');
         if (fi[0].files.length <= 0) {
             yuboxMostrarAlertText('danger', 'Es necesario elegir un archivo tgz para actualización.', 2000);
@@ -56,7 +82,7 @@ function setupYuboxOTATab()
         postData.append('tgzupload', fi[0].files[0]);
         yuboxOTAUpload_init();
         $.post({
-            url: yuboxAPI('yuboxOTA')+'/esp32/tgzupload',
+            url: route_tgzupload,
             data: postData,
             processData: false,
             contentType: false
@@ -88,8 +114,10 @@ function setupYuboxOTATab()
         });
     });
     otapane.find('button[name=rollback]').click(function () {
-        otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', true);
-        $.post(yuboxAPI('yuboxOTA')+'/esp32/rollback', {})
+        var route_rollback = otapane.find('select#yuboxfirmwarelist > option:selected').first().data('rollback');
+
+        yuboxOTAUpload_setDisableBtns(true);
+        $.post(route_rollback, {})
         .done(function (data) {
             if (data.success) {
                 // Al aplicar actualización debería recargarse más tarde
@@ -100,15 +128,15 @@ function setupYuboxOTATab()
             } else {
                 yuboxMostrarAlertText('danger', data.msg, 2000);
             }
-            otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
+            yuboxOTAUpload_setDisableBtns(false);
         })
         .fail(function (e) {
             yuboxStdAjaxFailHandler(e, 2000);
-            otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
+            yuboxOTAUpload_setDisableBtns(false);
         });
     });
     otapane.find('button[name=reboot]').click(function () {
-        otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', true);
+        yuboxOTAUpload_setDisableBtns(true);
         $.post(yuboxAPI('yuboxOTA')+'/reboot', {})
         .done(function (data) {
             if (data.success) {
@@ -120,19 +148,20 @@ function setupYuboxOTATab()
             } else {
                 yuboxMostrarAlertText('danger', data.msg, 2000);
             }
-            otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
+            yuboxOTAUpload_setDisableBtns(false);
         })
         .fail(function (e) {
             yuboxStdAjaxFailHandler(e, 2000);
-            otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
+            yuboxOTAUpload_setDisableBtns(false);
         });
     });
 }
 
 function yuboxOTAUpload_init()
 {
+    yuboxOTAUpload_setDisableBtns(true);
+
     var otapane = getYuboxPane('yuboxOTA');
-    otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', true);
     yuboxOTAUpload_setProgressBar(0);
     otapane.find('div.upload-progress span#filename').text('-');
     otapane.find('div.upload-progress span#current').text('0');
@@ -200,8 +229,8 @@ function yuboxOTAUpload_init()
 
 function yuboxOTAUpload_shutdown()
 {
+    yuboxOTAUpload_setDisableBtns(false);
     var otapane = getYuboxPane('yuboxOTA');
-    otapane.find('button[name=apply], button[name=rollback], button[name=reboot]').prop('disabled', false);
     otapane.find('div.upload-progress').hide();
     if (otapane.data('sse') != null) {
         otapane.data('sse').close();
@@ -209,9 +238,15 @@ function yuboxOTAUpload_shutdown()
     }
 }
 
+function yuboxOTAUpload_setDisableBtns(v)
+{
+    var otapane = getYuboxPane('yuboxOTA');
+    otapane.find('button[name=apply], button[name=rollback], button[name=reboot], select#yuboxfirmwarelist').prop('disabled', v);
+}
+
 function yuboxOTAUpload_setProgressBar(v)
 {
-	yuboxOTAUpload_setProgressBarMessage(v, v.toFixed(1) + ' %');
+    yuboxOTAUpload_setProgressBarMessage(v, v.toFixed(1) + ' %');
 }
 
 function yuboxOTAUpload_setProgressBarMessage(v, msg)

@@ -62,6 +62,7 @@ private:
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
+  void _routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest *,
     String filename, size_t index, uint8_t *data, size_t len, bool final);
