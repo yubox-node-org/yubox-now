@@ -361,9 +361,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   }
 
   // Cada llamada al callback de upload cede el CPU al menos aquí.
-  // Se requiere de al menos 25 milisegundos para impedir que la posible
-  // tarea "ipc0" active el watchdog mientras se sube código.
-  vTaskDelay(pdMS_TO_TICKS(25));
+  vTaskDelay(pdMS_TO_TICKS(5));
 
   if (_tar_eof) {
 #ifdef DEBUG_YUBOX_OTA
