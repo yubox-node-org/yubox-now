@@ -330,6 +330,12 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     // Inicialización de estado de actualización
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
+
+    if (!_flasherImpl->startUpdate()) {
+      _tgzupload_serverError = true;
+      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
+      _uploadRejected = true;
+    }
   }
 
   _tgzupload_rawBytesReceived += len;
@@ -339,7 +345,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   unsigned int consumed;
   //Serial.printf("DEBUG: INICIO: used=%u MAX=%u\r\n", used, GZIP_BUFF_SIZE);
   bool runUnzip = false;
-  if (GZIP_BUFF_SIZE - used < len) {
+  if (_uploadRejected) {
+    Serial.printf("ERR: falla upload en index %d - %s\r\n", index, _tgzupload_responseMsg.c_str());
+  } else if (GZIP_BUFF_SIZE - used < len) {
     // No hay suficiente espacio para este bloque de datos. ESTO NO DEBERÍA PASAR
     Serial.printf("ERR: no hay suficiente espacio en _gz_srcdata: libre=%u requerido=%u\r\n", GZIP_BUFF_SIZE - used, len);
     _tgzupload_serverError = true;
