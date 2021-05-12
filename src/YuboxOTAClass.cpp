@@ -126,7 +126,13 @@ int YuboxOTAClass::_idxFlasherFromURL(String url)
 YuboxOTA_Flasher * YuboxOTAClass::_buildFlasherFromIdx(int idx)
 {
   if (idx < 0 || idx >= flasherFactoryList.size()) return NULL;
-  return flasherFactoryList[idx]._factory();
+  YuboxOTA_Flasher * f = flasherFactoryList[idx]._factory();
+  f->setProgressCallbacks(
+      std::bind(&YuboxOTAClass::_emitUploadEvent_FileStart, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+      std::bind(&YuboxOTAClass::_emitUploadEvent_FileProgress, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
+      std::bind(&YuboxOTAClass::_emitUploadEvent_FileEnd, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+    );
+  return f;
 }
 
 YuboxOTA_Flasher * YuboxOTAClass::_buildFlasherFromURL(String url)
@@ -274,11 +280,7 @@ String YuboxOTAClass::_checkOTA_Veto(bool isReboot)
 
 YuboxOTA_Flasher * YuboxOTAClass::_getESP32FlasherImpl(void)
 {
-    return new YuboxOTA_Flasher_ESP32(
-      std::bind(&YuboxOTAClass::_emitUploadEvent_FileStart, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-      std::bind(&YuboxOTAClass::_emitUploadEvent_FileProgress, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
-      std::bind(&YuboxOTAClass::_emitUploadEvent_FileEnd, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
-    );
+    return new YuboxOTA_Flasher_ESP32();
 }
 
 void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final)

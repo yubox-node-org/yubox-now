@@ -27,11 +27,16 @@ protected:
     YuboxOTA_Flasher_FileEnd_func_cb _fileend_cb;
 
 public:
-    YuboxOTA_Flasher(
+    YuboxOTA_Flasher(void) = default;
+    void setProgressCallbacks(
         YuboxOTA_Flasher_FileStart_func_cb filestart_cb,
         YuboxOTA_Flasher_FileProgress_func_cb fileprogress_cb,
         YuboxOTA_Flasher_FileEnd_func_cb fileend_cb
-    ) : _filestart_cb(filestart_cb), _fileprogress_cb(fileprogress_cb), _fileend_cb(fileend_cb) {}
+    ) {
+        _filestart_cb = filestart_cb;
+        _fileprogress_cb = fileprogress_cb;
+        _fileend_cb = fileend_cb;
+    }
     virtual ~YuboxOTA_Flasher() = default;
 
     // Called in order to setup everything for receiving update chunks

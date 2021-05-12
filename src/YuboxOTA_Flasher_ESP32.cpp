@@ -7,12 +7,8 @@
 
 #include "esp_task_wdt.h"
 
-YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(
-    YuboxOTA_Flasher_FileStart_func_cb filestart_cb,
-    YuboxOTA_Flasher_FileProgress_func_cb fileprogress_cb,
-    YuboxOTA_Flasher_FileEnd_func_cb fileend_cb
-)
- : YuboxOTA_Flasher(filestart_cb, fileprogress_cb, fileend_cb)
+YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
+ : YuboxOTA_Flasher()
 {
     _responseMsg = "";
     _tgzupload_currentOp = YBX_OTA_IDLE;
