@@ -114,10 +114,10 @@ bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long
                 break;
             }
             _tgzupload_bytesWritten += r;
-            _fileprogress_cb(filename, false, filesize, _tgzupload_bytesWritten);
             size -= r;
             block += r;
         }
+        _fileprogress_cb(filename, false, filesize, _tgzupload_bytesWritten);
         break;
     case YBX_OTA_FIRMWARE_FLASH:
         while (size > 0) {
@@ -131,10 +131,10 @@ bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long
                 break;
             }
             _tgzupload_bytesWritten += r;
-            _fileprogress_cb(filename, true, filesize, _tgzupload_bytesWritten);
             size -= r;
             block += r;
         }
+        _fileprogress_cb(filename, true, filesize, _tgzupload_bytesWritten);
         break;
     }
 
