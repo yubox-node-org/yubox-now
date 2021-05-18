@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import sys
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--total', type=int, default=4194304, help='Total de memoria flash a asumir (por omisión 4194304 bytes)')
+parser.add_argument('--spiffs', type=int, default=1507328, help='Espacio a reservar como SPIFFS (por omisión 1507328 bytes)')
+parser.add_argument('--app', type=int, help='Espacio a reservar para app0 y para app1')
+args = parser.parse_args()
+
+parttable = [
+    { 'Name': 'nvs',     'Type': 'data', 'SubType': 'nvs',    'Offset': 0x9000,  'Size': 0x5000 },
+    { 'Name': 'otadata', 'Type': 'data', 'SubType': 'ota',    'Offset': 0xe000,  'Size': 0x2000 },
+    { 'Name': 'app0',    'Type': 'app',  'SubType': 'ota_0',  'Offset': 0x10000, 'Size': 0 },
+    { 'Name': 'app1',    'Type': 'app',  'SubType': 'ota_1',  'Offset': 0,       'Size': 0 },
+    { 'Name': 'spiffs',  'Type': 'data', 'SubType': 'spiffs', 'Offset': 0,       'Size': 0 },
+]
+blocksize = 0x10000
+
+# Verificación de tamaño total
+args.total = args.total & (~(blocksize - 1))
+if args.total < parttable[2]['Offset'] + 3 * blocksize:
+    sys.stderr.write('FATAL: total flash insuficiente para OTA y SPIFFS!')
+    exit(1)
+
+max_libre = args.total - parttable[2]['Offset']
+if args.app:
+    # Caso de especificar primero total para APP
+    args.app = args.app & (~(blocksize - 1))
+    if args.app < blocksize:
+        sys.stderr.write('FATAL: reserva APP insuficiente!')
+        exit(1)
+    args.spiffs = (max_libre - (2 * args.app)) & (~(blocksize - 1))
+    if args.spiffs < blocksize:
+        sys.stderr.write('FATAL: SPIFFS muy pequeño luego de reservar APP!')
+        exit(1)
+else:
+    # Caso de especificar reserva para SPIFFS
+    args.spiffs = args.spiffs & (~(blocksize - 1))
+    if args.spiffs < blocksize:
+        sys.stderr.write('FATAL: reserva SPIFFS insuficiente!')
+        exit(1)
+    args.app = ((max_libre - args.spiffs) >> 1) & (~(blocksize - 1))
+    if args.app < blocksize:
+        sys.stderr.write('FATAL: APP muy pequeño luego de reservar SPIFFS')
+        exit(1)
+
+parttable[2]['Size'] = args.app
+parttable[3]['Offset'] = parttable[2]['Offset'] + parttable[2]['Size']
+parttable[3]['Size'] = args.app
+parttable[4]['Offset'] = parttable[3]['Offset'] + parttable[3]['Size']
+parttable[4]['Size'] = args.total - parttable[4]['Offset']
+
+#print ( parttable )
+print ('# Name,   Type, SubType, Offset,  Size, Flags')
+for part in parttable:
+    f = []
+    f.append('{0[Name]},'.format(part))
+    f.append('{0[Type]},'.format(part))
+    f.append('{0[SubType]},'.format(part))
+    f.append('{0[Offset]:#x},'.format(part))
+    f.append('{0[Size]:#x},'.format(part))
+    print ('{0[0]:<10}{0[1]:<6}{0[2]:<9}{0[3]:<9}{0[4]}'.format(f))
