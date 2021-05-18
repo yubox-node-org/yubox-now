@@ -36,8 +36,12 @@ ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitio
 # 4MB boards: default no_ota min_spiffs huge_app noota_3g (defaultffat noota_ffat noota_3gffat)
 # 8MB boards: default_8MB
 # 16MB boards: fatflash
-ESP32_PARTCONF=default
-ESP32_PARTCONF_CSVTABLE=$(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv
+ESP32_PARTCONF?=default
+ifneq ($(wildcard partitions.csv),)
+	ESP32_PARTCONF_CSVTABLE?=partitions.csv
+else
+	ESP32_PARTCONF_CSVTABLE?=$(ESP32_PARTDIR)/$(ESP32_PARTCONF).csv
+endif
 ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
 ESP32_OFFSET_APP0=$(shell grep ota_0 $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
 ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
