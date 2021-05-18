@@ -244,7 +244,7 @@ void YuboxWiFiClass::_startWiFi(void)
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(apIp, apIp, apNetmask);
   WiFi.softAP(_apName.c_str());
-  WiFi.setSleep(false);
+  WiFi.setSleep(true);  // <--- NO PONER A FALSE, o de lo contrario BlueTooth se crashea si se inicia simultáneamente
 
   //Serial.println("DEBUG: Iniciando escaneo de redes WiFi (1)...");
   WiFi.setAutoReconnect(false);
