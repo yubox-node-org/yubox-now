@@ -29,8 +29,11 @@ private:
 
     void _firmwareAbort(void);
 
+    String _reportFilesystemSpace(void);
+
 public:
     YuboxOTA_Flasher_ESP32(void);
+    ~YuboxOTA_Flasher_ESP32();
 
     // Called in order to setup everything for receiving update chunks
     bool startUpdate(void);

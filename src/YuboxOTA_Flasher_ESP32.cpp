@@ -20,6 +20,11 @@ YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
     _uploadRejected = false;
 }
 
+YuboxOTA_Flasher_ESP32::~YuboxOTA_Flasher_ESP32()
+{
+  cleanupFailedUpdateFiles();
+}
+
 bool YuboxOTA_Flasher_ESP32::isUpdateRejected(void)
 {
     return _uploadRejected;
@@ -67,10 +72,13 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
       //Serial.printf("DEBUG: detectado archivo ordinario: %s longitud %d bytes\r\n", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
       // Verificar si tengo suficiente espacio en SPIFFS para este archivo
       if (SPIFFS.totalBytes() < SPIFFS.usedBytes() + filesize) {
-        Serial.printf("ERR: no hay suficiente espacio: total=%lu usado=%u\r\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+        String rep = _reportFilesystemSpace();
+        Serial.printf("ERR: no hay suficiente espacio: %s\r\n", rep.c_str());
         // No hay suficiente espacio para escribir este archivo
         _responseMsg = "No hay suficiente espacio en SPIFFS para archivo: ";
         _responseMsg += filename;
+        _responseMsg += " ";
+        _responseMsg += rep;
         _uploadRejected = true;
       } else {
         // Abrir archivo y agregarlo a lista de archivos a procesar al final
@@ -109,6 +117,8 @@ bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long
                 _tgzupload_rsrc.close();
                 _responseMsg = "Fallo al escribir archivo: ";
                 _responseMsg += filename;
+                _responseMsg += " ";
+                _responseMsg += _reportFilesystemSpace();
                 _uploadRejected = true;
                 _tgzupload_currentOp = YBX_OTA_IDLE;
                 break;
@@ -159,6 +169,19 @@ bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long lon
     }
 
     return !_uploadRejected;
+}
+
+String YuboxOTA_Flasher_ESP32::_reportFilesystemSpace(void)
+{
+    auto t = SPIFFS.totalBytes();
+    auto u = SPIFFS.usedBytes();
+    String report = "total=";
+    report += t;
+    report += " usado=";
+    report += u;
+    report += " libre=";
+    report += (t - u);
+    return report;
 }
 
 bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
