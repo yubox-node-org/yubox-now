@@ -641,7 +641,14 @@ void YuboxWiFiClass::_routeHandler_spiffslist_GET(AsyncWebServerRequest *request
     h.close();
   }
 
-  response->print("<tr><th colspan=\"2\"><hr></th></tr></table></body></html>");
+  response->print("<tr><th colspan=\"2\"><hr></th></tr></table>");
+
+  // Reportar uso total de partición SPIFFS
+  size_t total = SPIFFS.totalBytes();
+  size_t used = SPIFFS.usedBytes();
+  response->printf("<p>Total bytes: %d Used bytes: %d Free bytes: %d</p>", total, used, (total - used));
+
+  response->print("</body></html>");
   request->send(response);
 }
 
