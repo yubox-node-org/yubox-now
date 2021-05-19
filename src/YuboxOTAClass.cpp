@@ -439,7 +439,12 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
             _tar_eof = true;
             //Serial.printf("DEBUG: se alcanzó el final del tar actual=%lu esperado=%lu\r\n", _gz_actualExpandedSize, gz_expectedExpandedSize);
           } else if (r != 0) {
-            Serial.printf("ERR: fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu\r\n", _tar_available, r, _tar_emptyChunk, _gz_actualExpandedSize, gz_expectedExpandedSize);
+            // Error -5 es fallo por _tar_cb_gotEntry[Header|End] que devuelve != 0 - debería manejarse vía _uploadRejected
+            // Error -7 es fallo por _tar_cb_gotEntryData que devuelve != 0 - debería manejarse vía _uploadRejected
+            if (r != -7 && r != -5) {
+              Serial.printf("ERR: fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu\r\n",
+                _tar_available, r, _tar_emptyChunk, _gz_actualExpandedSize, gz_expectedExpandedSize);
+            }
             // No sobreescribir mensaje raíz si ha sido ya asignado
             if (!_tgzupload_clientError && !_tgzupload_serverError) {
               _tgzupload_clientError = true;
