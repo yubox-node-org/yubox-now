@@ -7,6 +7,8 @@
 
 #include "esp_task_wdt.h"
 
+#define YUBOX_BUFSIZ SPI_FLASH_SEC_SIZE
+
 YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
  : YuboxOTA_Flasher()
 {
@@ -18,10 +20,15 @@ YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
     _tgzupload_filelist.clear();
 
     _uploadRejected = false;
+    _filebuf = NULL; _filebuf_used = 0;
 }
+
+#define FREE_FILEBUF \
+  do { if (_filebuf != NULL) free(_filebuf); _filebuf = NULL; } while (false)
 
 YuboxOTA_Flasher_ESP32::~YuboxOTA_Flasher_ESP32()
 {
+  FREE_FILEBUF;
   cleanupFailedUpdateFiles();
 }
 
@@ -37,11 +44,41 @@ String YuboxOTA_Flasher_ESP32::getLastErrorMessage(void)
 
 bool YuboxOTA_Flasher_ESP32::startUpdate(void)
 {
+    FREE_FILEBUF;
+    _filebuf = (uint8_t *)malloc(YUBOX_BUFSIZ);
+    if (_filebuf == NULL) {
+      _responseMsg= "No se puede asignar bufer para escribir archivos!";
+      _uploadRejected = true;
+      return false;
+    }
+    _filebuf_used = 0;
+
     return true;
 }
 
+#define CHECK_VALID_FILEBUF \
+  do {\
+    if (_filebuf == NULL) {\
+      if (!_uploadRejected) {\
+        _responseMsg = "Bufer de escritura no ha sido asignado en ";\
+        _responseMsg += __FUNCTION__;\
+        _uploadRejected = true;\
+      }\
+      return false;\
+    }\
+  } while (false)
+
 bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long filesize)
 {
+    CHECK_VALID_FILEBUF;
+    if (_filebuf_used != 0) {
+      if (!_uploadRejected) {
+        _responseMsg = "Datos de búfer no han sido evacuados. Esto no debería pasar.";
+        _uploadRejected = true;
+      }
+      return false;
+    }
+
     // Verificar si el archivo que se presenta es un firmware a flashear. El firmware debe
     // tener un nombre que termine en ".ino.nodemcu-32s.bin" . Este es el valor por omisión
     // con el que se termina el nombre del archivo compilado exportado por Arduino IDE
@@ -104,30 +141,57 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
     return !_uploadRejected;
 }
 
+bool YuboxOTA_Flasher_ESP32::_flushFileBuffer(const char * filename, unsigned long long filesize)
+{
+    size_t r;
+
+    r = _tgzupload_rsrc.write(_filebuf, _filebuf_used);
+    if (r <= 0) {
+        _tgzupload_rsrc.close();
+        _responseMsg = "Fallo al escribir archivo: ";
+        _responseMsg += filename;
+        _responseMsg += " ";
+        _responseMsg += _reportFilesystemSpace();
+        _uploadRejected = true;
+        _tgzupload_currentOp = YBX_OTA_IDLE;
+        return false;
+    }
+    _tgzupload_bytesWritten += r;
+    if (r >= _filebuf_used) {
+        _filebuf_used = 0;
+    } else {
+        // No se ha escrito todo el búfer.
+        memmove(_filebuf, _filebuf + r, _filebuf_used - r);
+        _filebuf_used -= r;
+    }
+
+    _fileprogress_cb(filename, false, filesize, _tgzupload_bytesWritten);
+    return true;
+}
+
 bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long long filesize, unsigned char * block, int size)
 {
     size_t r;
 
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
+        CHECK_VALID_FILEBUF;
+
         // Esto asume que el archivo ya fue abierto previamente
         while (size > 0) {
-            r = _tgzupload_rsrc.write(block, size);
-            if (r == 0) {
-                _tgzupload_rsrc.close();
-                _responseMsg = "Fallo al escribir archivo: ";
-                _responseMsg += filename;
-                _responseMsg += " ";
-                _responseMsg += _reportFilesystemSpace();
-                _uploadRejected = true;
-                _tgzupload_currentOp = YBX_OTA_IDLE;
-                break;
-            }
-            _tgzupload_bytesWritten += r;
+            // Copiar cuanto se pueda del block al búfer hasta llenarlo
+            r = YUBOX_BUFSIZ - _filebuf_used;
+            if (r > size) r = size;
+            memcpy(_filebuf + _filebuf_used, block, r);
+            _filebuf_used += r;
             size -= r;
             block += r;
+
+            // ¿Ya se puede evacuar el búfer al archivo abierto?
+            if (_filebuf_used >= YUBOX_BUFSIZ) {
+                if (!_flushFileBuffer(filename, filesize)) break;
+            }
         }
-        _fileprogress_cb(filename, false, filesize, _tgzupload_bytesWritten);
         break;
     case YBX_OTA_FIRMWARE_FLASH:
         while (size > 0) {
@@ -156,6 +220,12 @@ bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long lon
     //Serial.printf("\r\nDEBUG: _tar_cb_gotEntryEnd: %s FINAL\r\n", hdr->filename);
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
+        CHECK_VALID_FILEBUF;
+
+        while (_filebuf_used > 0 && !_uploadRejected) {
+            if (!_flushFileBuffer(filename, filesize)) break;
+        }
+
         // Esto asume que el archivo todavía sigue abierto
         _tgzupload_currentOp = YBX_OTA_IDLE;
         _tgzupload_rsrc.close();
@@ -186,6 +256,7 @@ String YuboxOTA_Flasher_ESP32::_reportFilesystemSpace(void)
 
 bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
 {
+    FREE_FILEBUF;
 
 #ifdef DEBUG_YUBOX_OTA
     Serial.println("YUBOX OTA: DESACTIVANDO WATCHDOG EN CORE-0");
@@ -299,6 +370,7 @@ bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
 
 void YuboxOTA_Flasher_ESP32::truncateUpdate(void)
 {
+    FREE_FILEBUF;
     _firmwareAbort();
 }
 

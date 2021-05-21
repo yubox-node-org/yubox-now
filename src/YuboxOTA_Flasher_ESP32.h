@@ -12,6 +12,9 @@ private:
     bool _uploadRejected;
     String _responseMsg;
 
+    uint8_t * _filebuf;
+    uint32_t _filebuf_used;
+
     YuboxOTA_operationWithFile _tgzupload_currentOp;
     bool _tgzupload_foundFirmware;
     bool _tgzupload_canFlash;
@@ -30,6 +33,7 @@ private:
     void _firmwareAbort(void);
 
     String _reportFilesystemSpace(void);
+    bool _flushFileBuffer(const char *, unsigned long long);
 
 public:
     YuboxOTA_Flasher_ESP32(void);
