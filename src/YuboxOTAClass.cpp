@@ -674,7 +674,7 @@ void YuboxOTAClass::_emitUploadEvent_FileProgress(const char * filename, bool is
 {
   if (_pEvents == NULL) return;
   if (_pEvents->count() <= 0) return;
-  if (millis() - _tgzupload_lastEventSent < 400) return;
+  if (millis() - _tgzupload_lastEventSent < 200) return;
 
   _tgzupload_lastEventSent = millis();
   String s;
