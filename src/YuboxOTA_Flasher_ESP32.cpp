@@ -362,7 +362,7 @@ bool YuboxOTA_Flasher_ESP32::doRollBack(void)
     _loadManifest(curr_filelist);
 
     // Cargar lista de archivos preservados, sin su prefijo
-    _listFilesWithPrefix(prev_filelist, "b,");
+    _listFilesWithPrefix(prev_filelist, "b,", true);
 
     // Se RENOMBRA todos los archivos actuales con prefijo "R,"
     _changeFileListPrefix(curr_filelist, "", "R,");
@@ -465,7 +465,7 @@ void YuboxOTA_Flasher_ESP32::_loadManifest(std::vector<String> & flist)
   }
 }
 
-void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, const char * p)
+void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, const char * p, bool strip_prefix)
 {
   std::vector<String>::iterator it;
   File h = SPIFFS.open("/");
@@ -484,7 +484,7 @@ void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, c
       log_v("listado %s", s.c_str());
       if (s.startsWith(prefix)) {
         log_v("- se agrega a lista...");
-        flist.push_back(s.substring(prefix.length()));
+        flist.push_back(strip_prefix ? s.substring(prefix.length()) : s);
       }
 
       f = h.openNextFile();
@@ -497,32 +497,9 @@ void YuboxOTA_Flasher_ESP32::_deleteFilesWithPrefix(const char * p)
 {
   std::vector<String> del_filelist;
 
-  std::vector<String>::iterator it;
-  File h = SPIFFS.open("/");
-  if (!h) {
-    log_w("no es posible listar directorio.");
-  } else if (!h.isDirectory()) {
-    log_w("no es posible listar no-directorio.");
-  } else {
-    String prefix = "/";
-    prefix += p;
+  _listFilesWithPrefix(del_filelist, p, false);
 
-    File f = h.openNextFile();
-    while (f) {
-      String s = f.name();
-      f.close();
-      log_v("listado %s", s.c_str());
-      if (s.startsWith(prefix)) {
-        log_v("- se agrega a lista a borrar...");
-        del_filelist.push_back(s);
-      }
-
-      f = h.openNextFile();
-    }
-    h.close();
-  }
-
-  for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
+  for (auto it = del_filelist.begin(); it != del_filelist.end(); it++) {
     log_v("BORRANDO %s ...", it->c_str());
     if (!SPIFFS.remove(*it)) {
       log_w("no se pudo borrar %s !", it->c_str());

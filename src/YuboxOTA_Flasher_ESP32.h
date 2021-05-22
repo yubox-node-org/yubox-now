@@ -25,7 +25,7 @@ private:
 
     const char * _updater_errstr(uint8_t);
 
-    void _listFilesWithPrefix(std::vector<String> &, const char *);
+    void _listFilesWithPrefix(std::vector<String> &, const char *, bool);
     void _deleteFilesWithPrefix(const char *);
     void _changeFileListPrefix(std::vector<String> &, const char *, const char *);
     void _loadManifest(std::vector<String> &);
