@@ -85,9 +85,9 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
     unsigned int fnLen = strlen(filename);
     if (0 == strcmp(filename + (fnLen - 4), ".bin") &&
         NULL != strstr(filename, ".ino.")) {
-      //Serial.printf("DEBUG: detectado firmware: %s longitud %d bytes\r\n", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
+      log_v("Detectado firmware: %s longitud %d bytes", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
       if (_tgzupload_foundFirmware) {
-        Serial.printf("WARN: se ignora firmware duplicado: %s longitud %d bytes\r\n", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
+        log_w("Se ignora firmware duplicado: %s longitud %d bytes", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
       } else {
         _tgzupload_foundFirmware = true;
         if ((unsigned long)(filesize >> 32) != 0) {
@@ -106,11 +106,11 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
         }
       }
     } else {
-      //Serial.printf("DEBUG: detectado archivo ordinario: %s longitud %d bytes\r\n", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
+      log_v("Detectado archivo ordinario: %s longitud %d bytes", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
       // Verificar si tengo suficiente espacio en SPIFFS para este archivo
       if (SPIFFS.totalBytes() < SPIFFS.usedBytes() + filesize) {
         String rep = _reportFilesystemSpace();
-        Serial.printf("ERR: no hay suficiente espacio: %s\r\n", rep.c_str());
+        log_e("No hay suficiente espacio: %s", rep.c_str());
         // No hay suficiente espacio para escribir este archivo
         _responseMsg = "No hay suficiente espacio en SPIFFS para archivo: ";
         _responseMsg += filename;
@@ -120,7 +120,7 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
       } else {
         // Abrir archivo y agregarlo a lista de archivos a procesar al final
         String tmpname = "/n,"; tmpname += filename;
-        //Serial.printf("DEBUG: abriendo archivo %s ...\r\n", tmpname.c_str());
+        log_v("Abriendo archivo %s ...", tmpname.c_str());
         _tgzupload_rsrc = SPIFFS.open(tmpname, FILE_WRITE);
         if (!_tgzupload_rsrc) {
           _responseMsg = "Fallo al abrir archivo para escribir: ";
@@ -217,7 +217,6 @@ bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long
 
 bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long long filesize)
 {
-    //Serial.printf("\r\nDEBUG: _tar_cb_gotEntryEnd: %s FINAL\r\n", hdr->filename);
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
         CHECK_VALID_FILEBUF;
@@ -258,9 +257,7 @@ bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
 {
     FREE_FILEBUF;
 
-#ifdef DEBUG_YUBOX_OTA
-    Serial.println("YUBOX OTA: DESACTIVANDO WATCHDOG EN CORE-0");
-#endif
+    log_d("YUBOX OTA: DESACTIVANDO WATCHDOG EN CORE-0");
     disableCore0WDT();
     esp_task_wdt_delete(NULL);
 
@@ -275,33 +272,21 @@ bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
       vTaskDelay(1);
 
       // Finalizar operación de flash de firmware, si es necesaria
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println("YUBOX OTA: firmware-commit-start");
-#endif
+      log_d("YUBOX OTA: firmware-commit-start");
       if (!Update.end()) {
         _responseMsg = "OTA Code update: fallo al finalizar - ";
         _responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
-#ifdef DEBUG_YUBOX_OTA
-        Serial.print("YUBOX OTA: firmware-commit-failed ");
-        Serial.print(_responseMsg);
-#endif
+        log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
       } else if (!Update.isFinished()) {
         _responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
         _responseMsg += _updater_errstr(Update.getError());
         _uploadRejected = true;
-#ifdef DEBUG_YUBOX_OTA
-        Serial.print("YUBOX OTA: firmware-commit-failed ");
-        Serial.print(_responseMsg);
-#endif
+        log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
       } else {
-#ifdef DEBUG_YUBOX_OTA
-        Serial.print("YUBOX OTA: firmware-commit-end");
-#endif
+        log_d("YUBOX OTA: firmware-commit-end");
       }
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
+      log_d(" ...done");
 
       vTaskDelay(1);
     }
@@ -312,57 +297,36 @@ bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
       vTaskDelay(1);
 
       // Cargar lista de archivos viejos a preservar
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-load-oldmanifest");
-#endif
+      log_d("YUBOX OTA: datafiles-load-oldmanifest");
       _loadManifest(old_filelist);
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
+      log_d(" ...done");
       vTaskDelay(1);
 
       // Se BORRA cualquier archivo que empiece con el prefijo "b," reservado para rollback
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-delete-oldbackup");
-#endif
+      log_d("YUBOX OTA: datafiles-delete-oldbackup");
       _deleteFilesWithPrefix("b,");
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
+      log_d(" ...done");
       vTaskDelay(1);
 
       // Se RENOMBRA todos los archivos en old_filelist con prefijo "b,"
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-rename-oldfiles");
-#endif
+      log_d("YUBOX OTA: datafiles-rename-oldfiles");
       _changeFileListPrefix(old_filelist, "", "b,");
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
+      log_d(" ...done");
       vTaskDelay(1);
       old_filelist.clear();
 
       // Se RENOMBRA todos los archivos en _tgzupload_filelist quitando prefijo "n,"
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-rename-newfiles");
-#endif
+      log_d("YUBOX OTA: datafiles-rename-newfiles");
       _changeFileListPrefix(_tgzupload_filelist, "n,", "");
-#ifdef DEBUG_YUBOX_OTA
-      Serial.println(" ...done");
-#endif
+      log_d(" ...done");
       vTaskDelay(1);
       _tgzupload_filelist.clear();
-#ifdef DEBUG_YUBOX_OTA
-      Serial.print("YUBOX OTA: datafiles-end");
-      Serial.println(" ...done");
-#endif
+      log_d("YUBOX OTA: datafiles-end ...done");
       vTaskDelay(1);
     }
 
     if (_uploadRejected) _firmwareAbort();
-#ifdef DEBUG_YUBOX_OTA
-    Serial.println("YUBOX OTA: REACTIVANDO WATCHDOG EN CORE-0");
-#endif
+    log_d("YUBOX OTA: REACTIVANDO WATCHDOG EN CORE-0");
     enableCore0WDT();
 
     return !_uploadRejected;
@@ -472,7 +436,7 @@ void YuboxOTA_Flasher_ESP32::_loadManifest(std::vector<String> & flist)
     // Se asume archivo de texto ordinario con líneas formato UNIX
     File h = SPIFFS.open("/manifest.txt", FILE_READ);
     if (!h) {
-      Serial.println("WARN: /manifest.txt existe pero no se puede abrir. Los archivos de recursos podrían ser sobreescritos.");
+      log_w("/manifest.txt existe pero no se puede abrir. Los archivos de recursos podrían ser sobreescritos.");
     } else {
       bool selfref = false;
       while (h.available()) {
@@ -486,7 +450,7 @@ void YuboxOTA_Flasher_ESP32::_loadManifest(std::vector<String> & flist)
             s += ".gz";
             flist.push_back(s);
           } else {
-            Serial.printf("WARN: %s no existe de forma ordinaria o comprimida, se omite!\r\n", s.c_str());
+            log_w("WARN: %s no existe de forma ordinaria o comprimida, se omite!", s.c_str());
           }
         } else {
           // Archivo existe ordinariamente
@@ -497,7 +461,7 @@ void YuboxOTA_Flasher_ESP32::_loadManifest(std::vector<String> & flist)
       if (!selfref) flist.push_back("manifest.txt");
     }
   } else {
-    Serial.println("WARN: /manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
+    log_w("/manifest.txt no existe. Los archivos de recursos podrían ser sobreescritos.");
   }
 }
 
@@ -506,9 +470,9 @@ void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, c
   std::vector<String>::iterator it;
   File h = SPIFFS.open("/");
   if (!h) {
-    Serial.println("WARN: no es posible listar directorio.");
+    log_w("no es posible listar directorio.");
   } else if (!h.isDirectory()) {
-    Serial.println("WARN: no es posible listar no-directorio.");
+    log_w("no es posible listar no-directorio.");
   } else {
     String prefix = "/";
     prefix += p;
@@ -517,9 +481,9 @@ void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, c
     while (f) {
       String s = f.name();
       f.close();
-      //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
+      log_v("listado %s", s.c_str());
       if (s.startsWith(prefix)) {
-        //Serial.println("DEBUG: se agrega a lista a borrar...");
+        log_v("- se agrega a lista...");
         flist.push_back(s.substring(prefix.length()));
       }
 
@@ -532,12 +496,13 @@ void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, c
 void YuboxOTA_Flasher_ESP32::_deleteFilesWithPrefix(const char * p)
 {
   std::vector<String> del_filelist;
+
   std::vector<String>::iterator it;
   File h = SPIFFS.open("/");
   if (!h) {
-    Serial.println("WARN: no es posible listar directorio.");
+    log_w("no es posible listar directorio.");
   } else if (!h.isDirectory()) {
-    Serial.println("WARN: no es posible listar no-directorio.");
+    log_w("no es posible listar no-directorio.");
   } else {
     String prefix = "/";
     prefix += p;
@@ -546,9 +511,9 @@ void YuboxOTA_Flasher_ESP32::_deleteFilesWithPrefix(const char * p)
     while (f) {
       String s = f.name();
       f.close();
-      //Serial.printf("DEBUG: listado %s\r\n", s.c_str());
+      log_v("listado %s", s.c_str());
       if (s.startsWith(prefix)) {
-        //Serial.println("DEBUG: se agrega a lista a borrar...");
+        log_v("- se agrega a lista a borrar...");
         del_filelist.push_back(s);
       }
 
@@ -556,10 +521,11 @@ void YuboxOTA_Flasher_ESP32::_deleteFilesWithPrefix(const char * p)
     }
     h.close();
   }
+
   for (it = del_filelist.begin(); it != del_filelist.end(); it++) {
-    //Serial.printf("DEBUG: BORRANDO %s ...\r\n", it->c_str());
+    log_v("BORRANDO %s ...", it->c_str());
     if (!SPIFFS.remove(*it)) {
-      Serial.printf("WARN: no se pudo borrar %s !\r\n", it->c_str());
+      log_w("no se pudo borrar %s !", it->c_str());
     }
   }
   del_filelist.clear();
@@ -573,9 +539,9 @@ void YuboxOTA_Flasher_ESP32::_changeFileListPrefix(std::vector<String> & flist, 
   for (it = flist.begin(); it != flist.end(); it++) {
     s = "/"; s += op; s += *it;      // Ruta original del archivo
     sn = "/"; sn += np; sn += *it;  // Ruta nueva del archivo
-    //Serial.printf("DEBUG: RENOMBRANDO %s --> %s ...\r\n", s.c_str(), sn.c_str());
+    log_v("RENOMBRANDO %s --> %s ...", s.c_str(), sn.c_str());
     if (!SPIFFS.rename(s, sn)) {
-      Serial.printf("WARN: no se pudo renombrar %s --> %s ...\r\n", s.c_str(), sn.c_str());
+      log_w("no se pudo renombrar %s --> %s ...", s.c_str(), sn.c_str());
     }
   }
 }

@@ -208,8 +208,8 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
     String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
-  //Serial.printf("DEBUG: tgzupload_handleUpload filename=%s index=%d data=%p len=%d final=%d\r\n",
-  //  filename.c_str(), index, data, len, final ? 1 : 0);
+  log_d("filename=%s index=%d data=%p len=%d final=%d",
+    filename.c_str(), index, data, len, final ? 1 : 0);
 
   if (!filename.endsWith(".tar.gz") && !filename.endsWith(".tgz")) {
     // Este upload no parece ser un tarball, se rechaza localmente.
@@ -345,13 +345,13 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   // Agregar búfer recibido al búfer de entrada, notando si debe empezarse a parsear gzip
   unsigned int used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
   unsigned int consumed;
-  //Serial.printf("DEBUG: INICIO: used=%u MAX=%u\r\n", used, GZIP_BUFF_SIZE);
+  log_v("INICIO: used=%u MAX=%u", used, GZIP_BUFF_SIZE);
   bool runUnzip = false;
   if (_uploadRejected) {
-    Serial.printf("ERR: falla upload en index %d - %s\r\n", index, _tgzupload_responseMsg.c_str());
+    log_e("falla upload en index %d - %s", index, _tgzupload_responseMsg.c_str());
   } else if (GZIP_BUFF_SIZE - used < len) {
     // No hay suficiente espacio para este bloque de datos. ESTO NO DEBERÍA PASAR
-    Serial.printf("ERR: no hay suficiente espacio en _gz_srcdata: libre=%u requerido=%u\r\n", GZIP_BUFF_SIZE - used, len);
+    log_e("no hay suficiente espacio en _gz_srcdata: libre=%u requerido=%u", GZIP_BUFF_SIZE - used, len);
     _tgzupload_serverError = true;
     _tgzupload_responseMsg = "(internal) Falta espacio en búfer para siguiente pedazo de datos!";
     _uploadRejected = true;
@@ -361,13 +361,13 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     memcpy((void *)_uzLib_decomp.source_limit, data, len);
     _uzLib_decomp.source_limit += len;
     used += len;
-    //Serial.printf("DEBUG: LUEGO DE AGREGAR chunk: used=%u MAX=%u\r\n", used, GZIP_BUFF_SIZE);
+    log_v("LUEGO DE AGREGAR chunk: used=%u MAX=%u", used, GZIP_BUFF_SIZE);
 
     if (final) {
       // Para el último bloque HTTP debería tenerse los 4 últimos bytes LSB que indican
       // el tamaño esperado de longitud expandida.
       if (used < 4) {
-        Serial.printf("ERR: no hay suficientes datos luego de bloque final para determinar tamaño expandido, se tienen %u bytes\r\n", used);
+        log_e("no hay suficientes datos luego de bloque final para determinar tamaño expandido, se tienen %u bytes", used);
         _tgzupload_clientError = true;
         _tgzupload_responseMsg = "Archivo es demasiado corto para validar longitud gzip";
         _uploadRejected = true;
@@ -377,9 +377,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
           ((unsigned long)(*(_uzLib_decomp.source_limit - 3)) <<  8) |
           ((unsigned long)(*(_uzLib_decomp.source_limit - 2)) << 16) |
           ((unsigned long)(*(_uzLib_decomp.source_limit - 1)) << 24);
-        //Serial.printf("DEBUG: longitud esperada de datos expandidos es %lu bytes\r\n", gz_expectedExpandedSize);
+        log_v("longitud esperada de datos expandidos es %lu bytes", gz_expectedExpandedSize);
         if (gz_expectedExpandedSize < _gz_actualExpandedSize) {
-          Serial.printf("ERR: longitud ya expandida excede longitud esperada! %lu > %lu\r\n", _gz_actualExpandedSize, gz_expectedExpandedSize);
+          log_e("longitud ya expandida excede longitud esperada! %lu > %lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
           _tgzupload_clientError = true;
           _tgzupload_responseMsg = "Longitud esperada inconsistente con datos ya expandidos";
           _uploadRejected = true;
@@ -391,14 +391,14 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     // para agregar un bloque más.
     runUnzip = (final || (GZIP_BUFF_SIZE - used < GZIP_FILL_WATERMARK));
     while (!_uploadRejected && runUnzip && !_tar_eof && (gz_expectedExpandedSize == 0 || _gz_actualExpandedSize < gz_expectedExpandedSize)) {
-      //Serial.printf("DEBUG: _gz_actualExpandedSize=%lu gz_expectedExpandedSize=%lu\r\n", _gz_actualExpandedSize, gz_expectedExpandedSize);
-      //Serial.printf("DEBUG: se tienen %u bytes, se ejecuta gunzip...\r\n", used);
+      log_v("_gz_actualExpandedSize=%lu gz_expectedExpandedSize=%lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
+      log_v("se tienen %u bytes, se ejecuta gunzip...", used);
       if (!_gz_headerParsed) {
         // Se requiere parsear cabecera gzip para validación
         r = uzlib_gzip_parse_header(&_uzLib_decomp);
         if (r != TINF_OK) {
           // Fallo al parsear la cabecera gzip
-          Serial.println("ERR: fallo al parsear cabecera gzip");
+          log_e("fallo al parsear cabecera gzip");
           _tgzupload_clientError = true;
           _tgzupload_responseMsg = "Archivo no parece ser un archivo tar.gz, o está corrupto";
           _uploadRejected = true;
@@ -416,7 +416,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
         while (_uzLib_decomp.dest < _uzLib_decomp.dest_limit) {
           r = uzlib_uncompress(&_uzLib_decomp);
           if (r != TINF_DONE && r != TINF_OK) {
-            Serial.printf("ERR: fallo al descomprimir gzip (err=%d)\r\n", r);
+            log_e("fallo al descomprimir gzip (err=%d)", r);
             _tgzupload_clientError = true;
             _tgzupload_responseMsg = "Archivo corrupto o truncado (gzip), no puede descomprimirse";
             _uploadRejected = true;
@@ -425,24 +425,24 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
           if (_uploadRejected) break;
         }
         _gz_actualExpandedSize += (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available;
-        //Serial.printf("DEBUG: producidos %u bytes expandidos:\r\n", (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available);
+        log_v("producidos %u bytes expandidos:", (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available);
         _tar_available = _uzLib_decomp.dest - _uzLib_decomp.dest_start;
 
         // Pasar búfer descomprimido a rutina tar
         while (!_tar_eof && !_uploadRejected && ((_tar_available >= 2 * TAR_BLOCK_SIZE)
           || (final && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize && _tar_available > 0))) {
-          //Serial.printf("DEBUG: _tar_available=%u se ejecuta lectura tar\r\n", _tar_available);
+          log_v("_tar_available=%u se ejecuta lectura tar", _tar_available);
           // _tar_available se actualiza en _tar_cb_feedFromBuffer()
           // Procesamiento continúa en callbacks _tar_cb_*
           r = _tar_eof ? 0 : read_tar_step();
           if (r == -1 && _tar_emptyChunk >= 2 && gz_expectedExpandedSize != 0) {
             _tar_eof = true;
-            //Serial.printf("DEBUG: se alcanzó el final del tar actual=%lu esperado=%lu\r\n", _gz_actualExpandedSize, gz_expectedExpandedSize);
+            log_v("se alcanzó el final del tar actual=%lu esperado=%lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
           } else if (r != 0) {
             // Error -5 es fallo por _tar_cb_gotEntry[Header|End] que devuelve != 0 - debería manejarse vía _uploadRejected
             // Error -7 es fallo por _tar_cb_gotEntryData que devuelve != 0 - debería manejarse vía _uploadRejected
             if (r != -7 && r != -5) {
-              Serial.printf("ERR: fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu\r\n",
+              log_e("fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu",
                 _tar_available, r, _tar_emptyChunk, _gz_actualExpandedSize, gz_expectedExpandedSize);
             }
             // No sobreescribir mensaje raíz si ha sido ya asignado
@@ -452,7 +452,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
             }
             _uploadRejected = true;
           } else {
-            //Serial.printf("DEBUG: luego de parseo tar: _tar_available=%u\r\n", _tar_available);
+            log_v("luego de parseo tar: _tar_available=%u", _tar_available);
           }
         }
 
@@ -464,7 +464,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
       consumed = _uzLib_decomp.source - _gz_srcdata;
       if (consumed != 0) {
-        //Serial.printf("DEBUG: parseo gzip consumió %u bytes, se ajusta...\r\n", consumed);
+        log_v("parseo gzip consumió %u bytes, se ajusta...", consumed);
         if (_uzLib_decomp.source < _uzLib_decomp.source_limit) {
           memmove(_gz_srcdata, _gz_srcdata + consumed, _uzLib_decomp.source_limit - _uzLib_decomp.source);
           _uzLib_decomp.source_limit -= consumed;
@@ -474,12 +474,12 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
           _uzLib_decomp.source_limit = _gz_srcdata;
         }
       } else {
-        //Serial.println("DEBUG: parseo gzip no consumió bytes...");
+        log_v("parseo gzip no consumió bytes...");
       }
       used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
       runUnzip = (final || (GZIP_BUFF_SIZE - used < GZIP_FILL_WATERMARK));
 
-      //Serial.printf("DEBUG: quedan %u bytes en búfer de entrada gzip\r\n", used);
+      log_v("quedan %u bytes en búfer de entrada gzip", used);
     }
   }
 
@@ -532,20 +532,20 @@ void YuboxOTAClass::cleanupFailedUpdateFiles(void)
 
 int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 {
-  //Serial.printf("DEBUG: YuboxOTAClass::_tar_cb_feedFromBuffer(0x%p, %u)\r\n", buf, size);
+  log_d("(0x%p, %u)", buf, size);
   if (size % TAR_BLOCK_SIZE != 0) {
-    Serial.printf("ERR: _tar_cb_feedFromBuffer: longitud pedida %d no es múltiplo de %d\r\n", size, TAR_BLOCK_SIZE);
+    log_e("longitud pedida %d no es múltiplo de %d", size, TAR_BLOCK_SIZE);
     return 0;
   }
 
   _tar_emptyChunk++;
 
   unsigned int copySize = _tar_available;
-  //Serial.printf("DEBUG: _tar_cb_feedFromBuffer máximo copia posible %d bytes...\r\n", copySize);
+  log_v("máximo copia posible %d bytes...", copySize);
   if (copySize > size) copySize = size;
-  //Serial.printf("DEBUG: _tar_cb_feedFromBuffer copiando %d bytes...\r\n", copySize);
+  log_v("copiando %d bytes...", copySize);
   if (copySize < size) {
-    Serial.printf("WARN: _tar_cb_feedFromBuffer: se piden %d bytes pero sólo se pueden proveer %d bytes\r\n",
+    log_w("se piden %d bytes pero sólo se pueden proveer %d bytes",
       size, copySize);
   }
   if (copySize > 0) {
@@ -561,11 +561,11 @@ int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 
 int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_index)
 {
-  //Serial.printf("DEBUG: _tar_cb_gotEntryHeader: %s INICIO\r\n", hdr->filename);
+  log_d("INICIO: %s", hdr->filename);
   switch (hdr->type)
   {
   case T_NORMAL:
-    //Serial.printf("DEBUG: archivo ordinario tamaño 0x%08x%08x\r\n", (unsigned long)(hdr->filesize >> 32), (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
+    log_v("archivo ordinario tamaño 0x%08x%08x", (unsigned long)(hdr->filesize >> 32), (unsigned long)(hdr->filesize & 0xFFFFFFFFUL));
     if (_flasherImpl != NULL) {
       bool ok = _flasherImpl->startFile(hdr->filename, hdr->filesize);
       if (!ok) {
@@ -576,18 +576,18 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
     }
 
     break;
-/*
-  case T_HARDLINK:       Serial.printf("Ignoring hard link to %s.\r\n", hdr->filename); break;
-  case T_SYMBOLIC:       Serial.printf("Ignoring sym link to %s.\r\n", hdr->filename); break;
-  case T_CHARSPECIAL:    Serial.printf("Ignoring special char.\r\n"); break;
-  case T_BLOCKSPECIAL:   Serial.printf("Ignoring special block.\r\n"); break;
-  case T_DIRECTORY:      Serial.printf("Entering %s directory.\r\n", hdr->filename); break;
-  case T_FIFO:           Serial.printf("Ignoring FIFO request.\r\n"); break;
-  case T_CONTIGUOUS:     Serial.printf("Ignoring contiguous data to %s.\r\n", hdr->filename); break;
-  case T_GLOBALEXTENDED: Serial.printf("Ignoring global extended data.\r\n"); break;
-  case T_EXTENDED:       Serial.printf("Ignoring extended data.\r\n"); break;
-  case T_OTHER: default: Serial.printf("Ignoring unrelevant data.\r\n");       break;
-*/
+
+  case T_HARDLINK:       log_v("Ignoring hard link to %s.", hdr->filename); break;
+  case T_SYMBOLIC:       log_v("Ignoring sym link to %s.", hdr->filename); break;
+  case T_CHARSPECIAL:    log_v("Ignoring special char."); break;
+  case T_BLOCKSPECIAL:   log_v("Ignoring special block."); break;
+  case T_DIRECTORY:      log_v("Entering %s directory.", hdr->filename); break;
+  case T_FIFO:           log_v("Ignoring FIFO request."); break;
+  case T_CONTIGUOUS:     log_v("Ignoring contiguous data to %s.", hdr->filename); break;
+  case T_GLOBALEXTENDED: log_v("Ignoring global extended data."); break;
+  case T_EXTENDED:       log_v("Ignoring extended data."); break;
+  case T_OTHER: default: log_v("Ignoring unrelevant data.");       break;
+
   }
   _tar_emptyChunk = 0;
 
@@ -596,6 +596,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
 
 int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_index, unsigned char * block, int size)
 {
+  log_d("DATA: %s entry_index=%d (0x%p, %u)", hdr->filename, entry_index, block, size);
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->appendFileData(hdr->filename, hdr->filesize, block, size);
     if (!ok) {
@@ -611,6 +612,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
 
 int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_index)
 {
+  log_d("FINAL: %s entry_index=%d", hdr->filename, entry_index);
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->finishFile(hdr->filename, hdr->filesize);
     if (!ok) {
@@ -627,7 +629,6 @@ int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_inde
 
 int _tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 {
-  //Serial.printf("DEBUG: _tar_cb_feedFromBuffer buf=%p size=%d\r\n", buf, size);
   // Ya que no hay un puntero a contexto, este método está obligado a accesar
   // a YuboxOTA directamente
   YuboxOTAClass * ota = &YuboxOTA;
@@ -860,9 +861,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
 
 void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
-#ifdef DEBUG_YUBOX_OTA
-  Serial.println("YUBOX OTA: reiniciando luego de cambio de firmware...");
-#endif
+  log_w("YUBOX OTA: reiniciando luego de cambio de firmware...");
   ESP.restart();
 }
 
