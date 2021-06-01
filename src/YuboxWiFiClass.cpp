@@ -106,15 +106,23 @@ void YuboxWiFiClass::takeControlOfWiFi(void)
 
 void YuboxWiFiClass::releaseControlOfWiFi(bool wifioff)
 {
+  log_i("Cediendo control del WiFi (WiFi %s)...", wifioff ? "OFF" : "ON");
+
   _assumeControlOfWiFi = false;
   if (_eventId_cbHandler_WiFiEvent) WiFi.removeEvent(_eventId_cbHandler_WiFiEvent);
   _eventId_cbHandler_WiFiEvent = 0;
-  if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect(wifioff);
+  if (WiFi.status() != WL_DISCONNECTED) {
+    log_i("Desconectando del WiFi (STA)...");
+    WiFi.disconnect(wifioff);
+  }
   if (xTimerIsTimerActive(_timer_wifiRescan)) {
     xTimerStop(_timer_wifiRescan, 0);
   }
   _disconnectBeforeRescan = false;
+  log_i("Desconectando del WiFi (AP)...");
   WiFi.softAPdisconnect(wifioff);
+
+  if (wifioff) WiFi.mode(WIFI_OFF);
 }
 
 void YuboxWiFiClass::_startCondRescanTimer(bool disconn)
@@ -240,13 +248,13 @@ void YuboxWiFiClass::_startWiFi(void)
   IPAddress apIp(192, 168, 4, 1);
   IPAddress apNetmask(255, 255, 255, 0);
 
-  //Serial.println("DEBUG: Iniciando modo dual WiFi (AP+STA)...");
+  log_i("Iniciando modo dual WiFi (AP+STA)...");
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(apIp, apIp, apNetmask);
   WiFi.softAP(_apName.c_str());
   WiFi.setSleep(true);  // <--- NO PONER A FALSE, o de lo contrario BlueTooth se crashea si se inicia simultáneamente
 
-  //Serial.println("DEBUG: Iniciando escaneo de redes WiFi (1)...");
+  log_d("Iniciando escaneo de redes WiFi (1)...");
   WiFi.setAutoReconnect(false);
   WiFi.scanNetworks(true);
 }
