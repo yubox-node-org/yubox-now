@@ -62,7 +62,7 @@ function setupYuboxOTATab()
     });
 
     otapane.find('input[type=file]#tgzupload').change(function () {
-        var lbl = $(this).next('label.custom-file-label');
+        var lbl = $(this).next('label#lbl-tgzupload');
         if (lbl.data('default') == undefined) {
             // Almacenar texto original para restaurar si archivo vacío
             lbl.data('default', lbl.text())
