@@ -10,6 +10,12 @@ function setupYuboxOTATab()
     getYuboxNavTab('yuboxOTA').on('shown.bs.tab', function (e) {
         var otapane = getYuboxPane('yuboxOTA');
 
+        // Si el control select de la lista de firmwares está DESACTIVADO,
+        // se asume que esta sesión todavía está subiendo algo al equipo.
+        if (otapane.find('select#yuboxfirmwarelist').prop('disabled')) {
+            return;
+        }
+
         $.get(yuboxAPI('yuboxOTA')+'/firmwarelist.json')
         .done(function (data) {
             var sel_firmwarelist = otapane.find('select#yuboxfirmwarelist');
@@ -52,7 +58,7 @@ function setupYuboxOTATab()
                 btnRB.prop('disabled', true);
             }
         })
-        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 5000); });
     });
 
     otapane.find('input[type=file]#tgzupload').change(function () {
@@ -100,7 +106,7 @@ function setupYuboxOTATab()
                     // dispositivo está listo para ser reiniciado.
                     $.post(yuboxAPI('yuboxOTA')+'/reboot', {})
                     .fail(function (e) {
-                        yuboxStdAjaxFailHandler(e, 3000);
+                        yuboxStdAjaxFailHandler(e, 5000);
                     });
                 }
             } else {
@@ -109,7 +115,7 @@ function setupYuboxOTATab()
             yuboxOTAUpload_shutdown();
         })
         .fail(function (e) {
-            yuboxStdAjaxFailHandler(e, 2000);
+            yuboxStdAjaxFailHandler(e, 5000);
             yuboxOTAUpload_shutdown();
         });
     });
@@ -131,7 +137,7 @@ function setupYuboxOTATab()
             yuboxOTAUpload_setDisableBtns(false);
         })
         .fail(function (e) {
-            yuboxStdAjaxFailHandler(e, 2000);
+            yuboxStdAjaxFailHandler(e, 5000);
             yuboxOTAUpload_setDisableBtns(false);
         });
     });
@@ -151,7 +157,7 @@ function setupYuboxOTATab()
             yuboxOTAUpload_setDisableBtns(false);
         })
         .fail(function (e) {
-            yuboxStdAjaxFailHandler(e, 2000);
+            yuboxStdAjaxFailHandler(e, 5000);
             yuboxOTAUpload_setDisableBtns(false);
         });
     });
