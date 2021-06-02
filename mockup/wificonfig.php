@@ -197,57 +197,71 @@ switch ($_SERVER['PATH_INFO']) {
         Header('Cache-Control: no-cache, must-revalidate');
         Header('X-Accel-Buffering: no');
 
-        while (connection_status() == CONNECTION_NORMAL) {
-            $gen = FALSE;
-            sleep(2);   // Simular retraso en escaneo
-            if (file_exists(MOCKUP_WIFI)) {
-                $scan = json_decode(file_get_contents(MOCKUP_WIFI), TRUE);
-            } else {
-                //$gen = TRUE;
-                srand(time());
-                $scan = array();
-                for ($i = 0; $i < 20; $i++) {
-                    $mocknet = array(
-                        'bssid'     =>  sprintf('00:11:00:11:00:%02x', $i),
-                        'ssid'      =>  sprintf('RED-PRUEBA-%02d', $i),
-                        'channel'   =>  rand(0, 11),
-                        'rssi'      =>  rand(-100, 0),
-                        'authmode'  =>  rand(0, 5),
-                        'connected' =>  FALSE,
-                        'connfail'  =>  FALSE,
-                        'saved'     =>  FALSE,
-                    );
-                    if ($mocknet['authmode'] == 5) {
-                        $mocknet['identity'] = $mocknet['password'] = NULL;
-                    } elseif ($mocknet['authmode'] > 0) {
-                        $mocknet['psk'] = NULL;
-                    }
-                    $scan[] = $mocknet;
-                }
-            }
-            for ($i = 0; $i < count($scan); $i++) {
-                $rssi = $scan[$i]['rssi'] + rand(-5, 5);
-                if ($rssi > 0) $rssi = 0;
-                if ($rssi < -100) $rssi = -100;
-                $scan[$i]['rssi'] = $rssi;
-            }
-            if ($gen) {
-                $max = 0;
-                for ($i = 1; $i < count($scan); $i++) {
-                    if ($scan[$i]['rssi'] > $scan[$max]['rssi']) $max = $i;
-                }
-                $scan[$max]['connected'] = TRUE;
-                //$scan[$max]['connfail'] = TRUE;
-            }
-            $json = json_encode($scan);
-            file_put_contents(MOCKUP_WIFI, $json);
+        sse_event(json_encode(array('yubox_control_wifi' => TRUE)), 'WiFiStatus');
+        sse_event(_buildAvailableNetworksJSONReport(), 'WiFiScanResult');
 
-            print "event: WiFiScanResult\ndata: $json\n\n";
-            flush();
+        while (connection_status() == CONNECTION_NORMAL) {
+            sleep(2);   // Simular retraso en escaneo
+            sse_event(_buildAvailableNetworksJSONReport(), 'WiFiScanResult');
         }
         break;
     default:
         Header('HTTP/1.1 404 Not Found');
         print json_encode('Ruta no implementada');
         exit();
+}
+
+function _buildAvailableNetworksJSONReport()
+{
+    $gen = FALSE;
+    if (file_exists(MOCKUP_WIFI)) {
+        $scan = json_decode(file_get_contents(MOCKUP_WIFI), TRUE);
+    } else {
+        //$gen = TRUE;
+        srand(time());
+        $scan = array();
+        for ($i = 0; $i < 20; $i++) {
+            $mocknet = array(
+                'bssid'     =>  sprintf('00:11:00:11:00:%02x', $i),
+                'ssid'      =>  sprintf('RED-PRUEBA-%02d', $i),
+                'channel'   =>  rand(0, 11),
+                'rssi'      =>  rand(-100, 0),
+                'authmode'  =>  rand(0, 5),
+                'connected' =>  FALSE,
+                'connfail'  =>  FALSE,
+                'saved'     =>  FALSE,
+            );
+            if ($mocknet['authmode'] == 5) {
+                $mocknet['identity'] = $mocknet['password'] = NULL;
+            } elseif ($mocknet['authmode'] > 0) {
+                $mocknet['psk'] = NULL;
+            }
+            $scan[] = $mocknet;
+        }
+    }
+    for ($i = 0; $i < count($scan); $i++) {
+        $rssi = $scan[$i]['rssi'] + rand(-5, 5);
+        if ($rssi > 0) $rssi = 0;
+        if ($rssi < -100) $rssi = -100;
+        $scan[$i]['rssi'] = $rssi;
+    }
+    if ($gen) {
+        $max = 0;
+        for ($i = 1; $i < count($scan); $i++) {
+            if ($scan[$i]['rssi'] > $scan[$max]['rssi']) $max = $i;
+        }
+        $scan[$max]['connected'] = TRUE;
+        //$scan[$max]['connfail'] = TRUE;
+    }
+    $json = json_encode($scan);
+    file_put_contents(MOCKUP_WIFI, $json);
+
+    return $json;
+}
+
+function sse_event($data, $event = NULL)
+{
+    if (!is_null($event)) print "event: {$event}\n";
+    print "data: {$data}\n\n";  // TODO: no maneja data con saltos de línea
+    flush();
 }
