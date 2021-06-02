@@ -30,6 +30,7 @@ switch ($_SERVER['PATH_INFO']) {
             }
             if (is_null($currnet)) {
                 Header('HTTP/1.1 404 Not Found');
+                print json_encode(array('msg' => 'No hay conexión actualmente activa'));
                 break;
             }
             $info = array(
@@ -207,7 +208,10 @@ switch ($_SERVER['PATH_INFO']) {
         break;
     default:
         Header('HTTP/1.1 404 Not Found');
-        print json_encode('Ruta no implementada');
+        print json_encode(array(
+            'success'   =>  FALSE,
+            'msg'       =>  'El recurso indicado no existe o no ha sido implementado'
+        ));
         exit();
 }
 
