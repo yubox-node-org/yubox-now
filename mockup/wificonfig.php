@@ -1,5 +1,6 @@
 <?php
 define ('MOCKUP_WIFI', '/tmp/wifiscan.json');
+define ('MOCKUP_SAVEDNETS', '/tmp/savednets.json');
 
 Header('Content-Type: application/json');
 
@@ -12,12 +13,23 @@ if (!isset($_SERVER['PATH_INFO'])) {
     exit();
 }
 
-switch ($_SERVER['PATH_INFO']) {
+$path_info = $_SERVER['PATH_INFO'];
+$path_components = explode('/', $path_info);
+$ssid = NULL;
+if (count($path_components) == 3 && $path_components[1] == 'networks') {
+    $ssid = array_pop($path_components);
+    $path_info = implode('/', $path_components);
+}
+
+switch ($path_info) {
     case '/connection':
         handle_connection();
         break;
     case '/netscan':
         handle_netscan();
+        break;
+    case '/networks':
+        handle_networks($ssid);
         break;
     default:
         Header('HTTP/1.1 404 Not Found');
@@ -197,6 +209,64 @@ function handle_connection()
     default:
         Header('HTTP/1.1 405 Method Not Allowed');
         Header('Allow: GET, PUT, DELETE');
+        print json_encode(array(
+            'success'   =>  FALSE,
+            'msg'       =>  'Unimplemented request method'
+        ));
+        exit();
+        break;
+    }
+}
+
+function handle_networks($ssid)
+{
+    // Manejo según el método HTTP requerido
+    $nets = array();
+    if (file_exists(MOCKUP_WIFI)) {
+        $nets = json_decode(file_get_contents(MOCKUP_WIFI), TRUE);
+    }
+    $savednets = array();
+    if (file_exists(MOCKUP_SAVEDNETS)) {
+        $savednets = json_decode(file_get_contents(MOCKUP_SAVEDNETS), TRUE);
+    }
+    $tmpnets = array();
+    foreach ($nets as &$net) {
+        if ($net['saved']) {
+            $tmpnets[$net['ssid']] = array(
+                'ssid'      => $net['ssid'],
+                'psk'       => in_array($net['authmode'], array(0, 5)) ? NULL : $net['psk'],
+                'identity'  => ($net['authmode'] == 5) ? $net['identity'] : NULL,
+                'password'  => ($net['authmode'] == 5) ? $net['password'] : NULL,
+            );
+        }
+    }
+    foreach ($savednets as &$net) {
+        if (!isset($tmpnets[$net['ssid']])) {
+            $tmpnets[$net['ssid']] = $net;
+        }
+    }
+
+    switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+        if (is_null($ssid)) {
+            print json_encode(array_values($tmpnets));
+        } else {
+            foreach ($savednets as &$net) {
+                if ($net['ssid'] == $ssid) {
+                    print json_encode($net);
+                    return;
+                }
+            }
+            Header('HTTP/1.1 404 Not Found');
+            print json_encode(array(
+                //'success'   =>  FALSE,
+                'msg'       =>  'No existe la red indicada'
+            ));
+        }
+        break;
+    default:
+        Header('HTTP/1.1 405 Method Not Allowed');
+        Header('Allow: GET, POST, DELETE');
         print json_encode(array(
             'success'   =>  FALSE,
             'msg'       =>  'Unimplemented request method'
