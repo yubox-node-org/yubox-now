@@ -52,13 +52,13 @@ XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
 ESPTOOL_PYVER=$(shell basename $(ARDUINO_ESP32)/tools/esptool_py/*)
 MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 
-ESP32_BOARD=node32s
+ESP32_BOARD=esp32
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ifeq ($(ESP32_BOARD),esp32wrover)
 	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PartitionScheme=$(ESP32_PARTCONF),FlashMode=dio,FlashFreq=80,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
 else
-	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PartitionScheme=$(ESP32_PARTCONF),FlashFreq=80,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
+	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PSRAM=disabled,PartitionScheme=$(ESP32_PARTCONF),CPUFreq=240,FlashMode=dio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
 endif
 
 ifeq ($(ARDUINO_STDHARDWARE),)
@@ -113,7 +113,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
 		$(ARDUINO_BUILTIN_LIBS) \
 		-libraries $(ARDUINO_LIBUSR) \
 		-fqbn=$(ESP32_FQBN) \
-		-ide-version=10812 \
+		-ide-version=10813 \
 		-build-path "`pwd`/build" \
 		-warnings=default \
 		-build-cache "`pwd`/build/_cache" \
@@ -132,7 +132,7 @@ clean:
 	rm -f dist/*
 	rm -f data/*
 	rm -rf build/
-	rm -f $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin $(YUBOX_PROJECT).tar.gz
+	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_PARTCONF_CSVTABLE)
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
