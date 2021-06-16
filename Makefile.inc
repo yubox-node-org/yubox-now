@@ -55,10 +55,11 @@ MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 ESP32_BOARD=esp32
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
+ESP32_PSRAM=disabled
 ifeq ($(ESP32_BOARD),esp32wrover)
 	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PartitionScheme=$(ESP32_PARTCONF),FlashMode=dio,FlashFreq=80,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
 else
-	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PSRAM=disabled,PartitionScheme=$(ESP32_PARTCONF),CPUFreq=240,FlashMode=dio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
+	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PSRAM=$(ESP32_PSRAM),PartitionScheme=$(ESP32_PARTCONF),CPUFreq=240,FlashMode=dio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=$(ESP32_DEBUGLEVEL)
 endif
 
 ifeq ($(ARDUINO_STDHARDWARE),)
