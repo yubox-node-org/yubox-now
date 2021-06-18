@@ -82,14 +82,14 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
 
   // SIEMPRE instalar el manejador de evento de WiFi listo
   _eventId_cbHandler_WiFiEvent_ready = WiFi.onEvent(
-    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_ready, this, std::placeholders::_1),
+    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_ready, this, std::placeholders::_1, std::placeholders::_2),
     SYSTEM_EVENT_WIFI_READY);
 
   // SIEMPRE instalar el manejador de escaneo, para reportar incluso
   // si hay otro controlando el WiFi. El manejador evita tocar estado
   // global del WiFi si no está en control del WiFi
   WiFi.onEvent(
-    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_scandone, this, std::placeholders::_1),
+    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_scandone, this, std::placeholders::_1, std::placeholders::_2),
     SYSTEM_EVENT_SCAN_DONE);
 
   if (_assumeControlOfWiFi) {
@@ -100,7 +100,8 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
 void YuboxWiFiClass::takeControlOfWiFi(void)
 {
   _assumeControlOfWiFi = true;
-  _eventId_cbHandler_WiFiEvent = WiFi.onEvent(std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
+  _eventId_cbHandler_WiFiEvent = WiFi.onEvent(
+    std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent, this, std::placeholders::_1, std::placeholders::_2));
   _startWiFi();
 }
 
@@ -172,7 +173,7 @@ void YuboxWiFiClass::beginServerOnWiFiReady(AsyncWebServer * pSrv)
   }
 }
 
-void YuboxWiFiClass::_cbHandler_WiFiEvent_ready(WiFiEvent_t event)
+void YuboxWiFiClass::_cbHandler_WiFiEvent_ready(WiFiEvent_t event, WiFiEventInfo_t)
 {
   //Serial.println("DEBUG: _cbHandler_WiFiEvent_ready recibido");
 
@@ -196,7 +197,7 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent_ready(WiFiEvent_t event)
   _pWebSrvBootstrap = NULL;
 }
 
-void YuboxWiFiClass::_cbHandler_WiFiEvent_scandone(WiFiEvent_t event)
+void YuboxWiFiClass::_cbHandler_WiFiEvent_scandone(WiFiEvent_t event, WiFiEventInfo_t)
 {
   if (_assumeControlOfWiFi) WiFi.setAutoReconnect(true);
   _collectScannedNetworks();
@@ -225,7 +226,7 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent_scandone(WiFiEvent_t event)
   }
 }
 
-void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
+void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
     //Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
     switch(event) {
