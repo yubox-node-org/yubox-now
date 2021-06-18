@@ -389,8 +389,7 @@ void YuboxWiFiClass::_connectToActiveNetwork(void)
     esp_wifi_sta_wpa2_ent_set_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
     // TODO: ¿cuándo es realmente necesario el paso de abajo MSCHAPv2?
     esp_wifi_sta_wpa2_ent_set_new_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
-    esp_wpa2_config_t wpa2_config = WPA2_CONFIG_INIT_DEFAULT();
-    esp_wifi_sta_wpa2_ent_enable(&wpa2_config);
+    esp_wifi_sta_wpa2_ent_enable();
     WiFi.begin(_activeNetwork.ssid.c_str());
   } else if (!_activeNetwork.psk.isEmpty()) {
     // Autenticación con clave
