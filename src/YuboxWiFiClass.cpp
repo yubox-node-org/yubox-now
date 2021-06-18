@@ -83,14 +83,14 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
   // SIEMPRE instalar el manejador de evento de WiFi listo
   _eventId_cbHandler_WiFiEvent_ready = WiFi.onEvent(
     std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_ready, this, std::placeholders::_1, std::placeholders::_2),
-    SYSTEM_EVENT_WIFI_READY);
+    ARDUINO_EVENT_WIFI_READY);
 
   // SIEMPRE instalar el manejador de escaneo, para reportar incluso
   // si hay otro controlando el WiFi. El manejador evita tocar estado
   // global del WiFi si no está en control del WiFi
   WiFi.onEvent(
     std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_scandone, this, std::placeholders::_1, std::placeholders::_2),
-    SYSTEM_EVENT_SCAN_DONE);
+    ARDUINO_EVENT_WIFI_SCAN_DONE);
 
   if (_assumeControlOfWiFi) {
     takeControlOfWiFi();
@@ -212,7 +212,7 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent_scandone(WiFiEvent_t event, WiFiEventI
 
   if (_assumeControlOfWiFi) {
     if (WiFi.status() != WL_CONNECTED) {
-      //Serial.println("DEBUG: SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
+      //Serial.println("DEBUG: ARDUINO_EVENT_WIFI_SCAN_DONE y no conectado a red alguna, se verifica una red...");
       if (_useTrialNetworkFirst) {
         _activeNetwork = _trialNetwork;
         _useTrialNetworkFirst = false;
@@ -230,12 +230,12 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
     //Serial.printf("DEBUG: [WiFi-event] event: %d\r\n", event);
     switch(event) {
-    case SYSTEM_EVENT_STA_GOT_IP:
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
         //Serial.print("DEBUG: Conectado al WiFi. Dirección IP: ");Serial.println(WiFi.localIP());
         WiFi.setAutoReconnect(true);
         _updateActiveNetworkNVRAM();
         break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
         //Serial.println("DEBUG: Se perdió conexión WiFi.");
         _startCondRescanTimer(false);
         break;
