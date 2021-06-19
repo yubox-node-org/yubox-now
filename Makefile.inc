@@ -68,6 +68,8 @@ else
 	ARDUINO_STDHARDWARE_PARAM=-hardware $(ARDUINO_STDHARDWARE)
 endif
 
+ESP32_BOOTLOADER_PATH=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/esp32/bin/bootloader_dio_80m.bin
+
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
 ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=build.defines="$(ARDUINO_BUILD_EXTRA_FLAGS)"
@@ -143,7 +145,7 @@ codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin \
+		0x1000 $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin
@@ -174,7 +176,7 @@ fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin \
+		0x1000 $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin \
