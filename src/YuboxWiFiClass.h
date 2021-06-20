@@ -104,6 +104,8 @@ private:
 
   String _buildAvailableNetworksJSONReport(void);
 
+  void _bootstrapWebServer(void);
+
   // Callbacks y timers
   void _cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t);
   void _cbHandler_WiFiEvent_ready(WiFiEvent_t event, WiFiEventInfo_t);
