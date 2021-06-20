@@ -182,6 +182,11 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent_ready(WiFiEvent_t event, WiFiEventInfo
   WiFi.removeEvent(_eventId_cbHandler_WiFiEvent_ready);
   _eventId_cbHandler_WiFiEvent_ready = 0;
 
+  _bootstrapWebServer();
+}
+
+void YuboxWiFiClass::_bootstrapWebServer(void)
+{
   if (!MDNS.begin(_mdnsName.c_str())) {
     log_e("no se puede iniciar mDNS para anunciar hostname!");
   } else {
