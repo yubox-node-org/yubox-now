@@ -190,7 +190,7 @@ void YuboxWiFiClass::_bootstrapWebServer(void)
   if (!MDNS.begin(_mdnsName.c_str())) {
     log_e("no se puede iniciar mDNS para anunciar hostname!");
   } else {
-    log_d("Iniciando mDNS con nombre de host: ");Serial.print(_mdnsName);Serial.println(".local");
+    log_d("Iniciando mDNS con nombre de host: %s.local", _mdnsName.c_str());
   }
 
   MDNS.addService("http", "tcp", 80);
@@ -613,14 +613,14 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEv
   // Si el timer está activo, pero en escaneo lento, debe de desactivarse
   bool tmrActive = xTimerIsTimerActive(_timer_wifiRescan);
   if (tmrActive && _interval_wifiRescan == WIFI_RESCAN_SLOW) {
-    //Serial.println("DEBUG: se detiene timer rescan wifi LENTO porque se conectó cliente para configurar WiFi");
+    log_v("se detiene timer rescan wifi LENTO porque se conectó cliente para configurar WiFi");
     xTimerStop(_timer_wifiRescan, 0);
-    //Serial.println("DEBUG: Iniciando escaneo de redes WiFi (2b)...");
+    log_v("Iniciando escaneo de redes WiFi (2b)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   } else if (!tmrActive) {
     // Por ahora no me interesa el cliente individual, sólo el hecho de que se debe iniciar escaneo
-    //Serial.println("DEBUG: Iniciando escaneo de redes WiFi (2a)...");
+    log_v("Iniciando escaneo de redes WiFi (2a)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
