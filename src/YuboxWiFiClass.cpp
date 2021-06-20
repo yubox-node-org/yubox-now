@@ -235,6 +235,14 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
     log_v("[WiFi-event] event: %d", event);
     switch(event) {
+    case ARDUINO_EVENT_WIFI_STA_START:
+        // Manejar ausencia de emisión de evento ARDUINO_EVENT_WIFI_READY
+        _bootstrapWebServer();
+        break;
+    case ARDUINO_EVENT_WIFI_AP_START:
+        // Manejar ausencia de emisión de evento ARDUINO_EVENT_WIFI_READY
+        _bootstrapWebServer();
+        break;
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
         log_d("Conectado al WiFi. Dirección IP: %s", WiFi.localIP().toString().c_str());
         WiFi.setAutoReconnect(true);
