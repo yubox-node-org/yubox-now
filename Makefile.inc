@@ -34,13 +34,14 @@ ESP32_ARDUINOVER=$(shell basename $(ARDUINO_ESP32)/hardware/esp32/*)
 ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions
 
 ESP32_BOARD=esp32
+ESP32_BOARDS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/boards.txt
 ESP32_BOARD_PINS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/variants/$(ESP32_BOARD)/pins_arduino.h
 
 # ESP32_PARTCONF can be one of the following:
 # 4MB boards: default no_ota min_spiffs huge_app noota_3g (defaultffat noota_ffat noota_3gffat)
 # 8MB boards: default_8MB
 # 16MB boards: fatflash
-ESP32_PARTCONF?=default
+ESP32_PARTCONF?=$(shell grep ^$(ESP32_BOARD).build.partitions $(ESP32_BOARDS) | cut -f 2 -d =)
 ifneq ($(wildcard partitions.csv),)
 	ESP32_PARTCONF_CSVTABLE?=partitions.csv
 else
@@ -81,6 +82,7 @@ YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *
 all: $(YUBOX_PROJECT).tar.gz
 
 testpartconf: $(ESP32_PARTCONF_CSVTABLE) $(ESP32_BOARD_PINS)
+	echo "ESP32_FQBN " $(ESP32_FQBN)
 	echo "ESP32_OFFSET_OTADATA " $(ESP32_OFFSET_OTADATA)
 	echo "ESP32_OFFSET_APP0 " $(ESP32_OFFSET_APP0)
 	echo "ESP32_OFFSET_SPIFFS " $(ESP32_OFFSET_SPIFFS)
