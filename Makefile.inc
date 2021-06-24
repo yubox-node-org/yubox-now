@@ -32,6 +32,10 @@ endif
 ARDUINO_ESP32=$(ARDUINO_PKGS)/esp32
 ESP32_ARDUINOVER=$(shell basename $(ARDUINO_ESP32)/hardware/esp32/*)
 ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions
+
+ESP32_BOARD=esp32
+ESP32_BOARD_PINS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/variants/$(ESP32_BOARD)/pins_arduino.h
+
 # ESP32_PARTCONF can be one of the following:
 # 4MB boards: default no_ota min_spiffs huge_app noota_3g (defaultffat noota_ffat noota_3gffat)
 # 8MB boards: default_8MB
@@ -52,7 +56,6 @@ XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
 ESPTOOL_PYVER=$(shell basename $(ARDUINO_ESP32)/tools/esptool_py/*)
 MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 
-ESP32_BOARD=esp32
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
@@ -77,7 +80,7 @@ YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *
 
 all: $(YUBOX_PROJECT).tar.gz
 
-testpartconf: $(ESP32_PARTCONF_CSVTABLE)
+testpartconf: $(ESP32_PARTCONF_CSVTABLE) $(ESP32_BOARD_PINS)
 	echo "ESP32_OFFSET_OTADATA " $(ESP32_OFFSET_OTADATA)
 	echo "ESP32_OFFSET_APP0 " $(ESP32_OFFSET_APP0)
 	echo "ESP32_OFFSET_SPIFFS " $(ESP32_OFFSET_SPIFFS)
@@ -102,7 +105,7 @@ data/manifest.txt: modules.txt $(YF)/data-template $(YF)/data-template/* $(YF)/d
 $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin: build/$(YUBOX_PROJECT).ino.bin
 	cp build/$(YUBOX_PROJECT).ino.bin $(YUBOX_PROJECT).ino.$(ESP32_BOARD).bin
 
-build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES)
+build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES) $(ESP32_BOARD_PINS)
 	mkdir -p build/_cache
 	$(ARDUINO_BUILDER) \
 		-compile \
