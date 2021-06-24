@@ -60,11 +60,38 @@ MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
-ifeq ($(ESP32_BOARD),esp32wrover)
-	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PartitionScheme=$(ESP32_PARTCONF),FlashMode=dio,FlashFreq=80,UploadSpeed=921600,LoopCore=1,EventsCore=1,DebugLevel=$(ESP32_DEBUGLEVEL)
-else
-	ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):PSRAM=$(ESP32_PSRAM),PartitionScheme=$(ESP32_PARTCONF),CPUFreq=240,FlashMode=dio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,LoopCore=1,EventsCore=1,DebugLevel=$(ESP32_DEBUGLEVEL)
+# Para cada directiva conocida en el FQBN, se debe verificar si la definición
+# del board acepta tal directiva. De lo contrario, arduino-builder falla con
+# error si encuentra una directiva desconocida.
+ESP32_FQBN=esp32:esp32:$(ESP32_BOARD):
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.PSRAM.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)PSRAM=$(ESP32_PSRAM),
 endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.PartitionScheme.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)PartitionScheme=$(ESP32_PARTCONF),
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.CPUFreq.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)CPUFreq=240,
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashMode.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)FlashMode=dio,
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashFreq.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)FlashFreq=80,
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashSize.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)FlashSize=4M,
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.UploadSpeed.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)UploadSpeed=921600,
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LoopCore.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)LoopCore=1,
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.EventsCore.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(ESP32_FQBN)EventsCore=1,
+endif
+ESP32_FQBN:=$(ESP32_FQBN)DebugLevel=$(ESP32_DEBUGLEVEL)
 
 ifeq ($(ARDUINO_STDHARDWARE),)
 	ARDUINO_STDHARDWARE_PARAM=
