@@ -96,6 +96,12 @@ endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.DebugLevel.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)DebugLevel=$(ESP32_DEBUGLEVEL)
 endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LORAWAN_REGION.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)LORAWAN_REGION=3
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LoRaWanDebugLevel.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)LoRaWanDebugLevel=0
+endif
 ESP32_FQBN:=esp32:esp32:$(ESP32_BOARD):$(ESP32_FQBN)
 
 ifeq ($(ARDUINO_STDHARDWARE),)
