@@ -35,7 +35,8 @@ ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitio
 
 ESP32_BOARD=esp32
 ESP32_BOARDS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/boards.txt
-ESP32_BOARD_PINS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/variants/$(ESP32_BOARD)/pins_arduino.h
+ESP32_VARIANT=$(shell grep ^$(ESP32_BOARD).build.variant $(ESP32_BOARDS) | cut -f 2 -d =)
+ESP32_BOARD_PINS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/variants/$(ESP32_VARIANT)/pins_arduino.h
 
 # ESP32_PARTCONF can be one of the following:
 # 4MB boards: default no_ota min_spiffs huge_app noota_3g (defaultffat noota_ffat noota_3gffat)
