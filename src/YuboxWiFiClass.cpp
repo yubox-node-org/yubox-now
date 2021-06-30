@@ -237,10 +237,12 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
     switch(event) {
     case ARDUINO_EVENT_WIFI_STA_START:
         // Manejar ausencia de emisión de evento ARDUINO_EVENT_WIFI_READY
+        _wifiReadyEventReceived = true;
         _bootstrapWebServer();
         break;
     case ARDUINO_EVENT_WIFI_AP_START:
         // Manejar ausencia de emisión de evento ARDUINO_EVENT_WIFI_READY
+        _wifiReadyEventReceived = true;
         _bootstrapWebServer();
         break;
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
