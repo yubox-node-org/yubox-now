@@ -69,6 +69,9 @@ ESP32_PSRAM=disabled
 # error si encuentra una directiva desconocida.
 ESP32_FQBN=
 comma:=,
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.SerialMode.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)SerialMode=default
+endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.PSRAM.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)PSRAM=$(ESP32_PSRAM)
 endif
