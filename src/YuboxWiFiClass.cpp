@@ -18,7 +18,7 @@ void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 // En ciertos escenarios, el re-escaneo de WiFi cada 2 segundos puede interferir
 // con tareas de la aplicación. Para mitigar esto, se escanea cada 30 segundos,
 // a menos que haya al menos un cliente SSE que requiere configurar la red WiFi.
-#define WIFI_RESCAN_FAST  2000
+#define WIFI_RESCAN_FAST  8000
 #define WIFI_RESCAN_SLOW  30000
 
 YuboxWiFiClass::YuboxWiFiClass(void)
@@ -624,12 +624,12 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEv
   if (tmrActive && _interval_wifiRescan == WIFI_RESCAN_SLOW) {
     log_v("se detiene timer rescan wifi LENTO porque se conectó cliente para configurar WiFi");
     xTimerStop(_timer_wifiRescan, 0);
-    log_v("Iniciando escaneo de redes WiFi (2b)...");
+    log_d("Iniciando escaneo de redes WiFi (2b)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   } else if (!tmrActive) {
     // Por ahora no me interesa el cliente individual, sólo el hecho de que se debe iniciar escaneo
-    log_v("Iniciando escaneo de redes WiFi (2a)...");
+    log_d("Iniciando escaneo de redes WiFi (2a)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
@@ -996,7 +996,7 @@ void YuboxWiFiClass::_cbHandler_WiFiRescan(TimerHandle_t timer)
   }
   WiFi.mode(WIFI_AP_STA);
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING && (WiFi.status() != WL_CONNECTED || (_pEvents != NULL && _pEvents->count() > 0))) {
-    log_v("DEBUG: Iniciando escaneo de redes WiFi (3)...");
+    log_d("DEBUG: Iniciando escaneo de redes WiFi (3)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
   }
