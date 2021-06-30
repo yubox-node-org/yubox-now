@@ -34,6 +34,7 @@ ESP32_ARDUINOVER=$(shell basename $(ARDUINO_ESP32)/hardware/esp32/*)
 ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions
 
 ESP32_BOARD=esp32
+ESP32_UPLOADCHIPTYPE=$(shell grep ^$(ESP32_BOARD).build.mcu $(ESP32_BOARDS) | cut -f 2 -d =)
 ESP32_BOARDS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/boards.txt
 ESP32_VARIANT=$(shell grep ^$(ESP32_BOARD).build.variant $(ESP32_BOARDS) | cut -f 2 -d =)
 ESP32_BOARD_PINS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/variants/$(ESP32_VARIANT)/pins_arduino.h
@@ -192,15 +193,15 @@ clean:
 	rm -rf build/
 	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
 
-codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_PARTCONF_CSVTABLE)
+codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).ino.bootloader.bin $(ESP32_PARTCONF_CSVTABLE)
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
-		--chip esp32 \
+		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ESP32_BOOTLOADER_PATH) \
+		0x1000 build/$(YUBOX_PROJECT).ino.bootloader.bin \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin
@@ -215,7 +216,7 @@ build/$(YUBOX_PROJECT).spiffs: data/manifest.txt $(ESP32_PARTCONF_CSVTABLE)
 
 dataupload: build/$(YUBOX_PROJECT).spiffs
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
-		--chip esp32 \
+		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
@@ -223,15 +224,15 @@ dataupload: build/$(YUBOX_PROJECT).spiffs
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
 		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
-fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).spiffs
+fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).ino.bootloader.bin build/$(YUBOX_PROJECT).spiffs  $(ESP32_PARTCONF_CSVTABLE)
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
-		--chip esp32 \
+		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ESP32_BOOTLOADER_PATH) \
+		0x1000 build/$(YUBOX_PROJECT).ino.bootloader.bin \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin \
