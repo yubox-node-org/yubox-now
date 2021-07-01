@@ -481,7 +481,14 @@ void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, c
     while (f) {
       String s = f.name();
       f.close();
-      log_v("listado %s", s.c_str());
+      if (s.startsWith("/")) {
+        // Comportamiento arduino-esp32 hasta 1.0.6
+        log_v("listado %s", s.c_str());
+      } else {
+        // Comportamiento arduino-esp32 2.0.0-alpha
+        log_v("listado {/}%s", s.c_str());
+        s = "/" + s;
+      }
       if (s.startsWith(prefix)) {
         log_v("- se agrega a lista...");
         flist.push_back(strip_prefix ? s.substring(prefix.length()) : s);
