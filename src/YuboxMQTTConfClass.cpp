@@ -166,7 +166,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
 }
 
 #define NVRAM_PUTSTRING(nvram, k, s) \
-    (((s).length() > 0) ? ((nvram).putString((k), (s)) != 0) : (nvram).remove((k)))
+    (((s).length() > 0) ? ((nvram).putString((k), (s)) != 0) : ( (nvram).isKey((k)) ? (nvram).remove((k)) : true ))
 void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServerRequest *request)
 {
   YUBOX_RUN_AUTH(request);

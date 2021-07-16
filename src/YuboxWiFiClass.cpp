@@ -464,7 +464,7 @@ void YuboxWiFiClass::_saveNetworksToNVRAM(void)
 }
 
 #define NVRAM_PUTSTRING(nvram, k, s) \
-    (((s).length() > 0) ? ((nvram).putString((k), (s)) != 0) : (nvram).remove((k)))
+    (((s).length() > 0) ? ((nvram).putString((k), (s)) != 0) : ( (nvram).isKey((k)) ? (nvram).remove((k)) : true ))
 
 void YuboxWiFiClass::_saveOneNetworkToNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
 {
