@@ -33,7 +33,7 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
 
 void YuboxMQTTConfClass::begin(AsyncWebServer & srv)
 {
-  WiFi.onEvent(std::bind(&YuboxMQTTConfClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
+  WiFi.onEvent(std::bind(&YuboxMQTTConfClass::_cbHandler_WiFiEvent, this, std::placeholders::_1, std::placeholders::_2));
   _loadSavedCredentialsFromNVRAM();
   _setupHTTPRoutes(srv);
 }
@@ -62,7 +62,7 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   _mqttClient.setClientId(_yuboxMQTT_default_clientid.c_str());
 }
 
-void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
+void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
   //Serial.printf("DEBUG: YuboxMQTTConfClass::_cbHandler_WiFiEvent [WiFi-event] event: %d\r\n", event);
   switch(event) {
