@@ -66,10 +66,10 @@ void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t
 {
   //Serial.printf("DEBUG: YuboxMQTTConfClass::_cbHandler_WiFiEvent [WiFi-event] event: %d\r\n", event);
   switch(event) {
-  case SYSTEM_EVENT_STA_GOT_IP:
+  case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       _connectMQTT();
       break;
-  case SYSTEM_EVENT_STA_DISCONNECTED:
+  case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       xTimerStop(_mqttReconnectTimer, 0);
       break;
     }
