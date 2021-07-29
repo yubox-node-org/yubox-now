@@ -208,7 +208,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
     String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
-  log_d("filename=%s index=%d data=%p len=%d final=%d",
+  log_v("filename=%s index=%d data=%p len=%d final=%d",
     filename.c_str(), index, data, len, final ? 1 : 0);
 
   if (!filename.endsWith(".tar.gz") && !filename.endsWith(".tgz")) {
@@ -532,7 +532,7 @@ void YuboxOTAClass::cleanupFailedUpdateFiles(void)
 
 int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 {
-  log_d("(0x%p, %u)", buf, size);
+  log_v("(0x%p, %u)", buf, size);
   if (size % TAR_BLOCK_SIZE != 0) {
     log_e("longitud pedida %d no es múltiplo de %d", size, TAR_BLOCK_SIZE);
     return 0;
@@ -561,7 +561,7 @@ int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 
 int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_index)
 {
-  log_d("INICIO: %s", hdr->filename);
+  log_v("INICIO: %s", hdr->filename);
   switch (hdr->type)
   {
   case T_NORMAL:
@@ -596,7 +596,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
 
 int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_index, unsigned char * block, int size)
 {
-  log_d("DATA: %s entry_index=%d (0x%p, %u)", hdr->filename, entry_index, block, size);
+  log_v("DATA: %s entry_index=%d (0x%p, %u)", hdr->filename, entry_index, block, size);
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->appendFileData(hdr->filename, hdr->filesize, block, size);
     if (!ok) {
@@ -612,7 +612,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
 
 int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_index)
 {
-  log_d("FINAL: %s entry_index=%d", hdr->filename, entry_index);
+  log_v("FINAL: %s entry_index=%d", hdr->filename, entry_index);
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->finishFile(hdr->filename, hdr->filesize);
     if (!ok) {
