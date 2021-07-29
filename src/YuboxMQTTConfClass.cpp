@@ -47,11 +47,11 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   _yuboxMQTT_host = nvram.getString("host");
   _yuboxMQTT_user = nvram.getString("user");
   _yuboxMQTT_pass = nvram.getString("pass");
-/*
-  Serial.print("DEBUG: Host de broker MQTT......: "); Serial.println(_yuboxMQTT_host);
-  Serial.print("DEBUG: Usuario de broker MQTT...: "); Serial.println(_yuboxMQTT_user);
-  Serial.print("DEBUG: Clave de broker MQTT.....: "); Serial.println(_yuboxMQTT_pass);
-*/
+
+  log_v("Host de broker MQTT......: %s", _yuboxMQTT_host.c_str());
+  log_v("Usuario de broker MQTT...: %s", _yuboxMQTT_user.c_str());
+  log_v("Clave de broker MQTT.....: %s", _yuboxMQTT_pass.c_str());
+
   _mqttClient.setServer(_yuboxMQTT_host.c_str(), MQTT_PORT);
   if (_yuboxMQTT_user.length() > 0) {
     _mqttClient.setCredentials(_yuboxMQTT_user.c_str(), _yuboxMQTT_pass.c_str());
@@ -64,7 +64,7 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
 
 void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
-  //Serial.printf("DEBUG: YuboxMQTTConfClass::_cbHandler_WiFiEvent [WiFi-event] event: %d\r\n", event);
+  log_d("event: %d", event);
   switch(event) {
   case SYSTEM_EVENT_STA_GOT_IP:
       _connectMQTT();
@@ -84,21 +84,21 @@ void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t timer)
 void YuboxMQTTConfClass::_connectMQTT(void)
 {
   if (_mqttClient.connected()) {
-    //Serial.println("DEBUG: YuboxMQTTConfClass::_connectMQTT Ya se está conectado a MQTT, no se hace nada.");
+    log_i("Ya se está conectado a MQTT, no se hace nada.");
     return;
   }
   if (!_autoConnect) {
-    //Serial.println("DEBUG: YuboxMQTTConfClass::_connectMQTT Autoconexión desactivada, no se requiere conexión MQTT.");
+    log_i("Autoconexión desactivada, no se requiere conexión MQTT.");
     return;
   }
   if (_yuboxMQTT_host.length() <= 0) {
-    //Serial.println("DEBUG: YuboxMQTTConfClass::_connectMQTT No se puede conectar a MQTT - no se dispone de host broker MQTT.");
+    log_e("No se puede conectar a MQTT - no se dispone de host broker MQTT.");
     return;
   }
 
-  //const char *p = _mqttClient.getClientId();
-  //Serial.printf("DEBUG: YuboxMQTTConfClass::_connectMQTT Iniciando conexión a MQTT en %s:%u client-id %p[%s] ...\r\n",
-  //  _yuboxMQTT_host.c_str(), MQTT_PORT, p, p);
+  const char *p = _mqttClient.getClientId();
+  log_i("Iniciando conexión a MQTT en %s:%u client-id %p[%s] ...",
+    _yuboxMQTT_host.c_str(), MQTT_PORT, p, p);
   _mqttClient.connect();
 }
 
@@ -106,7 +106,7 @@ void YuboxMQTTConfClass::setAutoConnect(bool c)
 {
   _autoConnect = c;
   if (WiFi.isConnected() && _autoConnect && !_mqttClient.connected()) {
-    //Serial.println("DEBUG: YuboxMQTTConfClass::setAutoConnect se intenta arrancar MQTT...");
+    log_i("se intenta arrancar MQTT...");
     _connectMQTT();
   }
 }
@@ -114,10 +114,13 @@ void YuboxMQTTConfClass::setAutoConnect(bool c)
 void YuboxMQTTConfClass::_cbHandler_onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
   _lastdisconnect = reason;
-  //Serial.printf("DEBUG: YuboxMQTTConfClass::_cbHandler_onMqttDisconnect Disconnected from MQTT reason=%d\r\n.", reason);
+  log_i("Disconnected from MQTT reason=%d", reason);
 
   if (WiFi.isConnected()) {
-    xTimerStart(_mqttReconnectTimer, 0);
+    log_i("Todavía hay WiFi conectado, se intenta reconectar...");
+    if (!xTimerIsTimerActive(_mqttReconnectTimer) && pdPASS != xTimerStart(_mqttReconnectTimer, 0)) {
+      log_e("No se puede iniciar el timer para reconexión de MQTT!");
+    }
   }
 }
 
@@ -257,7 +260,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     if (!serverError) {
       // Cerrar la conexión MQTT, si hay una previa, y volver a abrir
       if (_mqttClient.connected()) {
-        //Serial.println("DEBUG: Cerrando conexión previa a MQTT...");
+        log_i("Cerrando conexión previa de MQTT para refresco de credenciales...");
         _mqttClient.disconnect();
       }
       _loadSavedCredentialsFromNVRAM();
