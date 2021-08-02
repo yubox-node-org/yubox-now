@@ -67,6 +67,10 @@ private:
   // Bandera de asumir control del WiFi o no.
   bool _assumeControlOfWiFi;
 
+  // Bandera de activar la interfaz softAP o no
+  bool _enableSoftAP;
+  bool _softAPConfigured;
+
   // La siguiente es una caché de los valores de las redes guardadas en NVRAM.
   // En estado estable, .size() se corresponde con valor de net/n en NVRAM
   // NOTA: elemento i-ésimo contando desde 0 se corresponde a net/n/... donde
@@ -96,6 +100,7 @@ private:
   void _loadSavedNetworksFromNVRAM(void);
   void _saveNetworksToNVRAM(void);
   void _updateActiveNetworkNVRAM(void);
+  void _enableWiFiMode(void);
   void _startWiFi(void);
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
@@ -146,6 +151,13 @@ public:
   bool haveControlOfWiFi(void) { return _assumeControlOfWiFi; }
   void saveControlOfWiFi(void);
   YuboxWiFi_cred getLastActiveNetwork(void);
+
+  // Activar y desactivar únicamente la interfaz softAP. Se requiere control de
+  // WiFi. Este soporte es necesario para activiar Bluetooth en simultáneo con WiFi
+  // en modo cliente luego de desactivar la porción softAP.
+  void toggleStateAP(bool);
+  bool getSavedStateAP(void) { return _enableSoftAP; }
+  void saveStateAP(void);
 
   friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 };
