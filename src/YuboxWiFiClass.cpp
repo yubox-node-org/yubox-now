@@ -26,6 +26,8 @@ YuboxWiFiClass::YuboxWiFiClass(void)
   String tpl = "YUBOX-{MAC}";
 
   _assumeControlOfWiFi = true;
+  _enableSoftAP = true;
+  _softAPConfigured = false;
 
   _pWebSrvBootstrap = NULL;
   _eventId_cbHandler_WiFiEvent = 0;
@@ -123,6 +125,7 @@ void YuboxWiFiClass::releaseControlOfWiFi(bool wifioff)
   log_i("Desconectando del WiFi (AP)...");
   WiFi.softAPdisconnect(wifioff);
 
+  _softAPConfigured = false;
   if (wifioff) WiFi.mode(WIFI_OFF);
 }
 
@@ -247,17 +250,32 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
     }
 }
 
+void YuboxWiFiClass::_enableWiFiMode(void)
+{
+  if (_enableSoftAP) {
+    // Estos deberían ser los valores por omisión del SDK. Se establecen
+    // explícitamente para recuperar control luego de cederlo a otra lib.
+    IPAddress apIp(192, 168, 4, 1);
+    IPAddress apNetmask(255, 255, 255, 0);
+
+    log_i("Iniciando modo dual WiFi (AP+STA)...");
+    WiFi.mode(WIFI_AP_STA);
+    if (!_softAPConfigured) {
+      WiFi.softAPConfig(apIp, apIp, apNetmask);
+      WiFi.softAP(_apName.c_str());
+      _softAPConfigured = true;
+    }
+  } else {
+    log_i("Iniciando modo cliente WiFi (STA)...");
+    _softAPConfigured = false;
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_STA);
+  }
+}
+
 void YuboxWiFiClass::_startWiFi(void)
 {
-  // Estos deberían ser los valores por omisión del SDK. Se establecen
-  // explícitamente para recuperar control luego de cederlo a otra lib.
-  IPAddress apIp(192, 168, 4, 1);
-  IPAddress apNetmask(255, 255, 255, 0);
-
-  log_i("Iniciando modo dual WiFi (AP+STA)...");
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAPConfig(apIp, apIp, apNetmask);
-  WiFi.softAP(_apName.c_str());
+  _enableWiFiMode();
   WiFi.setSleep(true);  // <--- NO PONER A FALSE, o de lo contrario BlueTooth se crashea si se inicia simultáneamente
 
   log_d("Iniciando escaneo de redes WiFi (1)...");
@@ -428,6 +446,9 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
 
   // Estado de control WiFi
   _assumeControlOfWiFi = nvram.getBool("net/ctrl", true);
+
+  // Activación expresa de interfaz softAP
+  _enableSoftAP = nvram.getBool("net/softAP", true);
 }
 
 void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
@@ -504,6 +525,31 @@ YuboxWiFi_cred YuboxWiFiClass::getLastActiveNetwork(void)
     }
   }
   return _activeNetwork;  // Sólo para devolver algo, probablemente tiene cadenas vacías
+}
+
+void YuboxWiFiClass::toggleStateAP(bool ap_enable)
+{
+  _enableSoftAP = ap_enable;
+  if (!_assumeControlOfWiFi) return;
+  auto curr_wifimode = WiFi.getMode();
+  if (curr_wifimode == WIFI_OFF) return;
+
+  if ((curr_wifimode & WIFI_AP) && !_enableSoftAP) {
+    log_i("Modo softAP está actualmente activo, y debe ser desactivado");
+    _enableWiFiMode();
+  } else if (!(curr_wifimode & WIFI_AP) && _enableSoftAP) {
+    log_i("Modo softAP está actualmente inactivo, y debe ser activado");
+    _enableWiFiMode();
+  }
+}
+
+void YuboxWiFiClass::saveStateAP(void)
+{
+  Preferences nvram;
+  nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+  // Estado de control WiFi
+  nvram.putBool("net/softAP", _enableSoftAP);
 }
 
 void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
@@ -985,7 +1031,7 @@ void YuboxWiFiClass::_cbHandler_WiFiRescan(TimerHandle_t timer)
     log_v("Desconectando antes de escaneo...");
     WiFi.disconnect(true);
   }
-  WiFi.mode(WIFI_AP_STA);
+  _enableWiFiMode();
   if (WiFi.scanComplete() != WIFI_SCAN_RUNNING && (WiFi.status() != WL_CONNECTED || (_pEvents != NULL && _pEvents->count() > 0))) {
     log_d("DEBUG: Iniciando escaneo de redes WiFi (3)...");
     WiFi.setAutoReconnect(false);
