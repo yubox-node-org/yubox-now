@@ -58,11 +58,11 @@ void YuboxNTPConfigClass::_configTime(void)
 
 void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
-  //Serial.printf("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent [WiFi-event] event: %d\r\n", event);
+  log_d("event: %d", event);
   switch(event) {
   case ARDUINO_EVENT_WIFI_STA_GOT_IP:
     if (!_ntpStart) {
-      //Serial.println("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent - estableciendo conexión UDP para NTP...");
+      log_i("iniciando SNTP para obtener hora de red...");
       _configTime();
       _ntpStart = true;
     }
@@ -190,7 +190,7 @@ bool YuboxNTPConfigClass::update(uint32_t ms_timeout)
   if (!_ntpStart) return false;
   if (!WiFi.isConnected()) return _ntpValid;
   if (_ntpFirst) {
-    ESP_LOGD(__FILE__, "YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
+    log_d("conexión establecida, esperando hora de red vía NTP...");
     _ntpFirst = false;
   }
   _ntpValid = isNTPValid(ms_timeout);
