@@ -27,7 +27,7 @@ YuboxNTPConfigClass::YuboxNTPConfigClass(void)
 
 void YuboxNTPConfigClass::begin(AsyncWebServer & srv)
 {
-  WiFi.onEvent(std::bind(&YuboxNTPConfigClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
+  WiFi.onEvent(std::bind(&YuboxNTPConfigClass::_cbHandler_WiFiEvent, this, std::placeholders::_1, std::placeholders::_2));
   _loadSavedCredentialsFromNVRAM();
   _setupHTTPRoutes(srv);
 }
@@ -56,7 +56,7 @@ void YuboxNTPConfigClass::_configTime(void)
   }
 }
 
-void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
+void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
   log_d("event: %d", event);
   switch(event) {

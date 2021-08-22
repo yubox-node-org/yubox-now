@@ -33,7 +33,7 @@ private:
 
   bool _isValidHostname(String & h);
 
-  void _cbHandler_WiFiEvent(WiFiEvent_t event);
+  void _cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t);
 
 public:
   YuboxNTPConfigClass(void);
