@@ -39,6 +39,11 @@ void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
     _ntpValid = true;
 
     log_d("tv.tv_sec=%ld tv.tv_usec=%ld", tv->tv_sec, tv->tv_usec);
+
+    // Guardar respuesta NTP recién recibida
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
+    nvram.putLong("ntpsec", tv->tv_sec);
   }
 }
 
@@ -60,6 +65,42 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 
   _ntpServerName = nvram.getString("ntphost", _ntpServerName);
   _ntpOffset = nvram.getLong("ntptz", _ntpOffset);
+
+  // Se elige el timestamp más reciente de entre todas las fuentes de hora
+
+  // Hora actualmente programada en el sistema
+  struct timeval tv; bool updatetime = false; long t;
+  if (0 == gettimeofday(&tv, NULL)) {
+    log_d("gettimeofday() devuelve %ld", tv.tv_sec);
+    updatetime = false;
+  } else {
+    log_d("gettimeofday() falla errno=%d", errno);
+    updatetime = true;
+    memset(&tv, 0, sizeof(struct timeval));
+  }
+
+  // TODO: hora de compilación del sketch
+
+  // Última hora obtenida desde NTP, si existe
+  t = nvram.getLong("ntpsec", 0);
+  if (t > tv.tv_sec) {
+    log_d("nvram t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+    updatetime = true;
+    tv.tv_sec = t;
+  } else {
+    log_d("nvram t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+  }
+
+  // TODO: hora obtenida de posible fuente RTC
+
+  // Actualizar hora si se dispone de hora válida
+  if (updatetime && tv.tv_sec != 0) {
+    log_d("actualizando hora a tv_sec=%ld...", tv.tv_sec);
+    settimeofday(&tv, NULL);
+  }
+
+  log_d("time() devuelve ahora: %ld", time(NULL));
+
   _configTime();
 }
 
