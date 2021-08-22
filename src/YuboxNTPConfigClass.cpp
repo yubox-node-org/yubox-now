@@ -16,13 +16,30 @@
 static const char * yubox_default_ntpserver = "pool.ntp.org";
 
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
+volatile bool YuboxNTPConfigClass::_ntpValid = false;
+
+static void YuboxNTPConfigClass_sntp_sync_time_cb(struct timeval * tv)
+{
+  YuboxNTPConf._sntp_sync_time_cb(tv);
+}
+
 YuboxNTPConfigClass::YuboxNTPConfigClass(void)
 {
     _ntpStart = false;
-    _ntpValid = false;
     _ntpFirst = true;
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
+
+    sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
+}
+
+void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
+{
+  if (tv != NULL) {
+    _ntpValid = true;
+
+    log_d("tv.tv_sec=%ld tv.tv_usec=%ld", tv->tv_sec, tv->tv_usec);
+  }
 }
 
 void YuboxNTPConfigClass::begin(AsyncWebServer & srv)
@@ -194,7 +211,10 @@ bool YuboxNTPConfigClass::update(uint32_t ms_timeout)
   if (!_ntpStart) return false;
   if (!WiFi.isConnected()) return _ntpValid;
   if (_ntpFirst) {
-    log_d("conexión establecida, esperando hora de red vía NTP...");
+    if (_ntpValid)
+      log_d("conexión establecida, NTP ya indicó hora de red...");
+    else
+      log_d("conexión establecida, esperando hora de red vía NTP...");
     _ntpFirst = false;
   }
   _ntpValid = isNTPValid(ms_timeout);
@@ -206,16 +226,9 @@ bool YuboxNTPConfigClass::isNTPValid(uint32_t ms_timeout)
   if (_ntpValid) return true;
 
   uint32_t start = millis();
-  time_t now;
-  struct tm info;
   do {
-    time(&now);
-    gmtime_r(&now, &info);
-    if (info.tm_year > (2016 - 1900)) {
-      _ntpValid = true;
-      break;
-    }
-    if (ms_timeout > 0) delay(10);
+    if (_ntpValid) break;
+    if (ms_timeout > 0) delay(50);
   } while (millis() - start <= ms_timeout);
 
   return _ntpValid;
