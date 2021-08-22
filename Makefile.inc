@@ -34,6 +34,7 @@ ESP32_ARDUINOVER=$(shell basename $(ARDUINO_ESP32)/hardware/esp32/*)
 ESP32_PARTDIR=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions
 
 ESP32_BOARD=esp32
+ESP32_UPLOADCHIPTYPE=$(shell grep ^$(ESP32_BOARD).build.mcu $(ESP32_BOARDS) | cut -f 2 -d =)
 ESP32_BOARDS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/boards.txt
 ESP32_VARIANT=$(shell grep ^$(ESP32_BOARD).build.variant $(ESP32_BOARDS) | cut -f 2 -d =)
 ESP32_BOARD_PINS=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/variants/$(ESP32_VARIANT)/pins_arduino.h
@@ -180,7 +181,7 @@ clean:
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_PARTCONF_CSVTABLE)
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
-		--chip esp32 \
+		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
@@ -201,7 +202,7 @@ build/$(YUBOX_PROJECT).spiffs: data/manifest.txt $(ESP32_PARTCONF_CSVTABLE)
 
 dataupload: build/$(YUBOX_PROJECT).spiffs
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
-		--chip esp32 \
+		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
@@ -211,7 +212,7 @@ dataupload: build/$(YUBOX_PROJECT).spiffs
 
 fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).spiffs
 	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
-		--chip esp32 \
+		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
