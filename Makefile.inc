@@ -176,12 +176,12 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES) $(ESP32_BOARD_PINS)
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc-$(XTENSA_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/$(XTENSA_GCCVER) \
 		-prefs=runtime.tools.riscv32-esp-elf-gcc.path=$(ARDUINO_ESP32)/tools/riscv32-esp-elf-gcc/$(RISCV32_GCCVER) \
 		-prefs=runtime.tools.riscv32-esp-elf-gcc-$(RISCV32_GCCVER).path=$(ARDUINO_ESP32)/tools/riscv32-esp-elf-gcc/$(RISCV32_GCCVER) \
+		-prefs=runtime.tools.xtensa-esp32s2-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/$(XTENSA_S2_GCCVER) \
+		-prefs=runtime.tools.xtensa-esp32s2-elf-gcc-$(XTENSA_S2_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/$(XTENSA_S2_GCCVER) \
 		-prefs=runtime.tools.mklittlefs.path=$(ARDUINO_ESP32)/tools/mklittlefs/$(MKLITTLEFS_VER) \
 		-prefs=runtime.tools.mklittlefs-$(MKLITTLEFS_VER).path=$(ARDUINO_ESP32)/tools/mklittlefs/$(MKLITTLEFS_VER) \
 		-prefs=runtime.tools.mkspiffs.path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
 		-prefs=runtime.tools.mkspiffs-$(MKSPIFFS_VER).path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
-		-prefs=runtime.tools.xtensa-esp32s2-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/$(XTENSA_S2_GCCVER) \
-		-prefs=runtime.tools.xtensa-esp32s2-elf-gcc-$(XTENSA_S2_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/$(XTENSA_S2_GCCVER) \
 		-prefs=runtime.tools.esptool_py.path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
 		-prefs=runtime.tools.esptool_py-$(ESPTOOL_PYVER).path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
 		$(ARDUINO_CTAGS) \
