@@ -85,14 +85,24 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
   // SIEMPRE instalar el manejador de evento de WiFi listo
   _eventId_cbHandler_WiFiEvent_ready = WiFi.onEvent(
     std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_ready, this, std::placeholders::_1, std::placeholders::_2),
-    SYSTEM_EVENT_WIFI_READY);
+#if ESP_IDF_VERSION_MAJOR > 3
+    ARDUINO_EVENT_WIFI_READY
+#else
+    SYSTEM_EVENT_WIFI_READY
+#endif
+    );
 
   // SIEMPRE instalar el manejador de escaneo, para reportar incluso
   // si hay otro controlando el WiFi. El manejador evita tocar estado
   // global del WiFi si no está en control del WiFi
   WiFi.onEvent(
     std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent_scandone, this, std::placeholders::_1, std::placeholders::_2),
-    SYSTEM_EVENT_SCAN_DONE);
+#if ESP_IDF_VERSION_MAJOR > 3
+    ARDUINO_EVENT_WIFI_SCAN_DONE
+#else
+    SYSTEM_EVENT_SCAN_DONE
+#endif
+    );
 
   if (_assumeControlOfWiFi) {
     takeControlOfWiFi();
@@ -220,7 +230,13 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent_scandone(WiFiEvent_t event, WiFiEventI
 
   if (_assumeControlOfWiFi) {
     if (WiFi.status() != WL_CONNECTED) {
-      log_d("SYSTEM_EVENT_SCAN_DONE y no conectado a red alguna, se verifica una red...");
+      log_d(
+#if ESP_IDF_VERSION_MAJOR > 3
+        "ARDUINO_EVENT_WIFI_SCAN_DONE"
+#else
+        "SYSTEM_EVENT_SCAN_DONE"
+#endif
+        " y no conectado a red alguna, se verifica una red...");
       if (_useTrialNetworkFirst) {
         _activeNetwork = _trialNetwork;
         _useTrialNetworkFirst = false;
@@ -238,12 +254,20 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
     log_v("[WiFi-event] event: %d", event);
     switch(event) {
+#if ESP_IDF_VERSION_MAJOR > 3
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+#else
     case SYSTEM_EVENT_STA_GOT_IP:
+#endif
         log_d("Conectado al WiFi. Dirección IP: %s", WiFi.localIP().toString().c_str());
         WiFi.setAutoReconnect(true);
         _updateActiveNetworkNVRAM();
         break;
+#if ESP_IDF_VERSION_MAJOR > 3
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+#else
     case SYSTEM_EVENT_STA_DISCONNECTED:
+#endif
         log_d("Se perdió conexión WiFi.");
         _startCondRescanTimer(false);
         break;
@@ -412,8 +436,12 @@ void YuboxWiFiClass::_connectToActiveNetwork(void)
     esp_wifi_sta_wpa2_ent_set_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
     // TODO: ¿cuándo es realmente necesario el paso de abajo MSCHAPv2?
     esp_wifi_sta_wpa2_ent_set_new_password((const unsigned char *)_activeNetwork.password.c_str(), _activeNetwork.password.length());
+#if ESP_IDF_VERSION_MAJOR > 3
+    esp_wifi_sta_wpa2_ent_enable();
+#else
     esp_wpa2_config_t wpa2_config = WPA2_CONFIG_INIT_DEFAULT();
     esp_wifi_sta_wpa2_ent_enable(&wpa2_config);
+#endif
     WiFi.begin(_activeNetwork.ssid.c_str());
   } else if (!_activeNetwork.psk.isEmpty()) {
     // Autenticación con clave

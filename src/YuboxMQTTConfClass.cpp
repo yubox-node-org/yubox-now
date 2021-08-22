@@ -66,10 +66,18 @@ void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t
 {
   log_d("event: %d", event);
   switch(event) {
+#if ESP_IDF_VERSION_MAJOR > 3
+  case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+#else
   case SYSTEM_EVENT_STA_GOT_IP:
+#endif
       _connectMQTT();
       break;
+#if ESP_IDF_VERSION_MAJOR > 3
+  case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+#else
   case SYSTEM_EVENT_STA_DISCONNECTED:
+#endif
       xTimerStop(_mqttReconnectTimer, 0);
       break;
     }
