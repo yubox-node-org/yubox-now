@@ -62,11 +62,15 @@ MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
+ESP32_FLASHMODE=qio
 # Para cada directiva conocida en el FQBN, se debe verificar si la definición
 # del board acepta tal directiva. De lo contrario, arduino-builder falla con
 # error si encuentra una directiva desconocida.
 ESP32_FQBN=
 comma:=,
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.SerialMode.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)SerialMode=default
+endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.PSRAM.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)PSRAM=$(ESP32_PSRAM)
 endif
@@ -77,7 +81,7 @@ ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.CPUFreq.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)CPUFreq=240
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashMode.' $(ESP32_BOARDS) | wc -l),0)
-	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)FlashMode=dio
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)FlashMode=$(ESP32_FLASHMODE)
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashFreq.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)FlashFreq=80
