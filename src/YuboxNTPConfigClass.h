@@ -15,12 +15,12 @@ class YuboxNTPConfigClass
 {
 private:
   static const char * _ns_nvram_yuboxframework_ntpclient;
+  static volatile bool _ntpValid;
 
   // El cliente NTP que se administra con esta clase
   String _ntpServerName;
   long _ntpOffset;
   bool _ntpStart;
-  bool _ntpValid;
   bool _ntpFirst;
 
   void _loadSavedCredentialsFromNVRAM(void);
@@ -47,6 +47,9 @@ public:
   // Mantener separación entre hora local y hora UTC
   unsigned long getLocalTime(void);
   unsigned long getUTCTime(void);
+
+  // NO LLAMAR DESDE APLICACIÓN
+  void _sntp_sync_time_cb(struct timeval *);
 };
 
 extern YuboxNTPConfigClass YuboxNTPConf;

@@ -16,13 +16,35 @@
 static const char * yubox_default_ntpserver = "pool.ntp.org";
 
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
+volatile bool YuboxNTPConfigClass::_ntpValid = false;
+
+static void YuboxNTPConfigClass_sntp_sync_time_cb(struct timeval * tv)
+{
+  YuboxNTPConf._sntp_sync_time_cb(tv);
+}
+
 YuboxNTPConfigClass::YuboxNTPConfigClass(void)
 {
     _ntpStart = false;
-    _ntpValid = false;
     _ntpFirst = true;
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
+
+    sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
+}
+
+void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
+{
+  if (tv != NULL) {
+    _ntpValid = true;
+
+    log_d("tv.tv_sec=%ld tv.tv_usec=%ld", tv->tv_sec, tv->tv_usec);
+
+    // Guardar respuesta NTP recién recibida
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
+    nvram.putLong("ntpsec", tv->tv_sec);
+  }
 }
 
 void YuboxNTPConfigClass::begin(AsyncWebServer & srv)
@@ -43,6 +65,42 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 
   _ntpServerName = nvram.getString("ntphost", _ntpServerName);
   _ntpOffset = nvram.getLong("ntptz", _ntpOffset);
+
+  // Se elige el timestamp más reciente de entre todas las fuentes de hora
+
+  // Hora actualmente programada en el sistema
+  struct timeval tv; bool updatetime = false; long t;
+  if (0 == gettimeofday(&tv, NULL)) {
+    log_d("gettimeofday() devuelve %ld", tv.tv_sec);
+    updatetime = false;
+  } else {
+    log_d("gettimeofday() falla errno=%d", errno);
+    updatetime = true;
+    memset(&tv, 0, sizeof(struct timeval));
+  }
+
+  // TODO: hora de compilación del sketch
+
+  // Última hora obtenida desde NTP, si existe
+  t = nvram.getLong("ntpsec", 0);
+  if (t > tv.tv_sec) {
+    log_d("nvram t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+    updatetime = true;
+    tv.tv_sec = t;
+  } else {
+    log_d("nvram t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+  }
+
+  // TODO: hora obtenida de posible fuente RTC
+
+  // Actualizar hora si se dispone de hora válida
+  if (updatetime && tv.tv_sec != 0) {
+    log_d("actualizando hora a tv_sec=%ld...", tv.tv_sec);
+    settimeofday(&tv, NULL);
+  }
+
+  log_d("time() devuelve ahora: %ld", time(NULL));
+
   _configTime();
 }
 
@@ -194,7 +252,10 @@ bool YuboxNTPConfigClass::update(uint32_t ms_timeout)
   if (!_ntpStart) return false;
   if (!WiFi.isConnected()) return _ntpValid;
   if (_ntpFirst) {
-    log_d("conexión establecida, esperando hora de red vía NTP...");
+    if (_ntpValid)
+      log_d("conexión establecida, NTP ya indicó hora de red...");
+    else
+      log_d("conexión establecida, esperando hora de red vía NTP...");
     _ntpFirst = false;
   }
   _ntpValid = isNTPValid(ms_timeout);
@@ -206,16 +267,9 @@ bool YuboxNTPConfigClass::isNTPValid(uint32_t ms_timeout)
   if (_ntpValid) return true;
 
   uint32_t start = millis();
-  time_t now;
-  struct tm info;
   do {
-    time(&now);
-    gmtime_r(&now, &info);
-    if (info.tm_year > (2016 - 1900)) {
-      _ntpValid = true;
-      break;
-    }
-    if (ms_timeout > 0) delay(10);
+    if (_ntpValid) break;
+    if (ms_timeout > 0) delay(50);
   } while (millis() - start <= ms_timeout);
 
   return _ntpValid;
