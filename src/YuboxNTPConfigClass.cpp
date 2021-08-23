@@ -29,6 +29,7 @@ YuboxNTPConfigClass::YuboxNTPConfigClass(void)
     _ntpFirst = true;
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
+    _rtcHint = 0;
 
     sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
 }
@@ -91,7 +92,20 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
     log_d("nvram t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
   }
 
-  // TODO: hora obtenida de posible fuente RTC
+  // Hora obtenida de posible fuente RTC
+  if (_rtcHint > 0) {
+    t = _rtcHint;
+    if (t > tv.tv_sec) {
+      log_d("RTC t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else {
+      log_d("RTC t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+    }
+
+    // El valor de RTC se invalida una vez consumido a menos se se lo setee otra vez
+    _rtcHint = 0;
+  }
 
   // Actualizar hora si se dispone de hora válida
   if (updatetime && tv.tv_sec != 0) {
