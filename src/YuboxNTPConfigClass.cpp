@@ -29,6 +29,7 @@ YuboxNTPConfigClass::YuboxNTPConfigClass(void)
     _ntpFirst = true;
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
+    _rtcHint = 0;
 
     sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
 }
@@ -79,7 +80,15 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
     memset(&tv, 0, sizeof(struct timeval));
   }
 
-  // TODO: hora de compilación del sketch
+  // Hora de compilación del sketch
+  t = _getSketchCompileTimestamp();
+  if (t > tv.tv_sec) {
+    log_d("sketch t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+    updatetime = true;
+    tv.tv_sec = t;
+  } else {
+    log_d("sketch t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+  }
 
   // Última hora obtenida desde NTP, si existe
   t = nvram.getLong("ntpsec", 0);
@@ -91,7 +100,20 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
     log_d("nvram t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
   }
 
-  // TODO: hora obtenida de posible fuente RTC
+  // Hora obtenida de posible fuente RTC
+  if (_rtcHint > 0) {
+    t = _rtcHint;
+    if (t > tv.tv_sec) {
+      log_d("RTC t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else {
+      log_d("RTC t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+    }
+
+    // El valor de RTC se invalida una vez consumido a menos se se lo setee otra vez
+    _rtcHint = 0;
+  }
 
   // Actualizar hora si se dispone de hora válida
   if (updatetime && tv.tv_sec != 0) {
@@ -102,6 +124,51 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   log_d("time() devuelve ahora: %ld", time(NULL));
 
   _configTime();
+}
+
+uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
+{
+  struct tm tm = {0};
+
+  const char *builddate = __DATE__;
+  const char *buildtime = __TIME__;
+
+  log_d("sketch compilado en %s %s", builddate, buildtime);
+
+  tm.tm_hour = atoi(buildtime);
+  tm.tm_min = atoi(buildtime+3);
+  tm.tm_sec = atoi(buildtime+6);
+  tm.tm_mday = atoi(builddate+4);
+  tm.tm_year = atoi(builddate+7) - 1900;
+
+  switch (builddate[0]) {
+  case 'J':
+    tm.tm_mon = (builddate[1] == 'a') ? 0 : ((builddate[2] == 'n') ? 5 : 6);
+    break;
+  case 'F':
+    tm.tm_mon = 1;
+    break;
+  case 'A':
+    tm.tm_mon = builddate[2] == 'r' ? 3 : 7;
+    break;
+  case 'M':
+    tm.tm_mon = builddate[2] == 'r' ? 2 : 4;
+    break;
+  case 'S':
+    tm.tm_mon = 8;
+    break;
+  case 'O':
+    tm.tm_mon = 9;
+    break;
+  case 'N':
+    tm.tm_mon = 10;
+    break;
+  case 'D':
+    tm.tm_mon = 11;
+    break;
+  }
+
+  return mktime(&tm);
 }
 
 void YuboxNTPConfigClass::_configTime(void)

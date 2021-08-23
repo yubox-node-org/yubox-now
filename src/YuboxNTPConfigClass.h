@@ -23,6 +23,12 @@ private:
   bool _ntpStart;
   bool _ntpFirst;
 
+  // Si el proyecto dispone de RTC, aquí se almacena el valor de unixtime
+  // generado a partir del RTC hasta hacer funcionar el NTP.
+  uint32_t _rtcHint;
+
+  uint32_t _getSketchCompileTimestamp(void);
+
   void _loadSavedCredentialsFromNVRAM(void);
   void _configTime(void);
 
@@ -37,6 +43,9 @@ private:
 
 public:
   YuboxNTPConfigClass(void);
+
+  void setRTCHint(uint32_t t) { _rtcHint = t; }
+
   void begin(AsyncWebServer & srv);
 
   bool isNTPValid(uint32_t ms_timeout = 1000);
