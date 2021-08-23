@@ -27,6 +27,8 @@ private:
   // generado a partir del RTC hasta hacer funcionar el NTP.
   uint32_t _rtcHint;
 
+  uint32_t _getSketchCompileTimestamp(void);
+
   void _loadSavedCredentialsFromNVRAM(void);
   void _configTime(void);
 
