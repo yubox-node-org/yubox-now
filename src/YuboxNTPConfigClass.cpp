@@ -13,6 +13,9 @@
 
 #include "lwip/apps/sntp.h"
 
+// Requerido para arrastrar definición de sntp_set_time_sync_notification_cb en arduino-esp32 v2.0.0-rc1
+#include "esp_sntp.h"
+
 static const char * yubox_default_ntpserver = "pool.ntp.org";
 
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
