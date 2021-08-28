@@ -213,6 +213,11 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
 
   if (!filename.endsWith(".tar.gz") && !filename.endsWith(".tgz")) {
     // Este upload no parece ser un tarball, se rechaza localmente.
+    if (!_uploadRejected) {
+      _tgzupload_responseMsg = "Archivo no parece un tarball - se espera extensión .tar.gz o .tgz";
+      _tgzupload_clientError = true;
+      _uploadRejected = true;
+    }
     return;
   }
   if (index == 0) {
