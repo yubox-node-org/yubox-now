@@ -70,6 +70,9 @@ private:
   void _routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRequest *);
 
+  void _routeHandler_spiffslist_GET(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *request);
+
   void _handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final);
 
   // Verificación de veto sobre operación de flasheo o reinicio

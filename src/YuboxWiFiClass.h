@@ -2,7 +2,6 @@
 #define _YUBOX_WIFI_CLASS_H_
 
 #include "FS.h"
-#include "SPIFFS.h"
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
@@ -126,8 +125,6 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_networks_POST(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request);
-  void _routeHandler_spiffslist_GET(AsyncWebServerRequest *request);
-  void _routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *request);
 
   // Funciones de ayuda para responder a peticiones web
   void _serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i);

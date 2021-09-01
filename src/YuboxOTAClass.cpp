@@ -82,6 +82,11 @@ YuboxOTAClass::YuboxOTAClass(void)
 
 void YuboxOTAClass::begin(AsyncWebServer & srv)
 {
+  srv.on("/yubox-api/yuboxOTA/hwreport.json", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxhwreport_GET, this, std::placeholders::_1));
+  srv.on("/_spiffslist.html", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
+
   srv.on("/yubox-api/yuboxOTA/firmwarelist.json", HTTP_GET,
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/yuboxOTA/reboot", HTTP_POST,
@@ -868,6 +873,86 @@ void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
   log_w("YUBOX OTA: reiniciando luego de cambio de firmware...");
   ESP.restart();
+}
+
+#include "SPIFFS.h"
+
+void YuboxOTAClass::_routeHandler_spiffslist_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("text/html");
+
+  response->print(
+    "<!DOCTYPE html><html lang=\"en\"><head><title>Index of SPIFFS</title></head><body><h1>Index of SPIFFS</h1>");
+  response->print("<table><tr><th>Name</th><th>Size</th></tr><tr><th colspan=\"2\"><hr></th></tr>");
+
+  File h = SPIFFS.open("/");
+  if (h && h.isDirectory()) {
+    File f = h.openNextFile();
+    while (f) {
+      String s = f.name();
+      unsigned int sz = f.size();
+      bool gzcomp = s.endsWith(".gz");
+      f.close();
+      if (gzcomp) {
+        s.remove(s.length() - 3);
+      }
+      response->printf("<tr><td><a href=\"%s\">%s</a>%s</td><td align=\"right\">%u</td></tr>",
+        s.c_str(), s.c_str(), gzcomp ? ".gz" : "", sz);
+      f = h.openNextFile();
+    }
+
+    h.close();
+  }
+
+  response->print("<tr><th colspan=\"2\"><hr></th></tr></table>");
+
+  // Reportar uso total de partición SPIFFS
+  size_t total = SPIFFS.totalBytes();
+  size_t used = SPIFFS.usedBytes();
+  response->printf("<p>Total bytes: %d Used bytes: %d Free bytes: %d</p>", total, used, (total - used));
+
+  response->print("</body></html>");
+  request->send(response);
+}
+
+#include "core_version.h"
+
+void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(18));
+
+  json_doc["ARDUINO_ESP32_GIT_VER"] = ARDUINO_ESP32_GIT_VER;
+  json_doc["ARDUINO_ESP32_RELEASE"] = ARDUINO_ESP32_RELEASE;
+  json_doc["SKETCH_COMPILE_DATETIME"] = __DATE__ " " __TIME__;
+  json_doc["IDF_VER"] = ESP.getSdkVersion();
+  json_doc["CHIP_MODEL"] = ESP.getChipModel();
+  json_doc["CHIP_CORES"] = ESP.getChipCores();
+  json_doc["CPU_MHZ"] = ESP.getCpuFreqMHz();
+  json_doc["FLASH_SIZE"] = ESP.getFlashChipSize();
+  json_doc["FLASH_SPEED"] = ESP.getFlashChipSpeed();
+
+  json_doc["SKETCH_SIZE"] = ESP.getSketchSize();
+  String sketch_md5 = ESP.getSketchMD5();
+  json_doc["SKETCH_MD5"] = sketch_md5.c_str();
+  json_doc["EFUSE_MAC"] = ESP.getEfuseMac();
+
+  json_doc["psramsize"] = ESP.getPsramSize();
+  json_doc["psramfree"] = ESP.getFreePsram();
+  json_doc["psrammaxalloc"] = ESP.getMaxAllocPsram();
+
+  auto freeheap = ESP.getFreeHeap();
+  auto maxalloc = ESP.getMaxAllocHeap();
+  json_doc["heapsize"] = ESP.getHeapSize();
+  json_doc["heapfree"] = freeheap;
+  json_doc["heapmaxalloc"] = maxalloc;
+
+  serializeJson(json_doc, *response);
+  request->send(response);
 }
 
 YuboxOTAClass YuboxOTA;
