@@ -588,6 +588,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
   srv.on("/yubox-api/wificonfig/networks", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/networks", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_POST, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/networks", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_DELETE, this, std::placeholders::_1));
+  srv.on("/yubox-api/yuboxhwreport.json", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxhwreport_GET, this, std::placeholders::_1));
   srv.on("/_spiffslist.html", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
   srv.addRewrite(new Yubox_internal_LastParamRewrite(
     "/yubox-api/wificonfig/networks/{SSID}",
@@ -737,6 +738,44 @@ void YuboxWiFiClass::_routeHandler_spiffslist_GET(AsyncWebServerRequest *request
   response->printf("<p>Total bytes: %d Used bytes: %d Free bytes: %d</p>", total, used, (total - used));
 
   response->print("</body></html>");
+  request->send(response);
+}
+
+#include "core_version.h"
+
+void YuboxWiFiClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(18));
+
+  json_doc["ARDUINO_ESP32_GIT_VER"] = ARDUINO_ESP32_GIT_VER;
+  json_doc["ARDUINO_ESP32_RELEASE"] = ARDUINO_ESP32_RELEASE;
+  json_doc["SKETCH_COMPILE_DATETIME"] = __DATE__ " " __TIME__;
+  json_doc["IDF_VER"] = ESP.getSdkVersion();
+  json_doc["CHIP_MODEL"] = ESP.getChipModel();
+  json_doc["CHIP_CORES"] = ESP.getChipCores();
+  json_doc["CPU_MHZ"] = ESP.getCpuFreqMHz();
+  json_doc["FLASH_SIZE"] = ESP.getFlashChipSize();
+  json_doc["FLASH_SPEED"] = ESP.getFlashChipSpeed();
+
+  json_doc["SKETCH_SIZE"] = ESP.getSketchSize();
+  String sketch_md5 = ESP.getSketchMD5();
+  json_doc["SKETCH_MD5"] = sketch_md5.c_str();
+  json_doc["EFUSE_MAC"] = ESP.getEfuseMac();
+
+  json_doc["psramsize"] = ESP.getPsramSize();
+  json_doc["psramfree"] = ESP.getFreePsram();
+  json_doc["psrammaxalloc"] = ESP.getMaxAllocPsram();
+
+  auto freeheap = ESP.getFreeHeap();
+  auto maxalloc = ESP.getMaxAllocHeap();
+  json_doc["heapsize"] = ESP.getHeapSize();
+  json_doc["heapfree"] = freeheap;
+  json_doc["heapmaxalloc"] = maxalloc;
+
+  serializeJson(json_doc, *response);
   request->send(response);
 }
 
