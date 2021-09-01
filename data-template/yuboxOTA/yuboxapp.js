@@ -161,6 +161,28 @@ function setupYuboxOTATab()
             yuboxOTAUpload_setDisableBtns(false);
         });
     });
+
+    // Diálogo modal de reporte de hardware
+    otapane.find('button[name=hwreport]').click(function () {
+        $.getJSON(yuboxAPI('yuboxOTA')+'/hwreport.json')
+        .done(function (data) {
+            var dlg_hwinfo = otapane.find('div#hwreport');
+            var hwtable = dlg_hwinfo.find('table#hwinfo > tbody');
+
+            // Formatos especiales para algunos campos
+            data.ARDUINO_ESP32_GIT_VER = data.ARDUINO_ESP32_GIT_VER.toString(16);
+            data.EFUSE_MAC = data.EFUSE_MAC.toString(16);
+            data.CPU_MHZ = data.CPU_MHZ + ' MHz';
+            data.FLASH_SPEED = (data.FLASH_SPEED / 1000000) + ' MHz';
+
+            for (const key in data) {
+                hwtable.find('tr#'+key+' > td.text-muted').text(data[key]);
+            }
+
+            dlg_hwinfo.modal({ focus: true });
+        })
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
+    });
 }
 
 function yuboxOTAUpload_init()
