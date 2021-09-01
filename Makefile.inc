@@ -59,6 +59,29 @@ XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
 ESPTOOL_PYVER=$(shell basename $(ARDUINO_ESP32)/tools/esptool_py/*)
 MKSPIFFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mkspiffs/*)
 
+# Conditional check on various tools only present since 2.0.0
+ifneq ($(wildcard $(ARDUINO_ESP32)/tools/riscv32-esp-elf-gcc),)
+	RISCV32_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/riscv32-esp-elf-gcc/*)
+	RISCV32_TOOLS=-prefs=runtime.tools.riscv32-esp-elf-gcc.path=$(ARDUINO_ESP32)/tools/riscv32-esp-elf-gcc/$(RISCV32_GCCVER) \
+		-prefs=runtime.tools.riscv32-esp-elf-gcc-$(RISCV32_GCCVER).path=$(ARDUINO_ESP32)/tools/riscv32-esp-elf-gcc/$(RISCV32_GCCVER)
+else
+	RISCV32_TOOLS=
+endif
+ifneq ($(wildcard $(ARDUINO_ESP32)/tools/mklittlefs),)
+	MKLITTLEFS_VER=$(shell basename $(ARDUINO_ESP32)/tools/mklittlefs/*)
+	MKLITTLEFS_TOOLS=-prefs=runtime.tools.mklittlefs.path=$(ARDUINO_ESP32)/tools/mklittlefs/$(MKLITTLEFS_VER) \
+		-prefs=runtime.tools.mklittlefs-$(MKLITTLEFS_VER).path=$(ARDUINO_ESP32)/tools/mklittlefs/$(MKLITTLEFS_VER)
+else
+	MKLITTLEFS_TOOLS=
+endif
+ifneq ($(wildcard $(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc),)
+	XTENSA_S2_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/*)
+	XTENSA_S2_TOOLS=-prefs=runtime.tools.xtensa-esp32s2-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/$(XTENSA_S2_GCCVER) \
+		-prefs=runtime.tools.xtensa-esp32s2-elf-gcc-$(XTENSA_S2_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc/$(XTENSA_S2_GCCVER)
+else
+	XTENSA_S2_TOOLS=
+endif
+
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
@@ -114,8 +137,11 @@ ifeq ($(ARDUINO_STDHARDWARE),)
 else
 	ARDUINO_STDHARDWARE_PARAM=-hardware $(ARDUINO_STDHARDWARE)
 endif
-
-ESP32_BOOTLOADER_PATH=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin
+# Se asume ruta de 1.0.x hasta mostrar que no existe, en cuyo caso se asume 2.0.x
+ESP32_BOOTLOADER_PATH:=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin
+ifeq ($(wildcard $(ESP32_BOOTLOADER_PATH)),)
+	ESP32_BOOTLOADER_PATH:=build/$(YUBOX_PROJECT).ino.bootloader.bin
+endif
 
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
 ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
@@ -171,6 +197,9 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES) $(ESP32_BOARD_PINS)
 		-prefs=build.warn_data_percentage=75 \
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/$(XTENSA_GCCVER) \
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc-$(XTENSA_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/$(XTENSA_GCCVER) \
+		$(RISCV32_TOOLS) \
+		$(XTENSA_S2_TOOLS) \
+		$(MKLITTLEFS_TOOLS) \
 		-prefs=runtime.tools.mkspiffs.path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
 		-prefs=runtime.tools.mkspiffs-$(MKSPIFFS_VER).path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
 		-prefs=runtime.tools.esptool_py.path=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER) \
