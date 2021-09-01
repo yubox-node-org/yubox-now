@@ -137,8 +137,11 @@ ifeq ($(ARDUINO_STDHARDWARE),)
 else
 	ARDUINO_STDHARDWARE_PARAM=-hardware $(ARDUINO_STDHARDWARE)
 endif
-
-ESP32_BOOTLOADER_PATH=build/$(YUBOX_PROJECT).ino.bootloader.bin
+# Se asume ruta de 1.0.x hasta mostrar que no existe, en cuyo caso se asume 2.0.x
+ESP32_BOOTLOADER_PATH:=$(ARDUINO_ESP32)/hardware/esp32/$(ESP32_ARDUINOVER)/tools/sdk/bin/bootloader_dio_80m.bin
+ifeq ($(wildcard $(ESP32_BOOTLOADER_PATH)),)
+	ESP32_BOOTLOADER_PATH:=build/$(YUBOX_PROJECT).ino.bootloader.bin
+endif
 
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
 ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
