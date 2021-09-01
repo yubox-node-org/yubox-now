@@ -97,7 +97,21 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
           _uploadRejected = true;
         } else if (!Update.begin(filesize, U_FLASH)) {
           _responseMsg = "OTA Code update: no se puede iniciar actualización - ";
-          _responseMsg += _updater_errstr(Update.getError());
+          auto upderr = Update.getError();
+          if (upderr != UPDATE_ERROR_OK) {
+            // Hay una causa reconocida para error de OTA
+            _responseMsg += _updater_errstr(upderr);
+          } else {
+            // El objeto updater no ha reportado la causa del error. Se presume
+            // que la verdadera causa (por examen del código) es memoria insuficiente
+            // para el bloque de 4096 bytes del sector de flash a escribir.
+            _responseMsg += "no hay suficiente RAM - libre ";
+            auto freeheap = ESP.getFreeHeap();
+            auto maxalloc = ESP.getMaxAllocHeap();
+            _responseMsg += freeheap;
+            _responseMsg += " max alloc ";
+            _responseMsg += maxalloc;
+          }
           _uploadRejected = true;
         } else {
           _tgzupload_currentOp = YBX_OTA_FIRMWARE_FLASH;
