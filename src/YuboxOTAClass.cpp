@@ -945,11 +945,12 @@ void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *reque
   json_doc["psramfree"] = ESP.getFreePsram();
   json_doc["psrammaxalloc"] = ESP.getMaxAllocPsram();
 
-  auto freeheap = ESP.getFreeHeap();
-  auto maxalloc = ESP.getMaxAllocHeap();
-  json_doc["heapsize"] = ESP.getHeapSize();
-  json_doc["heapfree"] = freeheap;
-  json_doc["heapmaxalloc"] = maxalloc;
+  // MALLOC_CAP_DEFAULT es la memoria directamente provista vía malloc() y operator new
+  multi_heap_info_t info = {0};
+  heap_caps_get_info(&info, /*MALLOC_CAP_INTERNAL*/MALLOC_CAP_DEFAULT);
+  json_doc["heapfree"] = info.total_free_bytes;
+  json_doc["heapmaxalloc"] = info.largest_free_block;
+  json_doc["heapsize"] = info.total_free_bytes + info.total_allocated_bytes;
 
   serializeJson(json_doc, *response);
   request->send(response);
