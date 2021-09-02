@@ -106,11 +106,12 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
             // que la verdadera causa (por examen del código) es memoria insuficiente
             // para el bloque de 4096 bytes del sector de flash a escribir.
             _responseMsg += "no hay suficiente RAM - libre ";
-            auto freeheap = ESP.getFreeHeap();
-            auto maxalloc = ESP.getMaxAllocHeap();
-            _responseMsg += freeheap;
+
+            multi_heap_info_t info = {0};
+            heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
+            _responseMsg += info.total_free_bytes;
             _responseMsg += " max alloc ";
-            _responseMsg += maxalloc;
+            _responseMsg += info.largest_free_block;
           }
           _uploadRejected = true;
         } else {
