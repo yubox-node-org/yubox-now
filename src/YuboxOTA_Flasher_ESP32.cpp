@@ -15,7 +15,7 @@ YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
     _responseMsg = "";
     _tgzupload_currentOp = YBX_OTA_IDLE;
     _tgzupload_foundFirmware = false;
-    _tgzupload_canFlash = false;
+    _tgzupload_flashSuccess = false;
     _tgzupload_hasManifest = false;
     _tgzupload_filelist.clear();
 
@@ -50,6 +50,7 @@ bool YuboxOTA_Flasher_ESP32::startUpdate(void)
         log_w("No se puede asignar bufer para escribir archivos! Se continúa sin búfer (más lento)...");
     }
     _filebuf_used = 0;
+    _tgzupload_flashSuccess = false;
 
     return true;
 }
@@ -257,7 +258,31 @@ bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long lon
         break;
     case YBX_OTA_FIRMWARE_FLASH:
         _tgzupload_currentOp = YBX_OTA_IDLE;
-        _tgzupload_canFlash = true;
+
+        if (!_uploadRejected) {
+          vTaskDelay(1);
+
+          // Finalizar operación de flash de firmware, si es necesaria
+          log_d("YUBOX OTA: firmware-commit-start");
+          if (!Update.end()) {
+            _responseMsg = "OTA Code update: fallo al finalizar - ";
+            _responseMsg += _updater_errstr(Update.getError());
+            _uploadRejected = true;
+            log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
+          } else if (!Update.isFinished()) {
+            _responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
+            _responseMsg += _updater_errstr(Update.getError());
+            _uploadRejected = true;
+            log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
+          } else {
+            log_d("YUBOX OTA: firmware-commit-end");
+            _tgzupload_flashSuccess = true;
+          }
+          log_d(" ...done");
+
+          vTaskDelay(1);
+        }
+
         _fileend_cb(filename, true, filesize);
         break;
     }
@@ -291,29 +316,6 @@ bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
       //_tgzupload_clientError = true;
       _responseMsg = "No se encuentra manifest.txt, archivo subido no es un firmware";
       _uploadRejected = true;
-    }
-
-    if (!_uploadRejected && _tgzupload_canFlash) {
-      vTaskDelay(1);
-
-      // Finalizar operación de flash de firmware, si es necesaria
-      log_d("YUBOX OTA: firmware-commit-start");
-      if (!Update.end()) {
-        _responseMsg = "OTA Code update: fallo al finalizar - ";
-        _responseMsg += _updater_errstr(Update.getError());
-        _uploadRejected = true;
-        log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
-      } else if (!Update.isFinished()) {
-        _responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
-        _responseMsg += _updater_errstr(Update.getError());
-        _uploadRejected = true;
-        log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
-      } else {
-        log_d("YUBOX OTA: firmware-commit-end");
-      }
-      log_d(" ...done");
-
-      vTaskDelay(1);
     }
 
     if (!_uploadRejected) {
@@ -441,8 +443,14 @@ const char * YuboxOTA_Flasher_ESP32::_updater_errstr(uint8_t e)
 void YuboxOTA_Flasher_ESP32::_firmwareAbort(void)
 {
   if (_tgzupload_foundFirmware) {
-    // Abortar la operación de firmware si se estaba escribiendo
-    Update.abort();
+    if (_tgzupload_flashSuccess) {
+      // Realizar rollback del flasheo de firmware que había tenido éxito anteriormente
+      Update.rollBack();
+      _tgzupload_flashSuccess = false;
+    } else {
+      // Abortar la operación de firmware si se estaba escribiendo
+      Update.abort();
+    }
   }
 
   cleanupFailedUpdateFiles();
