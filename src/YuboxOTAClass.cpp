@@ -7,14 +7,16 @@
 
 #include <functional>
 
-#include "uzlib/uzlib.h"     // https://github.com/pfalcon/uzlib
 extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
+#include "YuboxOTA_Streamer.h"
+
 #include "esp_task_wdt.h"
 
 #include "YuboxOTA_Flasher_ESP32.h"
+#include "YuboxOTA_Streamer_GZ.h"
 
 typedef struct YuboxOTAVetoList
 {
@@ -42,15 +44,6 @@ typedef struct YuboxOTA_Flasher_Factory_rec{
 
 static std::vector<YuboxOTA_Flasher_Factory_rec_t> flasherFactoryList;
 
-#define GZIP_DICT_SIZE 32768
-#define GZIP_BUFF_SIZE 4096
-
-/* De pruebas se ha visto que el máximo tamaño de segmento de datos en el upload es
- * de 1460 bytes. Si el espacio libre en _gz_srcdata es igual o menor al siguiente
- * valor, se iniciará la descompresión con los datos leídos hasta el momento.
- */
-#define GZIP_FILL_WATERMARK 1500
-
 int _tar_cb_feedFromBuffer(unsigned char *, size_t);
 int _tar_cb_gotEntryHeader(header_translated_t *, int, void *);
 int _tar_cb_gotEntryData(header_translated_t *, int, void *, unsigned char *, int);
@@ -62,10 +55,7 @@ YuboxOTAClass::YuboxOTAClass(void)
 
   _uploadRejected = false;
   _shouldReboot = false;
-  _gz_srcdata = NULL;
-  _gz_dstdata = NULL;
-  _gz_dict = NULL;
-  _gz_actualExpandedSize = 0;
+  _streamerImpl = NULL;
   _tarCB.header_cb = ::_tar_cb_gotEntryHeader;
   _tarCB.data_cb = ::_tar_cb_gotEntryData;
   _tarCB.end_cb = ::_tar_cb_gotEntryEnd;
@@ -216,7 +206,9 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
   log_v("filename=%s index=%d data=%p len=%d final=%d",
     filename.c_str(), index, data, len, final ? 1 : 0);
 
-  if (!filename.endsWith(".tar.gz") && !filename.endsWith(".tgz")) {
+  if (filename.endsWith(".tar.gz") || filename.endsWith(".tgz")) {
+    if (_streamerImpl == NULL) _streamerImpl = new YuboxOTA_Streamer_GZ();
+  } else {
     // Este upload no parece ser un tarball, se rechaza localmente.
     if (!_uploadRejected) {
       _tgzupload_responseMsg = "Archivo no parece un tarball - se espera extensión .tar.gz o .tgz";
@@ -310,31 +302,20 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   }
 
   assert(_flasherImpl != NULL);
+  assert(_streamerImpl != NULL);
 
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
     _tgzupload_rawBytesReceived = 0;
     _shouldReboot = false;
 
-    /* El valor de GZIP_BUFF_SIZE es suficiente para al menos dos fragmentos de datos entrantes.
-     * Se descomprime únicamente TAR_BLOCK_SIZE a la vez para simplificar el código y para que
-     * no ocurra que se acabe el búfer de datos de entrada antes de llenar el búfer de salida.
-     */
-    _gz_dict = new unsigned char[GZIP_DICT_SIZE];
-    _gz_srcdata = new unsigned char[GZIP_BUFF_SIZE];
-    _gz_dstdata = new unsigned char[2 * TAR_BLOCK_SIZE];
-    _gz_actualExpandedSize = 0;
-    _gz_headerParsed = false;
-
-    uzlib_init();
-
-    memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
-    _uzLib_decomp.source = _gz_srcdata;         // <-- El búfer inicial de datos
-    _uzLib_decomp.source_limit = _gz_srcdata;   // <-- Será movido al agregar los datos recibidos
-    uzlib_uncompress_init(&_uzLib_decomp, _gz_dict, GZIP_DICT_SIZE);
+    if (!_streamerImpl->begin()) {
+      _tgzupload_serverError = true;
+      _tgzupload_responseMsg = _streamerImpl->getErrorMessage();
+      _uploadRejected = true;
+    }
 
     // Inicialización de parseo tar
-    _tar_available = 0;
     _tar_emptyChunk = 0;
     _tar_eof = false;
     tar_setup(&_tarCB, this);
@@ -343,7 +324,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
 
-    if (!_flasherImpl->startUpdate()) {
+    if (!_uploadRejected && !_flasherImpl->startUpdate()) {
       _tgzupload_serverError = true;
       _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
       _uploadRejected = true;
@@ -352,145 +333,69 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
   _tgzupload_rawBytesReceived += len;
 
-  // Agregar búfer recibido al búfer de entrada, notando si debe empezarse a parsear gzip
-  unsigned int used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
-  unsigned int consumed;
-  log_v("INICIO: used=%u MAX=%u", used, GZIP_BUFF_SIZE);
-  bool runUnzip = false;
-  if (_uploadRejected) {
-    log_e("falla upload en index %d - %s", index, _tgzupload_responseMsg.c_str());
-  } else if (GZIP_BUFF_SIZE - used < len) {
-    // No hay suficiente espacio para este bloque de datos. ESTO NO DEBERÍA PASAR
-    log_e("no hay suficiente espacio en _gz_srcdata: libre=%u requerido=%u", GZIP_BUFF_SIZE - used, len);
-    _tgzupload_serverError = true;
-    _tgzupload_responseMsg = "(internal) Falta espacio en búfer para siguiente pedazo de datos!";
-    _uploadRejected = true;
-  } else {
-    unsigned long gz_expectedExpandedSize = 0;
+  if (!_uploadRejected) {
+    if (!_streamerImpl->attachInputBuffer(data, len, final)) {
+      _tgzupload_clientError = true;
+      _tgzupload_responseMsg = _streamerImpl->getErrorMessage();
+      _uploadRejected = true;
+    }
+  }
 
-    memcpy((void *)_uzLib_decomp.source_limit, data, len);
-    _uzLib_decomp.source_limit += len;
-    used += len;
-    log_v("LUEGO DE AGREGAR chunk: used=%u MAX=%u", used, GZIP_BUFF_SIZE);
+  if (!_uploadRejected) {
+    bool tar_progress;
 
-    if (final) {
-      // Para el último bloque HTTP debería tenerse los 4 últimos bytes LSB que indican
-      // el tamaño esperado de longitud expandida.
-      if (used < 4) {
-        log_e("no hay suficientes datos luego de bloque final para determinar tamaño expandido, se tienen %u bytes", used);
+    do {
+      if (!_streamerImpl->transformInputBuffer()) {
         _tgzupload_clientError = true;
-        _tgzupload_responseMsg = "Archivo es demasiado corto para validar longitud gzip";
+        _tgzupload_responseMsg = _streamerImpl->getErrorMessage();
         _uploadRejected = true;
-      } else {
-        gz_expectedExpandedSize =
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 4))      ) |
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 3)) <<  8) |
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 2)) << 16) |
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 1)) << 24);
-        log_v("longitud esperada de datos expandidos es %lu bytes", gz_expectedExpandedSize);
-        if (gz_expectedExpandedSize < _gz_actualExpandedSize) {
-          log_e("longitud ya expandida excede longitud esperada! %lu > %lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
-          _tgzupload_clientError = true;
-          _tgzupload_responseMsg = "Longitud esperada inconsistente con datos ya expandidos";
-          _uploadRejected = true;
-        }
       }
-    }
 
-    // Ejecutar descompresión si es el ÚLTIMO bloque, o si hay menos espacio que el necesario
-    // para agregar un bloque más.
-    runUnzip = (final || (GZIP_BUFF_SIZE - used < GZIP_FILL_WATERMARK));
-    while (!_uploadRejected && runUnzip && !_tar_eof && (gz_expectedExpandedSize == 0 || _gz_actualExpandedSize < gz_expectedExpandedSize)) {
-      log_v("_gz_actualExpandedSize=%lu gz_expectedExpandedSize=%lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
-      log_v("se tienen %u bytes, se ejecuta gunzip...", used);
-      if (!_gz_headerParsed) {
-        // Se requiere parsear cabecera gzip para validación
-        r = uzlib_gzip_parse_header(&_uzLib_decomp);
-        if (r != TINF_OK) {
-          // Fallo al parsear la cabecera gzip
-          log_e("fallo al parsear cabecera gzip");
-          _tgzupload_clientError = true;
-          _tgzupload_responseMsg = "Archivo no parece ser un archivo tar.gz, o está corrupto";
-          _uploadRejected = true;
-          break;
-        }
-        // Cabecera gzip OK, se ajustan búferes
-        _gz_headerParsed = true;
-      } else {
-        _uzLib_decomp.dest_start = _gz_dstdata;
-        _uzLib_decomp.dest = _gz_dstdata + _tar_available;
-        _uzLib_decomp.dest_limit = _gz_dstdata + 2 * TAR_BLOCK_SIZE;
-        if (final && (gz_expectedExpandedSize - _gz_actualExpandedSize) < 2 * TAR_BLOCK_SIZE - _tar_available) {
-          _uzLib_decomp.dest_limit = _gz_dstdata + _tar_available + (gz_expectedExpandedSize - _gz_actualExpandedSize);
-        }
-        while (_uzLib_decomp.dest < _uzLib_decomp.dest_limit) {
-          r = uzlib_uncompress(&_uzLib_decomp);
-          if (r != TINF_DONE && r != TINF_OK) {
-            log_e("fallo al descomprimir gzip (err=%d)", r);
-            _tgzupload_clientError = true;
-            _tgzupload_responseMsg = "Archivo corrupto o truncado (gzip), no puede descomprimirse";
-            _uploadRejected = true;
-            break;
-          }
-          if (_uploadRejected) break;
-        }
-        _gz_actualExpandedSize += (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available;
-        log_v("producidos %u bytes expandidos:", (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available);
-        _tar_available = _uzLib_decomp.dest - _uzLib_decomp.dest_start;
+      tar_progress = false;
+      while (!_tar_eof && !_uploadRejected && (
+        _streamerImpl->isOutputBufferFull() || (final && _streamerImpl->getAvailableOutputLength() > 0 && _streamerImpl->inputStreamEOF())
+      )) {
+        tar_progress = true;
 
-        // Pasar búfer descomprimido a rutina tar
-        while (!_tar_eof && !_uploadRejected && ((_tar_available >= 2 * TAR_BLOCK_SIZE)
-          || (final && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize && _tar_available > 0))) {
-          log_v("_tar_available=%u se ejecuta lectura tar", _tar_available);
-          // _tar_available se actualiza en _tar_cb_feedFromBuffer()
-          // Procesamiento continúa en callbacks _tar_cb_*
-          r = _tar_eof ? 0 : read_tar_step();
-          if (r == -1 && _tar_emptyChunk >= 2 && gz_expectedExpandedSize != 0) {
-            _tar_eof = true;
-            log_v("se alcanzó el final del tar actual=%lu esperado=%lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
-          } else if (r != 0) {
-            // Error -5 es fallo por _tar_cb_gotEntry[Header|End] que devuelve != 0 - debería manejarse vía _uploadRejected
-            // Error -7 es fallo por _tar_cb_gotEntryData que devuelve != 0 - debería manejarse vía _uploadRejected
-            if (r != -7 && r != -5) {
-              log_e("fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu",
-                _tar_available, r, _tar_emptyChunk, _gz_actualExpandedSize, gz_expectedExpandedSize);
-            }
-            // No sobreescribir mensaje raíz si ha sido ya asignado
-            if (!_tgzupload_clientError && !_tgzupload_serverError) {
-              _tgzupload_clientError = true;
-              _tgzupload_responseMsg = "Archivo corrupto o truncado (tar), no puede procesarse";
-            }
-            _uploadRejected = true;
-          } else {
-            log_v("luego de parseo tar: _tar_available=%u", _tar_available);
-          }
-        }
-
-        if (final && !_uploadRejected && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize
-          && _tar_available <= 0 && _tar_emptyChunk >= 2) {
+        log_v("_tar_available=%u se ejecuta lectura tar", _streamerImpl->getAvailableOutputLength());
+        // _tar_available se actualiza en _tar_cb_feedFromBuffer()
+        // Procesamiento continúa en callbacks _tar_cb_*
+        r = _tar_eof ? 0 : read_tar_step();
+        if (r == -1 && _tar_emptyChunk >= 2 && _streamerImpl->getTotalExpectedOutput() != 0) {
           _tar_eof = true;
-        }
-      }
-
-      consumed = _uzLib_decomp.source - _gz_srcdata;
-      if (consumed != 0) {
-        log_v("parseo gzip consumió %u bytes, se ajusta...", consumed);
-        if (_uzLib_decomp.source < _uzLib_decomp.source_limit) {
-          memmove(_gz_srcdata, _gz_srcdata + consumed, _uzLib_decomp.source_limit - _uzLib_decomp.source);
-          _uzLib_decomp.source_limit -= consumed;
-          _uzLib_decomp.source -= consumed;
+          log_v("se alcanzó el final del tar actual=%lu esperado=%lu",
+            _streamerImpl->getTotalProducedOutput(),
+            _streamerImpl->getTotalExpectedOutput());
+        } else if (r != 0) {
+          // Error -5 es fallo por _tar_cb_gotEntry[Header|End] que devuelve != 0 - debería manejarse vía _uploadRejected
+          // Error -7 es fallo por _tar_cb_gotEntryData que devuelve != 0 - debería manejarse vía _uploadRejected
+          if (r != -7 && r != -5) {
+            log_e("fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu",
+              _streamerImpl->getAvailableOutputLength(), r, _tar_emptyChunk,
+              _streamerImpl->getTotalProducedOutput(),
+              _streamerImpl->getTotalExpectedOutput());
+          }
+          // No sobreescribir mensaje raíz si ha sido ya asignado
+          if (!_tgzupload_clientError && !_tgzupload_serverError) {
+            _tgzupload_clientError = true;
+            _tgzupload_responseMsg = "Archivo corrupto o truncado (tar), no puede procesarse";
+          }
+          _uploadRejected = true;
         } else {
-          _uzLib_decomp.source = _gz_srcdata;
-          _uzLib_decomp.source_limit = _gz_srcdata;
+          log_v("luego de parseo tar: _tar_available=%u", _streamerImpl->getAvailableOutputLength());
         }
-      } else {
-        log_v("parseo gzip no consumió bytes...");
       }
-      used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
-      runUnzip = (final || (GZIP_BUFF_SIZE - used < GZIP_FILL_WATERMARK));
 
-      log_v("quedan %u bytes en búfer de entrada gzip", used);
-    }
+      if (final && !_uploadRejected && _streamerImpl->inputStreamEOF()
+        && _streamerImpl->getAvailableOutputLength() <= 0 && _tar_emptyChunk >= 2) {
+        _tar_eof = true;
+      }
+
+    } while (tar_progress && !_tar_eof && !_uploadRejected);
+  }
+
+  if (!_uploadRejected) {
+    _streamerImpl->detachInputBuffer();
   }
 
   // Cada llamada al callback de upload cede el CPU al menos aquí.
@@ -521,10 +426,8 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
   if (_uploadRejected || final) {
     tar_abort("tar cleanup", 0);
-    if (_gz_dict != NULL) { delete _gz_dict; _gz_dict = NULL; }
-    if (_gz_srcdata != NULL) { delete _gz_srcdata; _gz_srcdata = NULL; }
-    if (_gz_dstdata != NULL) { delete _gz_dstdata; _gz_dstdata = NULL; }
-    memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
+    delete _streamerImpl;
+    _streamerImpl = NULL;
   }
 
   if (final && _flasherImpl != NULL) {
@@ -550,21 +453,11 @@ int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 
   _tar_emptyChunk++;
 
-  unsigned int copySize = _tar_available;
-  log_v("máximo copia posible %d bytes...", copySize);
-  if (copySize > size) copySize = size;
+  unsigned int copySize = _streamerImpl->transferOutputData(buf, size);
   log_v("copiando %d bytes...", copySize);
   if (copySize < size) {
     log_w("se piden %d bytes pero sólo se pueden proveer %d bytes",
       size, copySize);
-  }
-  if (copySize > 0) {
-    memcpy(buf, _uzLib_decomp.dest_start, copySize);
-    if (_tar_available - copySize > 0) {
-      memmove(_uzLib_decomp.dest_start, _uzLib_decomp.dest_start + copySize, _tar_available - copySize);
-    }
-    _uzLib_decomp.dest -= copySize;
-    _tar_available -= copySize;
   }
   return copySize;
 }
@@ -743,6 +636,12 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   if (!clientError && !serverError) {
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
+  }
+
+  if (_streamerImpl != NULL) {
+    Serial.println("WARN: streamer no fue destruido al terminar manejo upload, se destruye ahora...");
+    delete _streamerImpl;
+    _streamerImpl = NULL;
   }
 
   if (_flasherImpl != NULL) {
