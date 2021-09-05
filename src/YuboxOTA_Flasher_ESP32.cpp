@@ -47,30 +47,15 @@ bool YuboxOTA_Flasher_ESP32::startUpdate(void)
     FREE_FILEBUF;
     _filebuf = (uint8_t *)malloc(YUBOX_BUFSIZ);
     if (_filebuf == NULL) {
-      _responseMsg= "No se puede asignar bufer para escribir archivos!";
-      _uploadRejected = true;
-      return false;
+        log_w("No se puede asignar bufer para escribir archivos! Se continúa sin búfer (más lento)...");
     }
     _filebuf_used = 0;
 
     return true;
 }
 
-#define CHECK_VALID_FILEBUF \
-  do {\
-    if (_filebuf == NULL) {\
-      if (!_uploadRejected) {\
-        _responseMsg = "Bufer de escritura no ha sido asignado en ";\
-        _responseMsg += __FUNCTION__;\
-        _uploadRejected = true;\
-      }\
-      return false;\
-    }\
-  } while (false)
-
 bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long filesize)
 {
-    CHECK_VALID_FILEBUF;
     if (_filebuf_used != 0) {
       if (!_uploadRejected) {
         _responseMsg = "Datos de búfer no han sido evacuados. Esto no debería pasar.";
@@ -160,6 +145,11 @@ bool YuboxOTA_Flasher_ESP32::_flushFileBuffer(const char * filename, unsigned lo
 {
     size_t r;
 
+    if (_filebuf == NULL) {
+        log_e("invocación con _filebuf == NULL - no debería pasar!");
+        return false;
+    }
+
     r = _tgzupload_rsrc.write(_filebuf, _filebuf_used);
     if (r <= 0) {
         _tgzupload_rsrc.close();
@@ -190,22 +180,43 @@ bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long
 
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
-        CHECK_VALID_FILEBUF;
-
         // Esto asume que el archivo ya fue abierto previamente
         while (size > 0) {
-            // Copiar cuanto se pueda del block al búfer hasta llenarlo
-            r = YUBOX_BUFSIZ - _filebuf_used;
-            if (r > size) r = size;
-            memcpy(_filebuf + _filebuf_used, block, r);
-            _filebuf_used += r;
-            size -= r;
-            block += r;
+            if (_filebuf != NULL) {
+                // Copiar cuanto se pueda del block al búfer hasta llenarlo
+                r = YUBOX_BUFSIZ - _filebuf_used;
+                if (r > size) r = size;
+                memcpy(_filebuf + _filebuf_used, block, r);
+                _filebuf_used += r;
+                size -= r;
+                block += r;
 
-            // ¿Ya se puede evacuar el búfer al archivo abierto?
-            if (_filebuf_used >= YUBOX_BUFSIZ) {
-                if (!_flushFileBuffer(filename, filesize)) break;
+                // ¿Ya se puede evacuar el búfer al archivo abierto?
+                if (_filebuf_used >= YUBOX_BUFSIZ) {
+                    if (!_flushFileBuffer(filename, filesize)) break;
+                }
+            } else {
+                // Escribir datos directamente ya que no hay _filebuf asignado
+                r = _tgzupload_rsrc.write(block, size);
+                if (r <= 0) {
+                    _tgzupload_rsrc.close();
+                    _responseMsg = "Fallo al escribir archivo: ";
+                    _responseMsg += filename;
+                    _responseMsg += " ";
+                    _responseMsg += _reportFilesystemSpace();
+                    _uploadRejected = true;
+                    _tgzupload_currentOp = YBX_OTA_IDLE;
+                    break;
+                }
+                _tgzupload_bytesWritten += r;
+                size -= r;
+                block += r;
             }
+        }
+
+        // Invocar directamente callback progreso si no hay búfer
+        if (_filebuf == NULL) {
+            _fileprogress_cb(filename, false, filesize, _tgzupload_bytesWritten);
         }
         break;
     case YBX_OTA_FIRMWARE_FLASH:
@@ -234,8 +245,7 @@ bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long lon
 {
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
-        CHECK_VALID_FILEBUF;
-
+        // Si no hay _filebuf asignado, se espera que _filebuf_used ya sea 0
         while (_filebuf_used > 0 && !_uploadRejected) {
             if (!_flushFileBuffer(filename, filesize)) break;
         }
