@@ -45,10 +45,6 @@ String YuboxOTA_Flasher_ESP32::getLastErrorMessage(void)
 bool YuboxOTA_Flasher_ESP32::startUpdate(void)
 {
     FREE_FILEBUF;
-    _filebuf = (uint8_t *)malloc(YUBOX_BUFSIZ);
-    if (_filebuf == NULL) {
-        log_w("No se puede asignar bufer para escribir archivos! Se continúa sin búfer (más lento)...");
-    }
     _filebuf_used = 0;
     _tgzupload_flashSuccess = false;
 
@@ -75,6 +71,14 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
       if (_tgzupload_foundFirmware) {
         log_w("Se ignora firmware duplicado: %s longitud %d bytes", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
       } else {
+        // Previo a la escritura de firmware, el búfer de escritura de archivo se libera
+        // porque no va a ser usado, y para mitigar escenarios de falta de RAM que impidan
+        // el éxito de Update.begin(), que asigna un búfer interno.
+        if (_filebuf != NULL) {
+          FREE_FILEBUF;
+          log_d("Liberado búfer de escritura de archivo previo a inicio de escritura firmware");
+        }
+
         _tgzupload_foundFirmware = true;
         if ((unsigned long)(filesize >> 32) != 0) {
           // El firmware excede de 4GB. Un dispositivo así de grande no existe
@@ -132,6 +136,16 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
           _tgzupload_currentOp = YBX_OTA_SPIFFS_WRITE;
           _tgzupload_bytesWritten = 0;
           _filestart_cb(filename, false, filesize);
+
+          // Asignar búfer de escritura de archivos, si es posible
+          if (_filebuf == NULL) {
+            _filebuf = (uint8_t *)malloc(YUBOX_BUFSIZ);
+            if (_filebuf == NULL) {
+              log_w("No se puede asignar bufer para escribir archivos! Se continúa sin búfer (más lento)...");
+            } else {
+              log_d("Asignado búfer de escritura de archivos, longitud %d bytes", YUBOX_BUFSIZ);
+            }
+          }
 
           // Detectar si el tar contiene el manifest.txt
           if (strcmp(filename, "manifest.txt") == 0) _tgzupload_hasManifest = true;
