@@ -31,6 +31,9 @@ private:
   // Bandera de reinicio requerido para aplicar cambios
   bool _shouldReboot;
 
+  // Bandera para indicar que ya se invocó la finalización del flasheo
+  bool _uploadFinished;
+
   // Cuenta de datos subidos del archivo para reportar en eventos
   unsigned long _tgzupload_rawBytesReceived;
 

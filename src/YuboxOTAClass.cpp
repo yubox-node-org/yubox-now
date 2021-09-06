@@ -17,6 +17,7 @@ extern "C" {
 
 #include "YuboxOTA_Flasher_ESP32.h"
 #include "YuboxOTA_Streamer_GZ.h"
+#include "YuboxOTA_Streamer_Identity.h"
 
 typedef struct YuboxOTAVetoList
 {
@@ -55,6 +56,7 @@ YuboxOTAClass::YuboxOTAClass(void)
 
   _uploadRejected = false;
   _shouldReboot = false;
+  _uploadFinished = false;
   _streamerImpl = NULL;
   _tarCB.header_cb = ::_tar_cb_gotEntryHeader;
   _tarCB.data_cb = ::_tar_cb_gotEntryData;
@@ -208,6 +210,8 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
 
   if (filename.endsWith(".tar.gz") || filename.endsWith(".tgz")) {
     if (_streamerImpl == NULL) _streamerImpl = new YuboxOTA_Streamer_GZ();
+  } else if (filename.endsWith(".tar")) {
+    if (_streamerImpl == NULL) _streamerImpl = new YuboxOTA_Streamer_Identity();
   } else {
     // Este upload no parece ser un tarball, se rechaza localmente.
     if (!_uploadRejected) {
@@ -308,6 +312,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   if (index == 0) {
     _tgzupload_rawBytesReceived = 0;
     _shouldReboot = false;
+    _uploadFinished = false;
 
     if (!_streamerImpl->begin()) {
       _tgzupload_serverError = true;
@@ -361,9 +366,9 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
         // _tar_available se actualiza en _tar_cb_feedFromBuffer()
         // Procesamiento continúa en callbacks _tar_cb_*
         r = _tar_eof ? 0 : read_tar_step();
-        if (r == -1 && _tar_emptyChunk >= 2 && _streamerImpl->getTotalExpectedOutput() != 0) {
+        if (r == -1 && _tar_emptyChunk >= 2 /*&& _streamerImpl->getTotalExpectedOutput() != 0*/) {
           _tar_eof = true;
-          log_v("se alcanzó el final del tar actual=%lu esperado=%lu",
+          log_d("se alcanzó el final del tar actual=%lu esperado=%lu",
             _streamerImpl->getTotalProducedOutput(),
             _streamerImpl->getTotalExpectedOutput());
         } else if (r != 0) {
@@ -402,7 +407,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   vTaskDelay(pdMS_TO_TICKS(5));
 
   if (_tar_eof) {
-    if (_flasherImpl != NULL) {
+    if (_flasherImpl != NULL && !_uploadFinished) {
       bool ok = _flasherImpl->finishUpdate();
       if (!ok) {
         // TODO: distinguir entre error de formato y error de flasheo
@@ -412,6 +417,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       } else {
         _shouldReboot = _flasherImpl->shouldReboot();
       }
+      _uploadFinished = true;
     }
   } else if (final) {
     // Se ha llegado al último chunk y no se ha detectado el fin del tar.
