@@ -407,7 +407,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   vTaskDelay(pdMS_TO_TICKS(5));
 
   if (_tar_eof) {
-    if (_flasherImpl != NULL && !_uploadFinished) {
+    if (final && _flasherImpl != NULL && !_uploadFinished) {
       bool ok = _flasherImpl->finishUpdate();
       if (!ok) {
         // TODO: distinguir entre error de formato y error de flasheo
