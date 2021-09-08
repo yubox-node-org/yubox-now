@@ -17,6 +17,9 @@ protected:
   unsigned char * _gz_buffer;          // Memoria de búfer de datos comprimidos
   uint32_t _gz_buffer_size;
 
+  size_t _total_input = 0;
+  unsigned char _last4bytes[4];         // Recordar los últimos 4 bytes vistos en entrada
+
   // La llamada attachInputBuffer copia puntero y longitud aquí
   const uint8_t * _data;
   size_t _len;

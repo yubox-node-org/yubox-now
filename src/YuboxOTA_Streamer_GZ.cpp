@@ -5,6 +5,7 @@ YuboxOTA_Streamer_GZ::YuboxOTA_Streamer_GZ(size_t outbuf_size)
     : YuboxOTA_Streamer(outbuf_size)
 {
     memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
+    memset(_last4bytes, 0, sizeof(_last4bytes));
     _gz_buffer = _gz_dict = NULL;
     _gz_buffer_size = 0;
     _gz_headerParsed = false;
@@ -21,6 +22,7 @@ bool YuboxOTA_Streamer_GZ::begin(void)
     _total_output = 0;
     _gz_headerParsed = false;
     _finalInputBuffer = false;
+    _total_input = 0;
 
     /* El valor de GZIP_BUFF_SIZE es suficiente para al menos dos fragmentos de datos entrantes.
      * Se descomprime únicamente 2 * TAR_BLOCK_SIZE a la vez para simplificar el código y para que
@@ -103,19 +105,28 @@ bool YuboxOTA_Streamer_GZ::attachInputBuffer(const uint8_t * data, size_t len, b
     used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
     log_v("LUEGO DE AGREGAR chunk: used=%u MAX=%u", used, _gz_buffer_size);
 
+    // Actualizar los últimos 4 bytes vistos
+    _total_input += len;
+    if (len >= 4) {
+        memcpy(_last4bytes, data + len -4, 4);
+    } else {
+        memmove(_last4bytes, _last4bytes + len, 4 - len);
+        memcpy(_last4bytes + 4 - len, data, len);
+    }
+
     if (final) {
         // Para el último bloque HTTP debería tenerse los 4 últimos bytes LSB que indican
         // el tamaño esperado de longitud expandida.
-        if (used < 4) {
-            log_e("no hay suficientes datos luego de bloque final para determinar tamaño expandido, se tienen %u bytes", used);
+        if (_total_input < 4) {
+            log_e("no hay suficientes datos para determinar tamaño expandido, se tienen %u bytes", _total_input);
             _errMsg = "Archivo es demasiado corto para validar longitud gzip";
             return false;
         } else {
             _gz_expectedExpandedSize =
-                ((unsigned long)(*(_uzLib_decomp.source_limit - 4))      ) |
-                ((unsigned long)(*(_uzLib_decomp.source_limit - 3)) <<  8) |
-                ((unsigned long)(*(_uzLib_decomp.source_limit - 2)) << 16) |
-                ((unsigned long)(*(_uzLib_decomp.source_limit - 1)) << 24);
+                ((unsigned long)(_last4bytes[0])      ) |
+                ((unsigned long)(_last4bytes[1]) <<  8) |
+                ((unsigned long)(_last4bytes[2]) << 16) |
+                ((unsigned long)(_last4bytes[3]) << 24);
             log_v("longitud esperada de datos expandidos es %lu bytes", _gz_expectedExpandedSize);
             if (_gz_expectedExpandedSize < _total_output) {
                 log_e("longitud ya expandida excede longitud esperada! %lu > %lu", _total_output, _gz_expectedExpandedSize);
