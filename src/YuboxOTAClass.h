@@ -91,6 +91,9 @@ private:
   YuboxOTA_Flasher * _buildFlasherFromIdx(int);
   YuboxOTA_Flasher * _buildFlasherFromURL(String);
 
+  void _rejectUpload(const String &, bool serverError);
+  void _rejectUpload(const char *, bool serverError);
+
 public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);

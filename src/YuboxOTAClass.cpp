@@ -202,6 +202,21 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
     request->send(response);
 }
 
+void YuboxOTAClass::_rejectUpload(const String & s, bool serverError)
+{
+  if (!_tgzupload_serverError && !_tgzupload_clientError) {
+    if (serverError) _tgzupload_serverError = true; else _tgzupload_clientError = true;
+  }
+  if (_tgzupload_responseMsg.isEmpty()) _tgzupload_responseMsg = s;
+  _uploadRejected = true;
+}
+
+void YuboxOTAClass::_rejectUpload(const char * msg, bool serverError)
+{
+  String s = msg;
+  _rejectUpload(s, serverError);
+}
+
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
     String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
@@ -214,11 +229,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
     if (_streamerImpl == NULL) _streamerImpl = new YuboxOTA_Streamer_Identity();
   } else {
     // Este upload no parece ser un tarball, se rechaza localmente.
-    if (!_uploadRejected) {
-      _tgzupload_responseMsg = "Archivo no parece un tarball - se espera extensión .tar.gz o .tgz";
-      _tgzupload_clientError = true;
-      _uploadRejected = true;
-    }
+    _rejectUpload("Archivo no parece un tarball - se espera extensión .tar.gz o .tgz", false);
     return;
   }
   if (index == 0) {
@@ -231,31 +242,24 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
       _uploadRejected = true;
     } else {
       if (_flasherImpl != NULL) {
-        _tgzupload_responseMsg = "El flasheo concurrente de firmwares no está soportado.";
-        _tgzupload_clientError = true;
-        _uploadRejected = true;
+        _rejectUpload("El flasheo concurrente de firmwares no está soportado.", false);
       } else {
         int idxFlash = _idxFlasherFromURL(request->url());
         if (idxFlash < 0) {
-          _tgzupload_responseMsg = "No implementado flasheo para ruta: ";
-          _tgzupload_responseMsg += request->url();
-          _tgzupload_serverError = true;
-          _uploadRejected = true;
+          String msg = "No implementado flasheo para ruta: ";
+          msg += request->url();
+          _rejectUpload(msg, true);
         } else {
           _flasherImpl = _buildFlasherFromIdx(idxFlash);
           if (_flasherImpl == NULL) {
-            _tgzupload_responseMsg = "Fallo al instanciar flasheador";
-            _tgzupload_serverError = true;
-            _uploadRejected = true;
+            _rejectUpload("Fallo al instanciar flasheador", true);
           }
         }
       }
     }
   } else {
     if (!_uploadRejected && _flasherImpl == NULL) {
-      _tgzupload_responseMsg = "No se ha instanciado flasheador y se sigue recibiendo datos!";
-      _tgzupload_serverError = true;
-      _uploadRejected = true;
+      _rejectUpload("No se ha instanciado flasheador y se sigue recibiendo datos!", true);
     }
   }
   
@@ -297,9 +301,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   if (index == 0) {
     String vetoMsg = _checkOTA_Veto(false);
     if (!vetoMsg.isEmpty()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = vetoMsg;
-      _uploadRejected = true;
+      _rejectUpload(vetoMsg, true);
 
       return;
     }
@@ -315,9 +317,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _uploadFinished = false;
 
     if (!_streamerImpl->begin()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _streamerImpl->getErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_streamerImpl->getErrorMessage(), true);
     }
 
     // Inicialización de parseo tar
@@ -330,9 +330,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_serverError = false;
 
     if (!_uploadRejected && !_flasherImpl->startUpdate()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
     }
   }
 
@@ -340,9 +338,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
   if (!_uploadRejected) {
     if (!_streamerImpl->attachInputBuffer(data, len, final)) {
-      _tgzupload_clientError = true;
-      _tgzupload_responseMsg = _streamerImpl->getErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_streamerImpl->getErrorMessage(), false);
     }
   }
 
@@ -351,9 +347,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
 
     do {
       if (!_streamerImpl->transformInputBuffer()) {
-        _tgzupload_clientError = true;
-        _tgzupload_responseMsg = _streamerImpl->getErrorMessage();
-        _uploadRejected = true;
+        _rejectUpload(_streamerImpl->getErrorMessage(), false);
       }
 
       tar_progress = false;
@@ -380,12 +374,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
               _streamerImpl->getTotalProducedOutput(),
               _streamerImpl->getTotalExpectedOutput());
           }
-          // No sobreescribir mensaje raíz si ha sido ya asignado
-          if (!_tgzupload_clientError && !_tgzupload_serverError) {
-            _tgzupload_clientError = true;
-            _tgzupload_responseMsg = "Archivo corrupto o truncado (tar), no puede procesarse";
-          }
-          _uploadRejected = true;
+          _rejectUpload("Archivo corrupto o truncado (tar), no puede procesarse", false);
         } else {
           log_v("luego de parseo tar: _tar_available=%u", _streamerImpl->getAvailableOutputLength());
         }
@@ -411,9 +400,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
       bool ok = _flasherImpl->finishUpdate();
       if (!ok) {
         // TODO: distinguir entre error de formato y error de flasheo
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-        _uploadRejected = true;
+        _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
       } else {
         _shouldReboot = _flasherImpl->shouldReboot();
       }
@@ -425,9 +412,7 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     if (_flasherImpl != NULL) {
       _flasherImpl->truncateUpdate();
     }
-    _tgzupload_clientError = true;
-    _tgzupload_responseMsg = "No se ha detectado final del tar al término del upload";
-    _uploadRejected = true;
+    _rejectUpload("No se ha detectado final del tar al término del upload", false);
   }
 
   if (_uploadRejected || final) {
@@ -478,9 +463,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
     if (_flasherImpl != NULL) {
       bool ok = _flasherImpl->startFile(hdr->filename, hdr->filesize);
       if (!ok) {
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-        _uploadRejected = true;
+        _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
       }
     }
 
@@ -509,9 +492,7 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->appendFileData(hdr->filename, hdr->filesize, block, size);
     if (!ok) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
     }
   }
 
@@ -525,9 +506,7 @@ int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_inde
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->finishFile(hdr->filename, hdr->filesize);
     if (!ok) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
     }
   }
 
