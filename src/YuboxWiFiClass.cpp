@@ -64,16 +64,8 @@ void YuboxWiFiClass::setAPName(String & tpl)
 
 String YuboxWiFiClass::_getWiFiMAC(void)
 {
-  byte maccopy[6];
-  memset(maccopy, 0, sizeof(maccopy));
-  WiFi.macAddress(maccopy);
-
-  String mac;
-  for (auto i = 0; i < sizeof(maccopy); i++) {
-    String octet = String(maccopy[i], 16);
-    octet.toUpperCase();
-    mac += octet;
-  }
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
   return mac;
 }
 
