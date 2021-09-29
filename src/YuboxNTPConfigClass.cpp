@@ -213,7 +213,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["ntpsync"] = isNTPValid();
@@ -309,7 +309,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 

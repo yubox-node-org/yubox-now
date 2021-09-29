@@ -184,7 +184,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
 
     // Construir tabla de flasheadores disponibles
     String json_tableOutput = "[";
-    DynamicJsonDocument json_tablerow(JSON_OBJECT_SIZE(4));
+    StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_tablerow;
     for (auto it = flasherFactoryList.begin(); it != flasherFactoryList.end(); it++) {
       if (json_tableOutput.length() > 1) json_tableOutput += ",";
 
@@ -549,7 +549,7 @@ void YuboxOTAClass::_emitUploadEvent_FileStart(const char * filename, bool isfir
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
   json_doc["event"] = "uploadFileStart";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -567,7 +567,7 @@ void YuboxOTAClass::_emitUploadEvent_FileProgress(const char * filename, bool is
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(6));
+  StaticJsonDocument<JSON_OBJECT_SIZE(6)> json_doc;
   json_doc["event"] = "uploadFileProgress";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -585,7 +585,7 @@ void YuboxOTAClass::_emitUploadEvent_FileEnd(const char * filename, bool isfirmw
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
   json_doc["event"] = "uploadFileEnd";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -646,7 +646,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
   json_doc["reboot"] = (_shouldReboot && !clientError && !serverError);
@@ -669,7 +669,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerR
   delete fi;
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(1));
+  StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
   response->setCode(200);
   json_doc["canrollback"] = canRollBack;
 
@@ -682,7 +682,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(false); // Rollback cuenta como flasheo
@@ -732,7 +732,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(true);

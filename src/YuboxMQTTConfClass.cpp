@@ -285,7 +285,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 

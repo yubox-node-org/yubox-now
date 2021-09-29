@@ -122,7 +122,7 @@ void YuboxWebAuthClass::_routeHandler_yuboxAPI_authconfig_GET(AsyncWebServerRequ
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
 
   json_doc["username"] = _username.c_str();
   json_doc["password"] = _password.c_str();
@@ -187,7 +187,7 @@ void YuboxWebAuthClass::_routeHandler_yuboxAPI_authconfig_POST(AsyncWebServerReq
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 

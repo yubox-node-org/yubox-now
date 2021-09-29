@@ -662,7 +662,7 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
 {
   // Emitir estado actual de control de WiFi
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(1));
+  StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
   json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
   String json_str;
   serializeJson(json_doc, json_str);
@@ -861,7 +861,7 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 
@@ -961,7 +961,7 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
 
 void YuboxWiFiClass::_serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i)
 {
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(4));
+  StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_doc;
 
   json_doc["ssid"] = _savedNetworks[i].cred.ssid.c_str();
   json_doc["psk"] = (const char *)NULL;
