@@ -451,10 +451,10 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
   Preferences nvram;
   nvram.begin(_ns_nvram_yuboxframework_wifi, true);
   _selNetwork = nvram.getInt("net/sel", 0);        // <-- si se lee 0 se asume la red conocida más fuerte
-  //Serial.printf("DEBUG: net/sel = %d\r\n", _selNetwork);
+  log_d("net/sel = %d", _selNetwork);
   _selNetwork = (_selNetwork <= 0) ? -1 : _selNetwork - 1;
   uint32_t numNets = nvram.getUInt("net/n", 0);     // <-- número de redes guardadas
-  //Serial.printf("DEBUG: net/n = %u\r\n", numNets);
+  log_d("net/n = %u", numNets);
   for (auto i = 0; i < numNets; i++) {
     YuboxWiFi_nvramrec r;
 

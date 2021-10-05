@@ -624,13 +624,13 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
   }
 
   if (_streamerImpl != NULL) {
-    Serial.println("WARN: streamer no fue destruido al terminar manejo upload, se destruye ahora...");
+    log_w("streamer no fue destruido al terminar manejo upload, se destruye ahora...");
     delete _streamerImpl;
     _streamerImpl = NULL;
   }
 
   if (_flasherImpl != NULL) {
-    Serial.println("WARN: flasheador no fue destruido al terminar manejo upload, se destruye ahora...");
+    log_w("flasheador no fue destruido al terminar manejo upload, se destruye ahora...");
     delete _flasherImpl;
     _flasherImpl = NULL;
   }
