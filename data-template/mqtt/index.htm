@@ -20,6 +20,12 @@
         <small id="mqtthostAyuda" class="form-text text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
     </div>
     <div class="form-group">
+        <label for="mqttport">Puerto TCP/IP para MQTT:</label>
+        <input type="number" id="mqttport" name="mqttport" class="form-control" placeholder="1883"
+            aria-describedby="mqttportAyuda" value="" min="1" max="65535" required />
+        <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
+    </div>
+    <div class="form-group">
         <div class="row">
         <legend class="col-form-label col-sm-4 pt-0">Autenticación MQTT:</legend>
         <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">

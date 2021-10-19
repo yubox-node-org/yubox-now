@@ -21,6 +21,7 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
 {
   _autoConnect = false;
   _lastdisconnect = AsyncMqttClientDisconnectReason::TCP_DISCONNECTED;
+  _yuboxMQTT_port = MQTT_PORT;
 
   _mqttReconnectTimer = xTimerCreate(
     "YuboxMQTTConfClass_mqttTimer",
@@ -45,14 +46,15 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   // Para cada una de las preferencias, si no está seteada se obtendrá cadena vacía
   nvram.begin(_ns_nvram_yuboxframework_mqtt, true);
   _yuboxMQTT_host = nvram.getString("host");
+  _yuboxMQTT_port = nvram.getUShort("port", MQTT_PORT);
   _yuboxMQTT_user = nvram.getString("user");
   _yuboxMQTT_pass = nvram.getString("pass");
 
-  log_v("Host de broker MQTT......: %s", _yuboxMQTT_host.c_str());
-  log_v("Usuario de broker MQTT...: %s", _yuboxMQTT_user.c_str());
-  log_v("Clave de broker MQTT.....: %s", _yuboxMQTT_pass.c_str());
+  log_d("Host de broker MQTT......: %s:%u", _yuboxMQTT_host.c_str(), _yuboxMQTT_port);
+  log_d("Usuario de broker MQTT...: %s", _yuboxMQTT_user.c_str());
+  log_d("Clave de broker MQTT.....: %s", _yuboxMQTT_pass.c_str());
 
-  _mqttClient.setServer(_yuboxMQTT_host.c_str(), MQTT_PORT);
+  _mqttClient.setServer(_yuboxMQTT_host.c_str(), _yuboxMQTT_port);
   if (_yuboxMQTT_user.length() > 0) {
     _mqttClient.setCredentials(_yuboxMQTT_user.c_str(), _yuboxMQTT_pass.c_str());
   } else {
@@ -106,7 +108,7 @@ void YuboxMQTTConfClass::_connectMQTT(void)
 
   const char *p = _mqttClient.getClientId();
   log_i("Iniciando conexión a MQTT en %s:%u client-id %p[%s] ...",
-    _yuboxMQTT_host.c_str(), MQTT_PORT, p, p);
+    _yuboxMQTT_host.c_str(), _yuboxMQTT_port, p, p);
   _mqttClient.connect();
 }
 
@@ -171,6 +173,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
     json_doc["user"] = (char *)NULL;
     json_doc["pass"] = (char *)NULL;
   }
+  json_doc["port"] = _yuboxMQTT_port;
 
   serializeJson(json_doc, *response);
   request->send(response);
@@ -197,10 +200,12 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   String n_host;
   String n_user;
   String n_pass;
+  uint16_t n_port;
 
   n_host = _yuboxMQTT_host;
   n_user = _yuboxMQTT_user;
   n_pass = _yuboxMQTT_pass;
+  n_port = _yuboxMQTT_port;
 
   bool clientError = false;
   bool serverError = false;
@@ -245,6 +250,15 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
       responseMsg = "Credenciales requieren contraseña no vacía";
     }
   }
+  if (!clientError && request->hasParam("port", true)) {
+    p = request->getParam("port", true);
+    int n = sscanf(p->value().c_str(), "%hu", &n_port);\
+    if (n <= 0) {
+      clientError = true;
+      responseMsg = "Formato numérico incorrecto para ";
+      responseMsg += "port" ;
+    }
+  }
 
   // Si todos los parámetros son válidos, se intenta guardar en NVRAM
   if (!clientError) {
@@ -254,6 +268,10 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     if (!serverError && !nvram.putString("host", n_host)) {
       serverError = true;
       responseMsg = "No se puede guardar valor para clave: host";
+    }
+    if (!serverError && !nvram.putUShort("port", n_port)) {
+      serverError = true;
+      responseMsg = "No se puede guardar valor para clave: port";
     }
     if (!serverError && !NVRAM_PUTSTRING(nvram, "user", n_user)) {
       serverError = true;

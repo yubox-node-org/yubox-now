@@ -29,6 +29,7 @@ private:
   String _yuboxMQTT_host;
   String _yuboxMQTT_user;
   String _yuboxMQTT_pass;
+  uint16_t _yuboxMQTT_port;
 
   String _yuboxMQTT_default_clientid;
 

@@ -19,6 +19,7 @@ function setupMqttTab()
 
         var postData = {
             host:           mqttpane.find('input#mqtthost').val(),
+            port:           mqttpane.find('input#mqttport').val(),
             user:           null,
             pass:           null
         };
@@ -103,6 +104,7 @@ function yuboxLoadMqttConfig()
         }
 
         mqttpane.find('form input#mqtthost').val(data.host);
+        mqttpane.find('form input#mqttport').val(data.port);
         if (data.user != null) {
             mqttpane.find('form input#mqttuser').val(data.user);
             mqttpane.find('form input#mqttpass').val(data.pass);
