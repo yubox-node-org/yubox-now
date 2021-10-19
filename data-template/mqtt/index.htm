@@ -13,17 +13,19 @@
             </h5>
         </div>
     </div>
-    <div class="form-group">
-        <label for="mqtthost">Broker MQTT para envío de datos:</label>
-        <input type="text" id="mqtthost" name="mqtthost" class="form-control" placeholder="mqtt.example.com"
-            aria-describedby="mqtthostAyuda" value="" required />
-        <small id="mqtthostAyuda" class="form-text text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
-    </div>
-    <div class="form-group">
-        <label for="mqttport">Puerto TCP/IP para MQTT:</label>
-        <input type="number" id="mqttport" name="mqttport" class="form-control" placeholder="1883"
-            aria-describedby="mqttportAyuda" value="" min="1" max="65535" required />
-        <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
+    <div class="form-row">
+        <div class="form-group col-sm-8">
+            <label for="mqtthost">Broker MQTT para envío de datos:</label>
+            <input type="text" id="mqtthost" name="mqtthost" class="form-control" placeholder="mqtt.example.com"
+                aria-describedby="mqtthostAyuda" value="" required />
+            <small id="mqtthostAyuda" class="form-text text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
+        </div>
+        <div class="form-group col-sm-4">
+            <label for="mqttport">Puerto TCP/IP para MQTT:</label>
+            <input type="number" id="mqttport" name="mqttport" class="form-control" placeholder="1883"
+                aria-describedby="mqttportAyuda" value="" min="1" max="65535" required />
+            <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
+        </div>
     </div>
     <div class="form-group">
         <div class="row">
