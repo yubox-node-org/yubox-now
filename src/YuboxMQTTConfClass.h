@@ -32,6 +32,7 @@ private:
   uint32_t _rootCA_len; uint8_t * _rootCA;
   uint32_t _clientCert_len; uint8_t * _clientCert;
   uint32_t _clientKey_len; uint8_t * _clientKey;
+  uint8_t _tls_verifylevel;
 
   bool _loadFile(const char * path, uint32_t &datalen, uint8_t * &dataptr);
 #endif

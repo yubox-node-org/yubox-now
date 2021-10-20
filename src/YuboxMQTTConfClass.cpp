@@ -25,6 +25,12 @@
 
 #define MQTT_PORT 1883
 
+// Niveles de encriptación negociados vía MQTT
+#define YUBOX_MQTT_SSL_NONE           0 // Sin encriptación (por omisión)
+#define YUBOX_MQTT_SSL_INSECURE       1 // Conexión encriptada, pero sin verificación de certificados
+#define YUBOX_MQTT_SSL_VERIFY_SERVER  2 // Conexión encriptada, verificar identidad de servidor
+#define YUBOX_MQTT_SSL_VERIFY_CLIENT  3 // Conexión encriptada, verificar servidor, ofrecer identidad cliente
+
 const char * YuboxMQTTConfClass::_ns_nvram_yuboxframework_mqtt = "YUBOX/MQTT";
 
 void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t);
@@ -46,6 +52,7 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
   _rootCA = NULL; _rootCA_len = 0;
   _clientCert = NULL; _clientCert_len = 0;
   _clientKey = NULL; _clientKey_len = 0;
+  _tls_verifylevel = YUBOX_MQTT_SSL_NONE;
 #endif
 }
 
@@ -81,6 +88,8 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   _mqttClient.setClientId(_yuboxMQTT_default_clientid.c_str());
 
 #if ASYNC_TCP_SSL_ENABLED
+  _tls_verifylevel = nvram.getUChar("tlslevel", YUBOX_MQTT_SSL_NONE);
+
   // Anular cualquier certificado previamente establecido
   _mqttClient.setRootCa(NULL, 0);
   _mqttClient.setClientCert(NULL, 0, NULL, 0);
@@ -96,27 +105,34 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   COND_FREE(_clientCert)
   COND_FREE(_clientKey)
 
-  // TODO: implementar realmente mecanismo para seleccionar TLS
-  if (_yuboxMQTT_port >= 8000) {
-    log_i("Se negociará conexión ENCRIPTADA...");
+  if (_tls_verifylevel != YUBOX_MQTT_SSL_NONE) {
+    log_i("Se negociará conexión ENCRIPTADA, nivel %hhu...", _tls_verifylevel);
     _mqttClient.setSecure(true);  // Encriptado, pero NO verificado hasta establecer certificados
 
-    if (!_loadFile(MQTT_SERVER_CERT, _rootCA_len, _rootCA)) {
-      log_w("No se ha cargado certificado servidor %s, conexión encriptada no verificará servidor!", MQTT_SERVER_CERT);
+    if (_tls_verifylevel == YUBOX_MQTT_SSL_INSECURE) {
+      log_i("No se intentará cargar certificado alguno, conexión encriptada, no verificada...");
     } else {
-      log_i("Cargado certificado de servidor %s", MQTT_SERVER_CERT);
-      _mqttClient.setRootCa((const char *)_rootCA, _rootCA_len);
-
-      if (_loadFile(MQTT_CLIENT_CERT, _clientCert_len, _clientCert) &&
-          _loadFile(MQTT_CLIENT_KEY, _clientKey_len, _clientKey)) {
-        log_w("Cargado certificado cliente %s y llave cliente %s",
-          MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
-        _mqttClient.setClientCert((const char *)_clientCert, _clientCert_len, (const char *)_clientKey, _clientKey_len);
+      if (!_loadFile(MQTT_SERVER_CERT, _rootCA_len, _rootCA)) {
+        log_w("No se ha cargado certificado servidor %s, conexión encriptada no verificará servidor!", MQTT_SERVER_CERT);
       } else {
-        log_w("No se ha cargado certificado cliente %s O llave cliente %s, conexión encriptada podría fallar en autenticarse!",
-          MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
-        COND_FREE(_clientCert)
-        COND_FREE(_clientKey)
+        log_i("Cargado certificado de servidor %s", MQTT_SERVER_CERT);
+        _mqttClient.setRootCa((const char *)_rootCA, _rootCA_len);
+
+        if (_tls_verifylevel == YUBOX_MQTT_SSL_VERIFY_SERVER) {
+          log_i("No se intentará cargar certificado de cliente, conexión encriptada, verificar servidor...");
+        } else {
+          if (_loadFile(MQTT_CLIENT_CERT, _clientCert_len, _clientCert) &&
+              _loadFile(MQTT_CLIENT_KEY, _clientKey_len, _clientKey)) {
+            log_i("Cargado certificado cliente %s y llave cliente %s, verificar servidor y cliente...",
+              MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
+            _mqttClient.setClientCert((const char *)_clientCert, _clientCert_len, (const char *)_clientKey, _clientKey_len);
+          } else {
+            log_w("No se ha cargado certificado cliente %s O llave cliente %s, conexión encriptada podría fallar en autenticarse!",
+              MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
+            COND_FREE(_clientCert)
+            COND_FREE(_clientKey)
+          }
+        }
       }
     }
   } else {
@@ -255,7 +271,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(8));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(12));
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["want2connect"] = _autoConnect;
@@ -284,6 +300,19 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
     json_doc["pass"] = (char *)NULL;
   }
   json_doc["port"] = _yuboxMQTT_port;
+
+  // Valores por omisión para cuando no hay TLS
+  json_doc["tls_capable"] = false;
+  json_doc["tls_verifylevel"] = YUBOX_MQTT_SSL_NONE;
+  json_doc["tls_servercert"] = false;
+  json_doc["tls_clientcert"] = false;
+#if ASYNC_TCP_SSL_ENABLED
+  // Valores concernientes a TLS
+  json_doc["tls_capable"] = true;
+  json_doc["tls_verifylevel"] = _tls_verifylevel;
+  json_doc["tls_servercert"] = SPIFFS.exists(MQTT_SERVER_CERT);
+  json_doc["tls_clientcert"] = (SPIFFS.exists(MQTT_CLIENT_CERT) && SPIFFS.exists(MQTT_CLIENT_KEY));
+#endif
 
   serializeJson(json_doc, *response);
   request->send(response);
@@ -316,6 +345,10 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   n_user = _yuboxMQTT_user;
   n_pass = _yuboxMQTT_pass;
   n_port = _yuboxMQTT_port;
+
+#if ASYNC_TCP_SSL_ENABLED
+  uint8_t n_tls_verifylevel = _tls_verifylevel;
+#endif
 
   bool clientError = false;
   bool serverError = false;
@@ -360,15 +393,24 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
       responseMsg = "Credenciales requieren contraseña no vacía";
     }
   }
-  if (!clientError && request->hasParam("port", true)) {
-    p = request->getParam("port", true);
-    int n = sscanf(p->value().c_str(), "%hu", &n_port);\
-    if (n <= 0) {
-      clientError = true;
-      responseMsg = "Formato numérico incorrecto para ";
-      responseMsg += "port" ;
-    }
+#define ASSIGN_FROM_POST(TAG, FMT) \
+  if (!clientError && request->hasParam( #TAG , true)) {\
+    p = request->getParam( #TAG , true);\
+    int n = sscanf(p->value().c_str(), FMT, &(n_##TAG));\
+    if (n <= 0) {\
+      clientError = true;\
+      responseMsg = "Formato numérico incorrecto para ";\
+      responseMsg += #TAG ;\
+    }\
   }
+
+  ASSIGN_FROM_POST(port, "%hu")
+#if ASYNC_TCP_SSL_ENABLED
+  ASSIGN_FROM_POST(tls_verifylevel, "%hhu")
+  if (!clientError && n_tls_verifylevel > YUBOX_MQTT_SSL_VERIFY_CLIENT) {
+    n_tls_verifylevel = YUBOX_MQTT_SSL_VERIFY_CLIENT;
+  }
+#endif
 
   // Si todos los parámetros son válidos, se intenta guardar en NVRAM
   if (!clientError) {
@@ -391,6 +433,12 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
       serverError = true;
       responseMsg = "No se puede guardar valor para clave: pass";
     }
+#if ASYNC_TCP_SSL_ENABLED
+    if (!serverError && !nvram.putUChar("tlslevel", n_tls_verifylevel)) {
+      serverError = true;
+      responseMsg = "No se puede guardar valor para clave: tlslevel";
+    }
+#endif
     nvram.end();
 
     if (!serverError) {
