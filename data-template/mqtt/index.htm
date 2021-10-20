@@ -1,4 +1,8 @@
 <form>
+    <div class="card mb-2">
+    <div class="card-header">Estado actual de conexión</div>
+    <div class="card-body">
+
     <div class="form-row">
         <div class="form-group col-sm-6">
             <div class="row">
@@ -18,16 +22,27 @@
                 </div>
             </div>
         </div>
-    </div>
-    <div class="form-group row">
-        <legend class="col-form-label col-sm-6">Estado MQTT:</legend>
-        <div class="col-form-label col-sm-6">
-            <h5>
-            <span id="mqtt_connstatus" class="badge badge-danger">DESCONECTADO</span>
-            <span id="mqtt_disconnected_reason">???</span>
-            </h5>
+        <div class="form-group col-sm-6">
+            <div class="row">
+                <legend class="col-form-label col">Estado MQTT:</legend>
+                <div class="col-form-label col">
+                    <h5>
+                    <span id="mqtt_connstatus" class="badge badge-danger">DESCONECTADO</span>
+                    <span id="mqtt_disconnected_reason">???</span>
+                    </h5>
+                </div>
+            </div>
         </div>
     </div>
+
+    </div>
+    </div>
+
+
+    <div class="card mb-2">
+        <div class="card-header">Parámetros de conexión</div>
+        <div class="card-body">
+
     <div class="form-row">
         <div class="form-group col-sm-8">
             <label for="mqtthost">Broker MQTT para envío de datos:</label>
@@ -70,4 +85,8 @@
         </div>
     </div>
     <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
+
+        </div>
+    </div>
+
 </form>
