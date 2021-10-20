@@ -61,7 +61,14 @@ function yuboxLoadMqttConfig()
 
     $.get(yuboxAPI('mqtt')+'/conf.json')
     .done(function (data) {
-        mqttpane.find('form input#mqtt_clientid').val(data.clientid);
+        mqttpane.find('form span#mqtt_clientid').text(data.clientid);
+        var span_tls_capable = mqttpane.find('form span#tls_capable');
+        span_tls_capable.removeClass('badge-success badge-secondary');
+        if (data.tls_capable) {
+            span_tls_capable.addClass('badge-success').text('PRESENTE');
+        } else {
+            span_tls_capable.addClass('badge-secondary').text('AUSENTE');
+        }
 
         var span_connstatus = mqttpane.find('form span#mqtt_connstatus');
         var span_reason = mqttpane.find('form span#mqtt_disconnected_reason');

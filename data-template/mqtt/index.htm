@@ -1,12 +1,27 @@
 <form>
-    <div class="form-group">
-        <label for="mqtt_clientid">ID de cliente MQTT:</label>
-        <input type="text" id="mqtt_clientid" name="mqtt_clientid" class="form-control-plaintext"
-            value="???" readonly />
+    <div class="form-row">
+        <div class="form-group col-sm-6">
+            <div class="row">
+                <legend class="col-form-label col">ID de cliente MQTT:</legend>
+                <div class="col-form-label col">
+                    <span id="mqtt_clientid" >???</span>
+                </div>
+            </div>
+            </div>
+        <div class="form-group col-sm-6">
+            <div class="row">
+                <legend class="col-form-label col">Soporte SSL/TLS:</legend>
+                <div class="col-form-label col">
+                    <h5>
+                    <span id="tls_capable" class="badge badge-secondary">???</span>
+                    </h5>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="form-group row">
-        <legend class="col-form-label col-sm-2">Estado MQTT:</legend>
-        <div class="col-form-label col-sm-10">
+        <legend class="col-form-label col-sm-6">Estado MQTT:</legend>
+        <div class="col-form-label col-sm-6">
             <h5>
             <span id="mqtt_connstatus" class="badge badge-danger">DESCONECTADO</span>
             <span id="mqtt_disconnected_reason">???</span>
