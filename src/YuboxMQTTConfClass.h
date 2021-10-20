@@ -33,6 +33,14 @@ private:
 
   String _yuboxMQTT_default_clientid;
 
+#if ASYNC_TCP_SSL_ENABLED
+  uint32_t _rootCA_len; uint8_t * _rootCA;
+  uint32_t _clientCert_len; uint8_t * _clientCert;
+  uint32_t _clientKey_len; uint8_t * _clientKey;
+
+  bool _loadFile(const char * path, uint32_t &datalen, uint8_t * &dataptr);
+#endif
+
   void _loadSavedCredentialsFromNVRAM(void);
 
   void _setupHTTPRoutes(AsyncWebServer &);

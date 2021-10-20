@@ -12,6 +12,18 @@
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
+#if ASYNC_TCP_SSL_ENABLED
+
+// Los archivos de certificados se guardan en la partición SPIFFS
+#include <SPIFFS.h>
+
+// Rutas en SPIFFS de archivos de certificados
+#define MQTT_SERVER_CERT "/mqtt-server.crt"
+#define MQTT_CLIENT_CERT "/mqtt-client.crt"
+#define MQTT_CLIENT_KEY  "/mqtt-client.key"
+
+#endif
+
 #define MQTT_PORT 1883
 
 const char * YuboxMQTTConfClass::_ns_nvram_yuboxframework_mqtt = "YUBOX/MQTT";
@@ -30,6 +42,12 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
     (void*)this,
     &_cb_YuboxMQTTConfClass_connectMQTT);
   _mqttClient.onDisconnect(std::bind(&YuboxMQTTConfClass::_cbHandler_onMqttDisconnect, this, std::placeholders::_1));
+
+#if ASYNC_TCP_SSL_ENABLED
+  _rootCA = NULL; _rootCA_len = 0;
+  _clientCert = NULL; _clientCert_len = 0;
+  _clientKey = NULL; _clientKey_len = 0;
+#endif
 }
 
 void YuboxMQTTConfClass::begin(AsyncWebServer & srv)
@@ -62,7 +80,100 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   }
   _yuboxMQTT_default_clientid = YuboxWiFi.getMDNSHostname();
   _mqttClient.setClientId(_yuboxMQTT_default_clientid.c_str());
+
+#if ASYNC_TCP_SSL_ENABLED
+  // Anular cualquier certificado previamente establecido
+  _mqttClient.setRootCa(NULL, 0);
+  _mqttClient.setClientCert(NULL, 0, NULL, 0);
+  _mqttClient.setPsk(NULL, NULL);
+  _mqttClient.setSecure(false);
+
+#define COND_FREE(TAG) \
+  if ( TAG != NULL) free( TAG );\
+  TAG = NULL;\
+  TAG##_len = 0;
+
+  COND_FREE(_rootCA)
+  COND_FREE(_clientCert)
+  COND_FREE(_clientKey)
+
+  // TODO: implementar realmente mecanismo para seleccionar TLS
+  if (_yuboxMQTT_port >= 8000) {
+    log_i("Se negociará conexión ENCRIPTADA...");
+    _mqttClient.setSecure(true);  // Encriptado, pero NO verificado hasta establecer certificados
+
+    if (!_loadFile(MQTT_SERVER_CERT, _rootCA_len, _rootCA)) {
+      log_w("No se ha cargado certificado servidor %s, conexión encriptada no verificará servidor!", MQTT_SERVER_CERT);
+    } else {
+      log_i("Cargado certificado de servidor %s", MQTT_SERVER_CERT);
+      _mqttClient.setRootCa((const char *)_rootCA, _rootCA_len);
+
+      if (_loadFile(MQTT_CLIENT_CERT, _clientCert_len, _clientCert) &&
+          _loadFile(MQTT_CLIENT_KEY, _clientKey_len, _clientKey)) {
+        log_w("Cargado certificado cliente %s y llave cliente %s",
+          MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
+        _mqttClient.setClientCert((const char *)_clientCert, _clientCert_len, (const char *)_clientKey, _clientKey_len);
+      } else {
+        log_w("No se ha cargado certificado cliente %s O llave cliente %s, conexión encriptada podría fallar en autenticarse!",
+          MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
+        COND_FREE(_clientCert)
+        COND_FREE(_clientKey)
+      }
+    }
+  } else {
+    log_i("Se negociará conexión PLAINTEXT...");
+  }
+#endif
 }
+
+#if ASYNC_TCP_SSL_ENABLED
+bool YuboxMQTTConfClass::_loadFile(const char * path, uint32_t &datalen, uint8_t * &dataptr)
+{
+  if (!SPIFFS.exists(path)) {
+    log_w("Archivo %s no se encuentra, no se hace nada...", path);
+    return false;
+  }
+
+  File f = SPIFFS.open(path);
+  if (!f) {
+    log_e("Archivo %s no puede abrirse!", path);
+    return false;
+  }
+
+  auto readlen = f.size();
+  log_i("Archivo %s tiene %u bytes, se intenta asignar memoria...", path, readlen);
+  dataptr = (uint8_t *)malloc(readlen + 1); // Se requiere 1 caracter más para \0
+  if (dataptr == NULL) {
+    log_e("No hay memoria suficiente para leer archivo en memoria!");
+    return false;
+  }
+
+  datalen = 0;
+  uint8_t * p = dataptr;
+  while (readlen > 0) {
+    auto blocklen = (readlen > 512) ? 512 : readlen;
+    auto r = f.read(p, blocklen);
+    if (r < blocklen) {
+      log_e("No se pudo leer bloque, pedido %d bytes, leídos %d bytes!", blocklen, r);
+      f.close();
+      free(dataptr); dataptr = NULL;
+      datalen = 0;
+      return false;
+    }
+
+    p += r;
+    readlen -= r;
+    datalen += r;
+  }
+  f.close();
+
+  // Se requiere terminar el búfer con \0 para que mbedtls lo reconozca como PEM
+  dataptr[datalen] = '\0';
+  datalen++;
+
+  return true;
+}
+#endif
 
 void YuboxMQTTConfClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
