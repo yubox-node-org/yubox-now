@@ -111,29 +111,6 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
 
     if (_tls_verifylevel == YUBOX_MQTT_SSL_INSECURE) {
       log_i("No se intentará cargar certificado alguno, conexión encriptada, no verificada...");
-    } else {
-      if (!_loadFile(MQTT_SERVER_CERT, _rootCA_len, _rootCA)) {
-        log_w("No se ha cargado certificado servidor %s, conexión encriptada no verificará servidor!", MQTT_SERVER_CERT);
-      } else {
-        log_i("Cargado certificado de servidor %s", MQTT_SERVER_CERT);
-        _mqttClient.setRootCa((const char *)_rootCA, _rootCA_len);
-
-        if (_tls_verifylevel == YUBOX_MQTT_SSL_VERIFY_SERVER) {
-          log_i("No se intentará cargar certificado de cliente, conexión encriptada, verificar servidor...");
-        } else {
-          if (_loadFile(MQTT_CLIENT_CERT, _clientCert_len, _clientCert) &&
-              _loadFile(MQTT_CLIENT_KEY, _clientKey_len, _clientKey)) {
-            log_i("Cargado certificado cliente %s y llave cliente %s, verificar servidor y cliente...",
-              MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
-            _mqttClient.setClientCert((const char *)_clientCert, _clientCert_len, (const char *)_clientKey, _clientKey_len);
-          } else {
-            log_w("No se ha cargado certificado cliente %s O llave cliente %s, conexión encriptada podría fallar en autenticarse!",
-              MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
-            COND_FREE(_clientCert)
-            COND_FREE(_clientKey)
-          }
-        }
-      }
     }
   } else {
     log_i("Se negociará conexión PLAINTEXT...");
@@ -231,6 +208,48 @@ void YuboxMQTTConfClass::_connectMQTT(void)
     log_e("No se puede conectar a MQTT - no se dispone de host broker MQTT.");
     return;
   }
+
+#if ASYNC_TCP_SSL_ENABLED
+  if (_tls_verifylevel >= YUBOX_MQTT_SSL_VERIFY_SERVER) {
+    // Es necesario cargar certificados. Está el sistema de archivos montado?
+    if (!SPIFFS.exists("/manifest.txt")) {
+      log_w("No se puede conectar a MQTT - sistema archivos no está montado para leer certificados.");
+
+      if (WiFi.isConnected()) {
+        log_i("Todavía hay WiFi conectado, se intenta reconectar...");
+        if (!xTimerIsTimerActive(_mqttReconnectTimer) && pdPASS != xTimerStart(_mqttReconnectTimer, 0)) {
+          log_e("No se puede iniciar el timer para reconexión de MQTT!");
+        }
+      }
+      return;
+    }
+
+    if (_rootCA == NULL) {
+      if (!_loadFile(MQTT_SERVER_CERT, _rootCA_len, _rootCA)) {
+        log_w("No se ha cargado certificado servidor %s, conexión encriptada no verificará servidor!", MQTT_SERVER_CERT);
+      } else {
+        log_i("Cargado certificado de servidor %s", MQTT_SERVER_CERT);
+        _mqttClient.setRootCa((const char *)_rootCA, _rootCA_len);
+
+        if (_tls_verifylevel == YUBOX_MQTT_SSL_VERIFY_SERVER) {
+          log_i("No se intentará cargar certificado de cliente, conexión encriptada, servidor verificado...");
+        } else if (_clientCert == NULL || _clientKey == NULL) {
+          if (_loadFile(MQTT_CLIENT_CERT, _clientCert_len, _clientCert) &&
+              _loadFile(MQTT_CLIENT_KEY, _clientKey_len, _clientKey)) {
+            log_i("Cargado certificado cliente %s y llave cliente %s, servidor+cliente verificado...",
+              MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
+            _mqttClient.setClientCert((const char *)_clientCert, _clientCert_len, (const char *)_clientKey, _clientKey_len);
+          } else {
+            log_w("No se ha cargado certificado cliente %s O llave cliente %s, conexión encriptada podría fallar en autenticarse!",
+              MQTT_CLIENT_CERT, MQTT_CLIENT_KEY);
+            COND_FREE(_clientCert)
+            COND_FREE(_clientKey)
+          }
+        }
+      }
+    }
+  }
+#endif
 
   const char *p = _mqttClient.getClientId();
   log_i("Iniciando conexión a MQTT en %s:%u client-id %p[%s] ...",
