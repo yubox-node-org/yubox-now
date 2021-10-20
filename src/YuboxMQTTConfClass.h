@@ -6,11 +6,6 @@
 
 #include <AsyncMqttClient.h>
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-
-#include "AsyncJson.h"
-#include "ArduinoJson.h"
-
 class YuboxMQTTConfClass
 {
 private:

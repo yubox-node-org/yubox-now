@@ -4,11 +4,6 @@
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-
-#include "AsyncJson.h"
-#include "ArduinoJson.h"
-
 #include "time.h"
 
 class YuboxNTPConfigClass
