@@ -20,6 +20,7 @@ function setupMqttTab()
         var postData = {
             host:           mqttpane.find('input#mqtthost').val(),
             port:           mqttpane.find('input#mqttport').val(),
+            tls_verifylevel:mqttpane.find('input[name=tls_verifylevel]:checked').val(),
             user:           null,
             pass:           null
         };
@@ -120,6 +121,17 @@ function yuboxLoadMqttConfig()
             mqttpane.find('form input#mqttuser').val('');
             mqttpane.find('form input#mqttpass').val('');
             mqttpane.find('input[name=mqttauth]#off').click();
+        }
+
+        if (data.tls_capable) {
+            // Hay soporte TLS
+            mqttpane.find('div.mqtt-tls').show();
+
+            // Nivel de soporte TLS deseado
+            mqttpane.find('input[name=tls_verifylevel]#tls_verifylevel_'+data.tls_verifylevel).click();
+        } else {
+            // No hay soporte TLS
+            mqttpane.find('div.mqtt-tls').hide();
         }
     })
     .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });

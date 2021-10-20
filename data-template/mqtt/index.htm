@@ -57,6 +57,26 @@
             <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
         </div>
     </div>
+    <div class="form-group mqtt-tls" style="display: none;">
+        <div class="row">
+            <legend class="col-form-label col-sm-4 pt-0">Nivel TLS:</legend>
+            <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+                <label class="btn btn-secondary">
+                    <input type="radio" name="tls_verifylevel" id="tls_verifylevel_0" value="0" autocomplete="off">Sin encriptar
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="tls_verifylevel" id="tls_verifylevel_1" value="1" autocomplete="off">TLS, sin cert.
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="tls_verifylevel" id="tls_verifylevel_2" value="2" autocomplete="off">TLS, cert. SERVIDOR
+                </label>
+                <label class="btn btn-secondary">
+                    <input type="radio" name="tls_verifylevel" id="tls_verifylevel_3" value="3" autocomplete="off">TLS, SERV. y CLIENTE
+                </label>
+            </div>
+            <small id="tls_verifylevelAyuda" class="form-text text-muted">Si el certificado requerido no está presente, se procederá a conectar SIN VERIFICACIÓN.</small>
+        </div>
+    </div>
     <div class="form-group">
         <div class="row">
         <legend class="col-form-label col-sm-4 pt-0">Autenticación MQTT:</legend>
