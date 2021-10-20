@@ -419,7 +419,6 @@ En el código C++ del sketch de Arduino, se debe realizar una inicialización de
 
   #define ARDUINOJSON_USE_LONG_LONG 1
 
-  #include "AsyncJson.h"
   #include "ArduinoJson.h"
 
   #include "YuboxWiFiClass.h"
