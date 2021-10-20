@@ -43,6 +43,23 @@ function setupMqttTab()
         })
         .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
+    mqttpane.find('input[type=file].custom-file-input').change(function () {
+        var lbl = $(this).next('label.custom-file-label');
+        if (lbl.data('default') == undefined) {
+            // Almacenar texto original para restaurar si archivo vacío
+            lbl.data('default', lbl.text())
+        }
+        var txt = ($(this)[0].files.length > 0)
+            ? $(this)[0].files[0].name
+            : lbl.data('default');
+        lbl.text(txt);
+    });
+    mqttpane.find('button[name=tls_servercert_upload]').click(function() {
+        yuboxUploadMQTTCerts(yuboxAPI('mqtt')+'/tls_servercert', ['tls_servercert']);
+    });
+    mqttpane.find('button[name=tls_clientcert_upload]').click(function() {
+        yuboxUploadMQTTCerts(yuboxAPI('mqtt')+'/tls_clientcert', ['tls_clientcert', 'tls_clientkey']);
+    });
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
     getYuboxNavTab('mqtt')
@@ -129,10 +146,60 @@ function yuboxLoadMqttConfig()
 
             // Nivel de soporte TLS deseado
             mqttpane.find('input[name=tls_verifylevel]#tls_verifylevel_'+data.tls_verifylevel).click();
+
+            // Archivos de certificados presentes en servidor
+            mqttpane.find('form span#tls_servercert_present')
+                .removeClass('badge-warning badge-success')
+                .addClass(data.tls_servercert ? 'badge-success' : 'badge-warning')
+                .text(data.tls_servercert ? 'SÍ' : 'NO');
+            mqttpane.find('form span#tls_clientcert_present')
+                .removeClass('badge-warning badge-success')
+                .addClass(data.tls_clientcert ? 'badge-success' : 'badge-warning')
+                .text(data.tls_clientcert ? 'SÍ' : 'NO');
         } else {
             // No hay soporte TLS
             mqttpane.find('div.mqtt-tls').hide();
         }
     })
     .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
+}
+
+function yuboxUploadMQTTCerts(route_upload, filelist)
+{
+    var mqttpane = getYuboxPane('mqtt');
+
+    if (typeof FormData == 'undefined') {
+        yuboxMostrarAlertText('danger', 'Este navegador no soporta FormData para subida de datos. Actualice su navegador.', 2000);
+        return;
+    }
+    var postData = new FormData();
+
+    for (let k of filelist) {
+        let fi = mqttpane.find('input[type=file]#'+k);
+        if (fi[0].files.length <= 0) {
+            yuboxMostrarAlertText('danger', 'Es necesario elegir un archivo de certificado: '+k, 2000);
+            return;
+        }
+        postData.append(k, fi[0].files[0]);
+    }
+    $.post({
+        url: route_upload,
+        data: postData,
+        processData: false,
+        contentType: false
+    })
+    .done(function (data) {
+        if (data.success) {
+            // Al aplicar actualización debería recargarse más tarde
+            yuboxMostrarAlertText('success', data.msg, 5000);
+            setTimeout(function () {
+                yuboxLoadMqttConfig();
+            }, 5 * 1000);
+        } else {
+            yuboxMostrarAlertText('danger', data.msg, 6000);
+        }
+    })
+    .fail(function (e) {
+        yuboxStdAjaxFailHandler(e, 5000);
+    });
 }

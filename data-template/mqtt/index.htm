@@ -110,3 +110,53 @@
     </div>
 
 </form>
+
+
+<div class="card mb-2 mqtt-tls" style="display: none;">
+    <div class="card-header">Archivos de certificados PEM</div>
+    <div class="card-body">
+
+    <form>
+        <div class="form-group row">
+            <legend class="col-form-label col-sm-auto">Certificado raíz en dispositivo:</legend>
+            <div class="col-form-label col">
+                <h5><span id="tls_servercert_present" class="badge badge-warning">???</span></h5>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="custom-file">
+                <input type="file" class="custom-file-input" id="tls_servercert">
+                <label class="custom-file-label" for="tls_servercert" data-browse="Elegir" id="lbl-tls_servercert">Certificado raíz serv.:</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <button type="button" class="btn btn-primary" name="tls_servercert_upload">Actualizar</button>
+        </div>
+    </form>
+
+    <form>
+        <div class="form-group row">
+            <legend class="col-form-label col-sm-auto">Certificado cliente en dispositivo:</legend>
+            <div class="col-form-label col">
+                <h5><span id="tls_clientcert_present" class="badge badge-warning">???</span></h5>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="custom-file">
+                <input type="file" class="custom-file-input" id="tls_clientcert">
+                <label class="custom-file-label" for="tls_clientcert" data-browse="Elegir" id="lbl-tls_clientcert">Certificado cliente:</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="custom-file">
+                <input type="file" class="custom-file-input" id="tls_clientkey">
+                <label class="custom-file-label" for="tls_clientkey" data-browse="Elegir" id="lbl-tls_clientkey">Clave privada cliente:</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <button type="button" class="btn btn-primary" name="tls_clientcert_upload">Actualizar</button>
+        </div>
+    </form>
+
+    </div>
+</div>
