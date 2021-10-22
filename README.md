@@ -113,12 +113,21 @@ Se requieren las siguientes bibliotecas de código como dependencias de YUBOX Fr
   principalmente para construir respuestas JSON a las peticiones AJAX. Esta biblioteca se la puede instalar desde el
   gestor de bibliotecas del Arduino IDE. El YUBOX Framework ha sido probado con la versión 6.15.2 al 22 de julio de
   2020.
-- `AsyncTCP` que es una biblioteca para realizar conexiones TCP/IP de forma asíncrona en una tarea separada del ESP32.
-  Esta biblioteca **NO** está disponible en el gestor de bibliotecas de Arduino IDE. Para instalarla, visite
-  https://github.com/me-no-dev/AsyncTCP y descargue un zip con el código fuente desde https://github.com/me-no-dev/AsyncTCP/archive/master.zip
-  o (para uso avanzado) haga un checkout usando `git`. En cualquier caso, debe existir un directorio con el código de
-  la biblioteca debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/AsyncTCP`. Esta
-  biblioteca es un requisito para las dos bibliotecas siguientes.
+- `AsyncTCPSock` que es una biblioteca para realizar conexiones TCP/IP de forma asíncrona en una tarea separada del ESP32.
+  Esta biblioteca es una reimplementación de la biblioteca `AsyncTCP` [AsyncTCP](https://github.com/me-no-dev/AsyncTCP),
+  hecha para resolver una falla de diseño discutida [aquí](https://github.com/me-no-dev/ESPAsyncWebServer/issues/825#issuecomment-680291383)
+  la cual consiste en un bloqueo mutuo (deadlock) que arriesga reinicios anormales en
+  escenarios de alta actividad de red. La biblioteca `AsyncTCPSock` **NO** está disponible en el gestor de bibliotecas
+  de Arduino IDE. Para instalarla, visite https://github.com/yubox-node-org/AsyncTCPSock y descargue un zip con el código
+  fuente desde https://github.com/yubox-node-org/AsyncTCPSock/archive/master.zip o (para uso avanzado) haga un checkout
+  usando `git`. En cualquier caso, debe existir un directorio con el código de la biblioteca debajo de
+  `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/AsyncTCPSock`. Esta biblioteca es un requisito
+  para las dos bibliotecas siguientes.
+  - **NOTA**: en una versión anterior de este documento, se recomendaba la instalación de `AsyncTCP` antes de diagnosticar
+    el escenario de deadlock que condujo al desarrollo de `AsyncTCPSock`. La biblioteca `AsyncTCPSock` es deliberadamente
+    incompatible con `AsyncTCP` ya que reimplementa el mismo API. Por lo tanto, ambas bibliotecas **NO** deben estar
+    instaladas simultáneamente en la misma instalación de Arduino IDE. Si se va a instalar `AsyncTCPSock`, se debe
+    también quitar `AsyncTCP` para poder usar la versión correcta.
 - `ESPAsyncWebServer` que es una biblioteca para exponer un servidor web en el ESP32, usando `AsyncTCP`. Para instalar
   esta biblioteca, visite https://github.com/me-no-dev/ESPAsyncWebServer y descargue un zip con el código fuente desde
   https://github.com/me-no-dev/ESPAsyncWebServer/archive/master.zip . Debe existir eventualmente un directorio con el
