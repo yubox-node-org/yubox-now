@@ -128,10 +128,15 @@ Se requieren las siguientes bibliotecas de código como dependencias de YUBOX Fr
     incompatible con `AsyncTCP` ya que reimplementa el mismo API. Por lo tanto, ambas bibliotecas **NO** deben estar
     instaladas simultáneamente en la misma instalación de Arduino IDE. Si se va a instalar `AsyncTCPSock`, se debe
     también quitar `AsyncTCP` para poder usar la versión correcta.
-- `ESPAsyncWebServer` que es una biblioteca para exponer un servidor web en el ESP32, usando `AsyncTCP`. Para instalar
-  esta biblioteca, visite https://github.com/me-no-dev/ESPAsyncWebServer y descargue un zip con el código fuente desde
-  https://github.com/me-no-dev/ESPAsyncWebServer/archive/master.zip . Debe existir eventualmente un directorio con el
-  código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/ESPAsyncWebServer`.
+- `ESPAsyncWebServer` que es una biblioteca para exponer un servidor web en el ESP32, usando `AsyncTCP` o `AsyncTCPSock`.
+  Para proyectos nuevos usando YUBOX-Now, se recomienda usar el fork disponible en https://github.com/yubox-node-org/ESPAsyncWebServer
+  el cual apunta a la rama (por omisión) llamada `yuboxfixes-0xFEEDC0DE64-cleanup`. Visite el enlace indicado y descargue
+  un zip con el código fuente desde https://github.com/yubox-node-org/ESPAsyncWebServer/archive/refs/heads/yuboxfixes-0xFEEDC0DE64-cleanup.zip .
+  Debe existir eventualmente un directorio con el código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo,
+  `/home/fulano/Arduino/libraries/ESPAsyncWebServer`.
+  - **NOTA**: en una versión anterior de este documento, se recomendaba la instalación de la versión base de
+    `ESPAsyncWebServer`. El fork indicado más arriba contiene correcciones de fugas de memoria y otras condiciones
+    de carrera que han sido corregidas por YUBOX al usar la biblioteca en nuestros proyectos.
 - `Async MQTT client for ESP8266 and ESP32` que es una biblioteca para un cliente MQTT, construida sobre `AsyncTCP`.
   Para instalar esta biblioteca, visite https://github.com/marvinroger/async-mqtt-client y descargue un zip con el código
   fuente desde https://github.com/marvinroger/async-mqtt-client/archive/master.zip . Debe existir eventualmente un
