@@ -17,9 +17,17 @@
 #include <SPIFFS.h>
 
 // Rutas en SPIFFS de archivos de certificados
-#define MQTT_SERVER_CERT "/mqtt-server.crt"
-#define MQTT_CLIENT_CERT "/mqtt-client.crt"
-#define MQTT_CLIENT_KEY  "/mqtt-client.key"
+static const char * MQTT_SERVER_CERT = "/mqtt-server.crt";
+static const char * MQTT_CLIENT_CERT = "/mqtt-client.crt";
+static const char * MQTT_CLIENT_KEY = "/mqtt-client.key";
+
+static const char * MQTT_TMP_CERT = "/_tmp_tls_cert";
+#define NUM_MQTT_CERTROLES 3
+static const char * mqtt_certroles[NUM_MQTT_CERTROLES] = {
+  "tls_servercert",
+  "tls_clientcert",
+  "tls_clientkey"
+};
 
 #endif
 
@@ -53,6 +61,11 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
   _clientCert = NULL; _clientCert_len = 0;
   _clientKey = NULL; _clientKey_len = 0;
   _tls_verifylevel = YUBOX_MQTT_SSL_NONE;
+
+  _uploadRejected = false;
+  _cert_clientError = false;
+  _cert_serverError = false;
+  _cert_responseMsg = "";
 #endif
 }
 
@@ -283,6 +296,16 @@ void YuboxMQTTConfClass::_setupHTTPRoutes(AsyncWebServer & srv)
 {
   srv.on("/yubox-api/mqtt/conf.json", HTTP_GET, std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/mqtt/conf.json", HTTP_POST, std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST, this, std::placeholders::_1));
+#if ASYNC_TCP_SSL_ENABLED
+  srv.on("/yubox-api/mqtt/tls_servercert", HTTP_POST,
+    std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_POST, this, std::placeholders::_1),
+    std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_handleUpload, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+  srv.on("/yubox-api/mqtt/tls_clientcert", HTTP_POST,
+    std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_POST, this, std::placeholders::_1),
+    std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_handleUpload, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+#endif
 }
 
 void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerRequest *request)
@@ -487,6 +510,227 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   serializeJson(json_doc, *response);
   request->send(response);
 }
+
+#if ASYNC_TCP_SSL_ENABLED
+
+void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_handleUpload(AsyncWebServerRequest * request,
+  String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  log_v("filename=%s index=%d data=%p len=%d final=%d",
+    filename.c_str(), index, data, len, final ? 1 : 0);
+
+  if (index == 0 && !_uploadRejected) {
+    /* La macro YUBOX_RUN_AUTH no es adecuada porque requestAuthentication() no puede llamarse
+       aquí - vienen más fragmentos del upload. Se debe rechazar el upload si la autenticación
+       ha fallado.
+     */
+    if (!YuboxWebAuth.authenticate((request))) {
+      // Credenciales incorrectas
+      _uploadRejected = true;
+    } else {
+      // Resolver archivo temporal de posible iteración anterior
+      if (!_resolveTempFileName(request)) {
+        _rejectUpload("Error al renombrar archivos temporales", true);
+      } else {
+        // Abrir nueva instancia de archivo temporal
+        log_d("Abriendo archivo temporal: %s ...", MQTT_TMP_CERT);
+        _tmpCert = SPIFFS.open(MQTT_TMP_CERT, FILE_WRITE);
+        if (!_tmpCert) {
+          log_e("Fallo al abrir nuevo archivo temporal %s", _tmpCert);
+          _rejectUpload("Error al crear archivo temporal", true);
+        } else {
+          log_d("Archivo temporal %s abierto correctamente...", MQTT_TMP_CERT);
+        }
+      }
+    }
+  }
+
+  if (_uploadRejected) return;
+
+  // Escribir todo el contenido recibido en el archivo temporal
+  while (len > 0 && !_uploadRejected) {
+    if (!_tmpCert) {
+      log_e("Objeto archivo rechaza escritura! %s", MQTT_TMP_CERT);
+      _rejectUpload("Fallo al escribir archivo temporal (2)", true);
+    } else {
+      auto r = _tmpCert.write(data, len);
+      if (r <= 0) {
+        log_e("Fallo al escribir %d bytes desde %p en %s offset %d: %d", len, data, MQTT_TMP_CERT, index, r);
+        _tmpCert.close();
+        SPIFFS.remove(MQTT_TMP_CERT);
+        _rejectUpload("Fallo al escribir archivo temporal", true);
+      } else {
+        index += r;
+        data += r;
+        len -= r;
+        log_d("Escritos %d bytes...", r);
+      }
+    }
+  }
+
+  if (final) {
+    // Cerrar el archivo temporal, y dejarlo para siguiente iteración
+    _tmpCert.close();
+  }
+}
+
+bool YuboxMQTTConfClass::_resolveTempFileName(AsyncWebServerRequest * request)
+{
+  if (!SPIFFS.exists(MQTT_TMP_CERT)) {
+    log_d("Archivo temporal %s no existe, no se hace nada", MQTT_TMP_CERT);
+    return true;
+  }
+
+  /* Para cada rol de certificado, se arma el archivo temporal que debe existir
+     para este certificado. Si el parámetro de request EXISTE, pero el
+     correspondiente archivo NO existe, se asume que el archivo temporal
+     corresponde a este archivo, y se renombra.
+   */
+  char buf[32];
+  for (auto i = 0; i < NUM_MQTT_CERTROLES; i++) {
+    if (!request->hasParam(mqtt_certroles[i], true, true)) continue;
+    snprintf(buf, sizeof(buf), "/_tmp_%s", mqtt_certroles[i]);
+    if (!SPIFFS.exists(buf)) {
+      log_d("Renombrando %s --> %s ...", MQTT_TMP_CERT, buf);
+      if (!SPIFFS.rename(MQTT_TMP_CERT, buf)) {
+        log_e("no se pudo renombrar %s --> %s ...", MQTT_TMP_CERT, buf);
+        return false;
+      }
+      return true;
+    }
+  }
+
+  return true;
+}
+
+bool YuboxMQTTConfClass::_renameFinalTempFile(const char * tmpname, const char * finalname)
+{
+  log_d("se requiere renombrar %s --> %s ...", tmpname, finalname);
+  if (!SPIFFS.exists(tmpname)) {
+    log_e("no se encuentra archivo temporal esperado %s !", tmpname);
+    return false;
+  }
+  if (SPIFFS.exists(finalname)) {
+    log_d("archivo final %s ya existía, se ELIMINA...", finalname);
+    SPIFFS.remove(finalname);
+  }
+  log_d("Renombrando %s --> %s ...", tmpname, finalname);
+  if (!SPIFFS.rename(tmpname, finalname)) {
+    log_e("no se pudo renombrar %s --> %s ...", tmpname, finalname);
+    return false;
+  }
+  return true;
+}
+
+void YuboxMQTTConfClass::_cleanupTempFiles(void)
+{
+  char buf[32];
+  for (auto i = 0; i < NUM_MQTT_CERTROLES; i++) {
+    snprintf(buf, sizeof(buf), "/_tmp_%s", mqtt_certroles[i]);
+    if (SPIFFS.exists(buf)) SPIFFS.remove(buf);
+  }
+  if (SPIFFS.exists(MQTT_TMP_CERT)) SPIFFS.remove(MQTT_TMP_CERT);
+}
+
+void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_POST(AsyncWebServerRequest * request)
+{
+  /* La macro YUBOX_RUN_AUTH no es adecuada aquí porque el manejador de upload se ejecuta primero
+     y puede haber rechazado el upload. La bandera de rechazo debe limpiarse antes de rechazar la
+     autenticación.
+   */
+  if (!YuboxWebAuth.authenticate((request))) {
+    _uploadRejected = false;
+    _cleanupTempFiles();
+    return (request)->requestAuthentication();
+  }
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+
+  // Resolver archivo temporal de procesamiento upload
+  if (!_resolveTempFileName(request)) {
+    _rejectUpload("Error al renombrar archivos temporales", true);
+  } else {
+    if (request->hasParam("tls_clientcert", true, true) && request->hasParam("tls_clientkey", true, true)) {
+      // Actualización de certificado cliente
+    } else if (request->hasParam("tls_servercert", true, true)) {
+      // Actualización de certificado servidor
+    } else {
+      clientError = true;
+      responseMsg = "No se ha especificado archivo de certificado.";
+    }
+
+    // TODO: validar que los archivos subidos son efectivamente certificados PEM
+
+    if (!clientError) clientError = _cert_clientError;
+    if (!serverError) serverError = _cert_serverError;
+    if (responseMsg == "") responseMsg = _cert_responseMsg;
+
+    if (!clientError && !serverError) {
+      // TODO: insertar aquí manipulación de archivos temporales
+      if (request->hasParam("tls_clientcert", true, true)) {
+        // Actualización de certificado cliente
+        if (!_renameFinalTempFile("/_tmp_tls_clientcert", MQTT_CLIENT_CERT)) {
+          serverError = true;
+          responseMsg = "No se puede renombrar archivo temporal para: ";
+          responseMsg += MQTT_CLIENT_CERT;
+        } else if (!_renameFinalTempFile("/_tmp_tls_clientkey", MQTT_CLIENT_KEY)) {
+          serverError = true;
+          responseMsg = "No se puede renombrar archivo temporal para: ";
+          responseMsg += MQTT_CLIENT_KEY;
+        }
+      } else if (request->hasParam("tls_servercert", true, true)) {
+        // Actualización de certificado servidor
+        if (!_renameFinalTempFile("/_tmp_tls_servercert", MQTT_SERVER_CERT)) {
+          serverError = true;
+          responseMsg = "No se puede renombrar archivo temporal para: ";
+          responseMsg += MQTT_SERVER_CERT;
+        }
+      }
+
+      if (!serverError) responseMsg = "Certificado actualizado correctamente.";
+    }
+  }
+
+  _cleanupTempFiles();
+
+  _uploadRejected = false;
+  _cert_clientError = false;
+  _cert_serverError = false;
+  _cert_responseMsg = "";
+
+  unsigned int httpCode = 200;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxMQTTConfClass::_rejectUpload(const String & s, bool serverError)
+{
+  if (!_cert_serverError && !_cert_clientError) {
+    if (serverError) _cert_serverError = true; else _cert_clientError = true;
+  }
+  if (_cert_responseMsg.isEmpty()) _cert_responseMsg = s;
+  _uploadRejected = true;
+}
+
+void YuboxMQTTConfClass::_rejectUpload(const char * msg, bool serverError)
+{
+  String s = msg;
+  _rejectUpload(s, serverError);
+}
+
+
+#endif
 
 bool YuboxMQTTConfClass::_isValidHostname(String & h)
 {

@@ -34,7 +34,26 @@ private:
   uint32_t _clientKey_len; uint8_t * _clientKey;
   uint8_t _tls_verifylevel;
 
+  // Archivo temporal que se está escribiendo
+  File _tmpCert;
+
+  // Rechazar el resto de los fragmentos de upload si primera revisión falla
+  bool _uploadRejected;
+
+  // Descripción de errores posibles al subir el tar.gz
+  bool _cert_clientError;
+  bool _cert_serverError;
+  String _cert_responseMsg;
+
   bool _loadFile(const char * path, uint32_t &datalen, uint8_t * &dataptr);
+  void _rejectUpload(const String &, bool serverError);
+  void _rejectUpload(const char *, bool serverError);
+  void _routeHandler_yuboxAPI_mqtt_certupload_POST(AsyncWebServerRequest *);
+  void _routeHandler_yuboxAPI_mqtt_certupload_handleUpload(AsyncWebServerRequest *,
+    String filename, size_t index, uint8_t *data, size_t len, bool final);
+  bool _resolveTempFileName(AsyncWebServerRequest *);
+  bool _renameFinalTempFile(const char * tmpname, const char * finalname);
+  void _cleanupTempFiles(void);
 #endif
 
   void _loadSavedCredentialsFromNVRAM(void);
