@@ -76,5 +76,28 @@ function yuboxStdAjaxFailHandlerDlg(basesel, e, timeout)
     yuboxDlgMostrarAlertText(basesel, 'danger', msg, timeout);
 }
 
-function getYuboxPane(modname) { return $('div#yuboxMainTabContent > div.tab-pane#'+modname); }
-function getYuboxNavTab(modname) { return $('ul#yuboxMainTab a#'+modname+'-tab[data-toggle="tab"]'); }
+function getYuboxPane(modname, raw = false)
+{
+    let dom = document.querySelector('div#yuboxMainTabContent > div.tab-pane#'+modname);
+    return raw ? dom : yuboxWrapJQ(dom);
+}
+function getYuboxNavTab(modname, raw = false)
+{
+    let dom = document.querySelector('ul#yuboxMainTab a#'+modname+'-tab[data-toggle="tab"]');
+    return raw ? dom : yuboxWrapJQ(dom);
+}
+
+// Las siguientes dos funciones envuelven un DOM pelado en jQuery, y lo extraen
+// de un objeto jQuery, si jQuery está presente. De lo contrario, no hacen nada.
+function yuboxWrapJQ(domobj)
+{
+    if (typeof jQuery == 'undefined') return domobj;
+    return $(domobj);
+}
+function yuboxUnwrapJQ(jqobj)
+{
+    if (typeof jQuery == 'undefined') return jqobj;
+    if (!(jqobj instanceof jQuery)) return jqobj;
+    if (jqobj.length > 0) return jqobj[0];
+    return null;
+}
