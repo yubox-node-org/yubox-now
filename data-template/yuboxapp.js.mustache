@@ -109,6 +109,45 @@ function getYuboxNavTab(modname, raw = false)
     return raw ? dom : yuboxWrapJQ(dom);
 }
 
+function yuboxFetch(module, rsrc = '', postData = null)
+{
+    let method = (postData == null) ? 'GET' : 'POST';
+    return yuboxFetchMethod(method, module, rsrc, postData);
+}
+
+function yuboxFetchMethod(method, module, rsrc = '', postData = null)
+{
+    let url = yuboxAPI(module);
+    if (rsrc != '') url += '/' + rsrc;
+
+    // Decidir Content-Type
+    if (postData != null) {
+        if (postData instanceof FormData) {
+        } else if (postData instanceof URLSearchParams) {
+        } else {
+            // Se asume objeto ordinario
+            postData = new URLSearchParams(postData);
+        }
+    }
+
+    let init = {
+        method: method
+    };
+    if (postData != null) init['body'] = postData;
+    return fetch(url, init)
+    .then(response => {
+        return response.json()
+        .then(data => {
+            if (!response.ok) {
+                let e = new Error(response.statusText, { cause: response });
+                e.responseJSON = data;
+                throw e;
+            }
+            return data;
+        });
+    });
+}
+
 // Las siguientes dos funciones envuelven un DOM pelado en jQuery, y lo extraen
 // de un objeto jQuery, si jQuery está presente. De lo contrario, no hacen nada.
 function yuboxWrapJQ(domobj)
