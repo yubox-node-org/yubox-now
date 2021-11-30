@@ -200,7 +200,7 @@ function yuboxOTAUpload_init()
     if (!!window.EventSource) {
         var sse = new EventSource(yuboxAPI('yuboxOTA')+'/events');
         sse.addEventListener('uploadFileStart', function (e) {
-            var data = $.parseJSON(e.data);
+            var data = JSON.parse(e.data);
             var totalKB = data.total / 1024.0;
             var currUploadKB = data.currupload / 1024.0;
             otapane.find('div.upload-progress span#filename').text(data.filename);
@@ -213,7 +213,7 @@ function yuboxOTAUpload_init()
             yuboxOTAUpload_setProgressBar(0);
         });
         sse.addEventListener('uploadFileProgress', function (e) {
-            var data = $.parseJSON(e.data);
+            var data = JSON.parse(e.data);
             var totalKB = data.total / 1024.0;
             var currKB = data.current / 1024.0;
             var currUploadKB = data.currupload / 1024.0;
@@ -224,7 +224,7 @@ function yuboxOTAUpload_init()
             yuboxOTAUpload_setProgressBar(totalKB > 0.0 ? 100.0 * currKB / totalKB : 0);
         });
         sse.addEventListener('uploadFileEnd', function (e) {
-            var data = $.parseJSON(e.data);
+            var data = JSON.parse(e.data);
             var totalKB = data.total / 1024.0;
             var currUploadKB = data.currupload / 1024.0;
             otapane.find('div.upload-progress span#filename').text(data.filename);
@@ -234,7 +234,7 @@ function yuboxOTAUpload_init()
             yuboxOTAUpload_setProgressBar(100);
         });
         sse.addEventListener('uploadPostTask', function (e) {
-	        var data = $.parseJSON(e.data);
+	        var data = JSON.parse(e.data);
 	        var msg = data.task;
 	        var taskDesc = {
                 'firmware-commit-start':		'Iniciando commit de firmware nuevo',

@@ -332,11 +332,11 @@ function yuboxWiFi_setupWiFiScanListener()
     if (!!window.EventSource) {
         var sse = new EventSource(yuboxAPI('wificonfig')+'/netscan');
         sse.addEventListener('WiFiScanResult', function (e) {
-          var data = $.parseJSON(e.data);
+          var data = JSON.parse(e.data);
           yuboxWiFi_actualizarRedes(data);
         });
         sse.addEventListener('WiFiStatus', function (e) {
-            var data = $.parseJSON(e.data);
+            var data = JSON.parse(e.data);
             if (!data.yubox_control_wifi) {
               yuboxMostrarAlertText('warning',
                 'YUBOX Now ha cedido control del WiFi a otra librería. El escaneo WiFi podría no refrescarse, o mostrar datos desactualizados.',

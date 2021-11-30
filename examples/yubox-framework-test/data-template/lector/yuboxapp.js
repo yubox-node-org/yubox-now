@@ -59,7 +59,7 @@ function setupLectorTab()
     if (!!window.EventSource) {
         var sse = new EventSource(yuboxAPI('lectura')+'/events');
         sse.addEventListener('message', function (e) {
-            var data = $.parseJSON(e.data);
+            var data = JSON.parse(e.data);
             yuboxLector_actualizar(new Date(data.ts), data.pressure, data.temperature);
         });
         lectorpane.data('sse', sse);
