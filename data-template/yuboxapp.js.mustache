@@ -1,4 +1,11 @@
-$(document).ready(function () {
+if (document.readyState == 'loading') {
+    document.addEventListener('DOMContentLoaded', yuboxSetupAllTabs);
+} else {
+    yuboxSetupAllTabs();
+}
+
+function yuboxSetupAllTabs()
+{
 {{#modules}}
     {{#module_setupjs}}
     {{{module_setupjs}}}();
@@ -6,8 +13,10 @@ $(document).ready(function () {
 {{/modules}}
 
     // Mostrar el tab preparado por omisión como activo
-    $('ul#yuboxMainTab a.set-active').removeClass('set-active').tab('show');
-});
+    const tab = document.querySelector('ul#yuboxMainTab a.set-active');
+    tab.classList.remove('set-active');
+    yuboxWrapJQ(tab).tab('show');   // <-- Bootstrap 4 requiere jQuery
+}
 
 {{#modules}}
 {{{module_content}}}
