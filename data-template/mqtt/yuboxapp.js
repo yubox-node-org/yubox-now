@@ -1,35 +1,33 @@
 function setupMqttTab()
 {
-    var mqttpane = getYuboxPane('mqtt');
+    const mqttpane = getYuboxPane('mqtt', true);
 
-    mqttpane.find('input[name=mqttauth]').click(function() {
-        var mqttpane = getYuboxPane('mqtt');
-
-        var nstat = mqttpane.find('input[name=mqttauth]:checked').val();
+    mqttpane.querySelector('input[name=mqttauth]').addEventListener('click', function() {
+        const div_mqttauth = mqttpane.querySelector('form div.mqttauth');
+        const div_mqttauth_inputs = mqttpane.querySelectorAll('form div.mqttauth input');
+        const nstat = mqttpane.querySelector('input[name=mqttauth]:checked').value;
         if (nstat == 'on') {
-            mqttpane.find('form div.mqttauth').show();
-            mqttpane.find('form div.mqttauth input').prop('required', true);
+            div_mqttauth.style.display = '';
+            div_mqttauth_inputs.forEach((elem) => { elem.required = true; });
         } else {
-            mqttpane.find('form div.mqttauth').hide();
-            mqttpane.find('form div.mqttauth input').prop('required', false);
+            div_mqttauth.style.display = 'none';
+            div_mqttauth_inputs.forEach((elem) => { elem.required = false; });
         }
     });
-    mqttpane.find('button[name=apply]').click(function () {
-        var mqttpane = getYuboxPane('mqtt');
-
+    mqttpane.querySelector('button[name=apply]').addEventListener('click', function () {
         var postData = {
-            host:           mqttpane.find('input#mqtthost').val(),
-            port:           mqttpane.find('input#mqttport').val(),
-            tls_verifylevel:mqttpane.find('input[name=tls_verifylevel]:checked').val(),
+            host:           mqttpane.querySelector('input#mqtthost').value,
+            port:           mqttpane.querySelector('input#mqttport').value,
+            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value,
             user:           null,
             pass:           null
         };
-        if (mqttpane.find('input[name=mqttauth]:checked').val() == 'on') {
-            postData.user = mqttpane.find('input#mqttuser').val();
-            postData.pass = mqttpane.find('input#mqttpass').val();
+        if (mqttpane.querySelector('input[name=mqttauth]:checked').value == 'on') {
+            postData.user = mqttpane.querySelector('input#mqttuser').value;
+            postData.pass = mqttpane.querySelector('input#mqttpass').value;
         }
-        $.post(yuboxAPI('mqtt')+'/conf.json', postData)
-        .done(function (r) {
+        yuboxFetch('mqtt', 'conf.json', postData)
+        .then((r) => {
             if (r.success) {
                 // Recargar los datos recién guardados del dispositivo
                 yuboxMostrarAlertText('success', r.msg, 3000);
@@ -40,25 +38,24 @@ function setupMqttTab()
             } else {
                 yuboxMostrarAlertText('danger', r.msg);
             }
+        }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
+    });
+    mqttpane.querySelectorAll('input[type=file].custom-file-input').forEach((elem) => {
+        elem.addEventListener('change', function (ev) {
+            const lbl = ev.target.nextElementSibling;
+            if (lbl.data == undefined) lbl.data = {};
+            if (lbl.data['default'] == undefined) {
+                // Almacenar texto original para restaurar si archivo vacío
+                lbl.data['default'] = lbl.textContent;
+            }
+            lbl.textContent = (ev.target.files.length > 0) ? ev.target.files[0].name : lbl.data['default'];
         })
-        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
-    mqttpane.find('input[type=file].custom-file-input').change(function () {
-        var lbl = $(this).next('label.custom-file-label');
-        if (lbl.data('default') == undefined) {
-            // Almacenar texto original para restaurar si archivo vacío
-            lbl.data('default', lbl.text())
-        }
-        var txt = ($(this)[0].files.length > 0)
-            ? $(this)[0].files[0].name
-            : lbl.data('default');
-        lbl.text(txt);
+    mqttpane.querySelector('button[name=tls_servercert_upload]').addEventListener('click', function() {
+        yuboxUploadMQTTCerts('tls_servercert', ['tls_servercert']);
     });
-    mqttpane.find('button[name=tls_servercert_upload]').click(function() {
-        yuboxUploadMQTTCerts(yuboxAPI('mqtt')+'/tls_servercert', ['tls_servercert']);
-    });
-    mqttpane.find('button[name=tls_clientcert_upload]').click(function() {
-        yuboxUploadMQTTCerts(yuboxAPI('mqtt')+'/tls_clientcert', ['tls_clientcert', 'tls_clientkey']);
+    mqttpane.querySelector('button[name=tls_clientcert_upload]').addEventListener('click', function() {
+        yuboxUploadMQTTCerts('tls_clientcert', ['tls_clientcert', 'tls_clientkey']);
     });
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
@@ -68,105 +65,95 @@ function setupMqttTab()
     });
 }
 
+function yuboxLoadMqttConfig_connstatus(badgeclass, msg)
+{
+    const mqttpane = getYuboxPane('mqtt', true);
+    const span_connstatus = mqttpane.querySelector('form span#mqtt_connstatus');
+
+    span_connstatus.classList.remove('badge-danger', 'badge-success', 'badge-secondary');
+    span_connstatus.classList.add(badgeclass);
+    span_connstatus.textContent = msg;
+}
+
 function yuboxLoadMqttConfig()
 {
-    var mqttpane = getYuboxPane('mqtt');
-    mqttpane.find('form span#mqtt_connstatus')
-        .removeClass('badge-success badge-danger')
-        .addClass('badge-secondary')
-        .text('(consultando)');
-    mqttpane.find('form span#mqtt_disconnected_reason').text('...');
+    const mqttpane = getYuboxPane('mqtt', true);
+    const span_reason = mqttpane.querySelector('form span#mqtt_disconnected_reason');
+    span_reason.textContent = '...';
 
-    $.get(yuboxAPI('mqtt')+'/conf.json')
-    .done(function (data) {
-        mqttpane.find('form span#mqtt_clientid').text(data.clientid);
-        var span_tls_capable = mqttpane.find('form span#tls_capable');
-        span_tls_capable.removeClass('badge-success badge-secondary');
+    yuboxLoadMqttConfig_connstatus('badge-secondary', '(consultando)');
+    yuboxFetch('mqtt', 'conf.json')
+    .then((data) => {
+        mqttpane.querySelector('form span#mqtt_clientid').textContent = data.clientid;
+        const span_tls_capable = mqttpane.querySelector('form span#tls_capable');
+        span_tls_capable.classList.remove('badge-success', 'badge-secondary');
         if (data.tls_capable) {
-            span_tls_capable.addClass('badge-success').text('PRESENTE');
+            span_tls_capable.classList.add('badge-success')
+            span_tls_capable.textContent = 'PRESENTE';
         } else {
-            span_tls_capable.addClass('badge-secondary').text('AUSENTE');
+            span_tls_capable.classList.add('badge-secondary')
+            span_tls_capable.textContent = 'AUSENTE';
         }
 
-        var span_connstatus = mqttpane.find('form span#mqtt_connstatus');
-        var span_reason = mqttpane.find('form span#mqtt_disconnected_reason');
-        span_connstatus.removeClass('badge-danger badge-success badge-secondary');
-        span_reason.text('');
-        if (!data.want2connect) {
-            span_connstatus.addClass('badge-secondary').text('NO REQUERIDO');
-        } else if (data.connected) {
-            span_connstatus.addClass('badge-success').text('CONECTADO');
+        span_reason.textContent = '';
+        if (data.connected) {
+            yuboxLoadMqttConfig_connstatus('badge-success', 'CONECTADO');
+        } else if (!data.want2connect) {
+            yuboxLoadMqttConfig_connstatus('badge-secondary', 'NO REQUERIDO');
         } else {
-            var reason = '???';
-            span_connstatus.addClass('badge-danger').text('DESCONECTADO');
-            switch (data.disconnected_reason) {
-            case 0:
-                reason = 'Desconectado a nivel de red';
-                break;
-            case 1:
-                reason = 'Versión de protocolo MQTT incompatible';
-                break;
-            case 2:
-                reason = 'Identificador rechazado';
-                break;
-            case 3:
-                reason = 'Servidor no disponible';
-                break;
-            case 4:
-                reason = 'Credenciales mal formadas';
-                break;
-            case 5:
-                reason = 'No autorizado';
-                break;
-            case 6:
-                reason = 'No hay memoria suficiente';
-                break;
-            case 7:
-                reason = 'Huella TLS incorrecta';
-                break;
-            }
-            span_reason.text(reason);
+            yuboxLoadMqttConfig_connstatus('badge-danger', 'DESCONECTADO');
+            const reasonmsg = [
+                'Desconectado a nivel de red',
+                'Versión de protocolo MQTT incompatible',
+                'Identificador rechazado',
+                'Servidor no disponible',
+                'Credenciales mal formadas',
+                'No autorizado',
+                'No hay memoria suficiente',
+                'Huella TLS incorrecta'
+            ];
+            span_reason.textContent = (data.disconnected_reason >= reasonmsg.length) ? '???' : reasonmsg[data.disconnected_reason];
         }
 
-        mqttpane.find('form input#mqtthost').val(data.host);
-        mqttpane.find('form input#mqttport').val(data.port);
+        mqttpane.querySelector('form input#mqtthost').value = data.host;
+        mqttpane.querySelector('form input#mqttport').value = data.port;
         if (data.user != null) {
-            mqttpane.find('form input#mqttuser').val(data.user);
-            mqttpane.find('form input#mqttpass').val(data.pass);
-            mqttpane.find('input[name=mqttauth]#on').click();
+            mqttpane.querySelector('form input#mqttuser').value = data.user;
+            mqttpane.querySelector('form input#mqttpass').value = data.pass;
+            mqttpane.querySelector('input[name=mqttauth]#on').click();
         } else {
-            mqttpane.find('form input#mqttuser').val('');
-            mqttpane.find('form input#mqttpass').val('');
-            mqttpane.find('input[name=mqttauth]#off').click();
+            mqttpane.querySelector('form input#mqttuser').value = '';
+            mqttpane.querySelector('form input#mqttpass').value = '';
+            mqttpane.querySelector('input[name=mqttauth]#off').click();
         }
 
+        const div_mqtt_tls = mqttpane.querySelectorAll('div.mqtt-tls');
         if (data.tls_capable) {
             // Hay soporte TLS
-            mqttpane.find('div.mqtt-tls').show();
+            div_mqtt_tls.forEach((div) => { div.style.display = ''; });
 
             // Nivel de soporte TLS deseado
-            mqttpane.find('input[name=tls_verifylevel]#tls_verifylevel_'+data.tls_verifylevel).click();
+            mqttpane.querySelector('input[name=tls_verifylevel]#tls_verifylevel_'+data.tls_verifylevel).click();
 
             // Archivos de certificados presentes en servidor
-            mqttpane.find('form span#tls_servercert_present')
-                .removeClass('badge-warning badge-success')
-                .addClass(data.tls_servercert ? 'badge-success' : 'badge-warning')
-                .text(data.tls_servercert ? 'SÍ' : 'NO');
-            mqttpane.find('form span#tls_clientcert_present')
-                .removeClass('badge-warning badge-success')
-                .addClass(data.tls_clientcert ? 'badge-success' : 'badge-warning')
-                .text(data.tls_clientcert ? 'SÍ' : 'NO');
+            const span_tls_servercert_present = mqttpane.querySelector('form span#tls_servercert_present');
+            span_tls_servercert_present.classList.remove('badge-warning', 'badge-success');
+            span_tls_servercert_present.classList.add(data.tls_servercert ? 'badge-success' : 'badge-warning');
+            span_tls_servercert_present.textContent = (data.tls_servercert ? 'SÍ' : 'NO');
+            const span_tls_clientcert_present = mqttpane.querySelector('form span#tls_clientcert_present');
+            span_tls_clientcert_present.classList.remove('badge-warning', 'badge-success')
+            span_tls_clientcert_present.classList.add(data.tls_clientcert ? 'badge-success' : 'badge-warning');
+            span_tls_clientcert_present.textContent = (data.tls_clientcert ? 'SÍ' : 'NO');
         } else {
             // No hay soporte TLS
-            mqttpane.find('div.mqtt-tls').hide();
+            div_mqtt_tls.forEach((div) => { div.style.display = 'none'; });
         }
-    })
-    .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
+    }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
 }
 
 function yuboxUploadMQTTCerts(route_upload, filelist)
 {
-    var mqttpane = getYuboxPane('mqtt');
+    const mqttpane = getYuboxPane('mqtt', true);
 
     if (typeof FormData == 'undefined') {
         yuboxMostrarAlertText('danger', 'Este navegador no soporta FormData para subida de datos. Actualice su navegador.', 2000);
@@ -175,20 +162,15 @@ function yuboxUploadMQTTCerts(route_upload, filelist)
     var postData = new FormData();
 
     for (let k of filelist) {
-        let fi = mqttpane.find('input[type=file]#'+k);
-        if (fi[0].files.length <= 0) {
+        let fi = mqttpane.querySelector('input[type=file]#'+k);
+        if (fi.files.length <= 0) {
             yuboxMostrarAlertText('danger', 'Es necesario elegir un archivo de certificado: '+k, 2000);
             return;
         }
-        postData.append(k, fi[0].files[0]);
+        postData.append(k, fi.files[0]);
     }
-    $.post({
-        url: route_upload,
-        data: postData,
-        processData: false,
-        contentType: false
-    })
-    .done(function (data) {
+    yuboxFetch('mqtt', route_upload, postData)
+    .then((data) => {
         if (data.success) {
             // Al aplicar actualización debería recargarse más tarde
             yuboxMostrarAlertText('success', data.msg, 5000);
@@ -198,8 +180,5 @@ function yuboxUploadMQTTCerts(route_upload, filelist)
         } else {
             yuboxMostrarAlertText('danger', data.msg, 6000);
         }
-    })
-    .fail(function (e) {
-        yuboxStdAjaxFailHandler(e, 5000);
-    });
+    }, (e) => { yuboxStdAjaxFailHandler(e, 5000); });
 }
