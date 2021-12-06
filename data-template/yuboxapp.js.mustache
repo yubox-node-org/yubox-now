@@ -115,11 +115,22 @@ function yuboxFetch(module, rsrc = '', postData = null)
     return yuboxFetchMethod(method, module, rsrc, postData);
 }
 
+function yuboxFetchURL(url, postData = null)
+{
+    let method = (postData == null) ? 'GET' : 'POST';
+    return yuboxFetchMethodURL(method, url, postData);
+}
+
 function yuboxFetchMethod(method, module, rsrc = '', postData = null)
 {
     let url = yuboxAPI(module);
     if (rsrc != '') url += '/' + rsrc;
 
+    return yuboxFetchMethodURL(method, url, postData);
+}
+
+function yuboxFetchMethodURL(method, url, postData = null)
+{
     // Decidir Content-Type
     if (postData != null) {
         if (postData instanceof FormData) {
