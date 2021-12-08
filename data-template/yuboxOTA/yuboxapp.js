@@ -23,7 +23,7 @@ function setupYuboxOTATab()
                 opt.value = data[i].tag;
                 opt.textContent = data[i].desc;
                 opt.data = data[i];
-                sel_firmwarelist.insertAdjacentElement('beforeend', opt);
+                sel_firmwarelist.appendChild(opt);
             }
             sel_firmwarelist.value = data[0].tag;
             sel_firmwarelist.dispatchEvent(new Event('change'));

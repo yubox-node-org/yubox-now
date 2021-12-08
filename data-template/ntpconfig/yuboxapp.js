@@ -9,13 +9,13 @@ function setupNTPConfTab()
         let opt = document.createElement('option');
         opt.value = i;
         opt.textContent = ((i >= 0) ? '+' : '-')+(("0"+Math.abs(i)).slice(-2));
-        sel_tzh.insertAdjacentElement('beforeend', opt);
+        sel_tzh.appendChild(opt);
     }
     for (var i = 0; i < 60; i++) {
         let opt = document.createElement('option');
         opt.value = i;
         opt.textContent = ("0"+Math.abs(i)).slice(-2);
-        sel_tzm.insertAdjacentElement('beforeend', opt);
+        sel_tzm.appendChild(opt);
     }
     ntppane.querySelector('button[name=apply]').addEventListener('click', function () {
         const ntppane = getYuboxPane('ntpconfig', true);
