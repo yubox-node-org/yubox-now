@@ -264,6 +264,44 @@ function handle_networks($ssid)
             ));
         }
         break;
+    case 'POST':
+        $reqparams = array('ssid', 'authmode');
+        foreach ($reqparams as $k) {
+            if (!isset($_POST[$k])) {
+                Header('HTTP/1.1 400 Bad Request');
+                print json_encode(array(
+                    'success'   =>  FALSE,
+                    'msg'       =>  'Falta parámetro '+$k,
+                ));
+                exit();
+            }
+        }
+
+        // TODO: manejar red ya existente en lista
+        $mocknet = array(
+            'bssid'     =>  sprintf('00:11:00:11:00:%02x', count($nets)),
+            'ssid'      =>  $_POST['ssid'],
+            'channel'   =>  rand(0, 11),
+            'rssi'      =>  rand(-100, 0),
+            'authmode'  =>  (int)$_POST['authmode'],
+            'connected' =>  FALSE,
+            'connfail'  =>  FALSE,
+            'saved'     =>  TRUE,
+        );
+        if ($mocknet['authmode'] == 5) {
+            $mocknet['identity'] = $mocknet['password'] = NULL;
+        } elseif ($mocknet['authmode'] > 0) {
+            $mocknet['psk'] = NULL;
+        }
+        $nets[] = $mocknet;
+        $json = json_encode($nets);
+        file_put_contents(MOCKUP_WIFI, $json);
+        Header('HTTP/1.1 202 Accepted');
+        print json_encode(array(
+            'success'   =>  TRUE,
+            'msg'       =>  'Parámetros actualizados correctamente'
+        ));
+        break;
     case 'DELETE':
         if (is_null($ssid)) {
             Header('HTTP/1.1 400 Bad Request');
