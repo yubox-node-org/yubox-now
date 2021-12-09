@@ -264,6 +264,26 @@ function handle_networks($ssid)
             ));
         }
         break;
+    case 'DELETE':
+        if (is_null($ssid)) {
+            Header('HTTP/1.1 400 Bad Request');
+            print json_encode(array(
+                'success'   =>  FALSE,
+                'msg'       =>  'No hay conexión actualmente activa',
+            ));
+            exit();
+        }
+        foreach ($nets as &$net) {
+            if ($net['ssid'] == $ssid) {
+                $net['connected'] = FALSE;
+                $net['connfail'] = FALSE;
+                $net['saved'] = FALSE;
+            }
+        }
+        $json = json_encode($nets);
+        file_put_contents(MOCKUP_WIFI, $json);
+        Header('HTTP/1.1 204 No Content');
+        break;
     default:
         Header('HTTP/1.1 405 Method Not Allowed');
         Header('Allow: GET, POST, DELETE');
