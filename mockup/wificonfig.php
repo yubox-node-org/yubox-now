@@ -123,7 +123,7 @@ function handle_connection()
         break;
     case 'PUT':     // Conectar suministrando las credenciales
         $hdrs = isset($_SERVER['CONTENT_TYPE']) ? explode('; ', $_SERVER['CONTENT_TYPE']) : array();
-        if (count($hdrs) <= 0 || $hdrs[0] != 'application/x-www-form-urlencoded') {
+        if (count($hdrs) <= 0 || strpos($hdrs[0], 'application/x-www-form-urlencoded') !== 0) {
             Header('HTTP/1.1 415 Unsupported Media Type');
             break;
         }
@@ -263,6 +263,64 @@ function handle_networks($ssid)
                 'msg'       =>  'No existe la red indicada'
             ));
         }
+        break;
+    case 'POST':
+        $reqparams = array('ssid', 'authmode');
+        foreach ($reqparams as $k) {
+            if (!isset($_POST[$k])) {
+                Header('HTTP/1.1 400 Bad Request');
+                print json_encode(array(
+                    'success'   =>  FALSE,
+                    'msg'       =>  'Falta parámetro '+$k,
+                ));
+                exit();
+            }
+        }
+
+        // TODO: manejar red ya existente en lista
+        $mocknet = array(
+            'bssid'     =>  sprintf('00:11:00:11:00:%02x', count($nets)),
+            'ssid'      =>  $_POST['ssid'],
+            'channel'   =>  rand(0, 11),
+            'rssi'      =>  rand(-100, 0),
+            'authmode'  =>  (int)$_POST['authmode'],
+            'connected' =>  FALSE,
+            'connfail'  =>  FALSE,
+            'saved'     =>  TRUE,
+        );
+        if ($mocknet['authmode'] == 5) {
+            $mocknet['identity'] = $mocknet['password'] = NULL;
+        } elseif ($mocknet['authmode'] > 0) {
+            $mocknet['psk'] = NULL;
+        }
+        $nets[] = $mocknet;
+        $json = json_encode($nets);
+        file_put_contents(MOCKUP_WIFI, $json);
+        Header('HTTP/1.1 202 Accepted');
+        print json_encode(array(
+            'success'   =>  TRUE,
+            'msg'       =>  'Parámetros actualizados correctamente'
+        ));
+        break;
+    case 'DELETE':
+        if (is_null($ssid)) {
+            Header('HTTP/1.1 400 Bad Request');
+            print json_encode(array(
+                'success'   =>  FALSE,
+                'msg'       =>  'No hay conexión actualmente activa',
+            ));
+            exit();
+        }
+        foreach ($nets as &$net) {
+            if ($net['ssid'] == $ssid) {
+                $net['connected'] = FALSE;
+                $net['connfail'] = FALSE;
+                $net['saved'] = FALSE;
+            }
+        }
+        $json = json_encode($nets);
+        file_put_contents(MOCKUP_WIFI, $json);
+        Header('HTTP/1.1 204 No Content');
         break;
     default:
         Header('HTTP/1.1 405 Method Not Allowed');

@@ -295,7 +295,7 @@ function setupWiFiTab()
             dlg_wifiinfo.modal('hide');
         })
         .fail(function (e) {
-            yuboxStdAjaxFailHandlerDlg(dlg_wificred.find('div.modal-body'), e, 2000);
+            yuboxStdAjaxFailHandlerDlg(dlg_wifiinfo.find('div.modal-body'), e, 2000);
         });
     });
 }
