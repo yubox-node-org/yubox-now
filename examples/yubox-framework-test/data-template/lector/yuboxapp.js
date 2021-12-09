@@ -1,13 +1,13 @@
 function setupLectorTab()
 {
-    var lectorpane = getYuboxPane('lector');
+    var lectorpane = getYuboxPane('lector', true);
     var data = {
         'sse':  null,
         'chart': null,
     };
-    lectorpane.data(data);
+    lectorpane.data = data;
 
-    var ctx = lectorpane.find('canvas#atmospheric')[0].getContext('2d');
+    var ctx = lectorpane.querySelector('canvas#atmospheric').getContext('2d');
     var chtData = {
         datasets:   [{
             label:  'Presión',
@@ -54,24 +54,24 @@ function setupLectorTab()
             }
         }
     });
-    lectorpane.data('chart', cht);
+    lectorpane.data['chart'] = cht;
 
     if (!!window.EventSource) {
         var sse = new EventSource(yuboxAPI('lectura')+'/events');
         sse.addEventListener('message', function (e) {
-            var data = $.parseJSON(e.data);
+            var data = JSON.parse(e.data);
             yuboxLector_actualizar(new Date(data.ts), data.pressure, data.temperature);
         });
-        lectorpane.data('sse', sse);
+        lectorpane.data['sse'] = sse;
     }
 }
 
 function yuboxLector_actualizar(d, p, t)
 {
-    var lectorpane = getYuboxPane('lector');
-    lectorpane.find('h3#temp').text(t.toFixed(2));
-    lectorpane.find('h3#press').text(p.toFixed(2));
-    var cht = lectorpane.data('chart');
+    var lectorpane = getYuboxPane('lector', true);
+    lectorpane.querySelector('h3#temp').textContent = t.toFixed(2);
+    lectorpane.querySelector('h3#press').textContent = p.toFixed(2);
+    var cht = lectorpane.data['chart'];
     cht.data.datasets[0].data.push({x: d, y: p});
     cht.data.datasets[1].data.push({x: d, y: t});
     if (d.valueOf() - cht.data.datasets[0].data[0].x.valueOf() > 10 * 60 * 1000) {

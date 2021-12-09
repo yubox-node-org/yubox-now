@@ -1,4 +1,11 @@
-$(document).ready(function () {
+if (document.readyState == 'loading') {
+    document.addEventListener('DOMContentLoaded', yuboxSetupAllTabs);
+} else {
+    yuboxSetupAllTabs();
+}
+
+function yuboxSetupAllTabs()
+{
 {{#modules}}
     {{#module_setupjs}}
     {{{module_setupjs}}}();
@@ -6,8 +13,10 @@ $(document).ready(function () {
 {{/modules}}
 
     // Mostrar el tab preparado por omisión como activo
-    $('ul#yuboxMainTab a.set-active').removeClass('set-active').tab('show');
-});
+    const tab = document.querySelector('ul#yuboxMainTab a.set-active');
+    tab.classList.remove('set-active');
+    yuboxWrapJQ(tab).tab('show');   // <-- Bootstrap 4 requiere jQuery
+}
 
 {{#modules}}
 {{{module_content}}}
@@ -23,7 +32,8 @@ function yuboxAPI(s)
 
 function yuboxMostrarAlertText(alertstyle, text, timeout)
 {
-    var content = $('<span></span>').text(text);
+    const content = document.createElement('span');
+    content.textContent = text;
     return yuboxMostrarAlert(alertstyle, content, timeout);
 }
 
@@ -34,28 +44,40 @@ function yuboxMostrarAlert(alertstyle, content, timeout)
 
 function yuboxDlgMostrarAlertText(basesel, alertstyle, text, timeout)
 {
-    var content = $('<span></span>').text(text);
+    const content = document.createElement('span');
+    content.textContent = text;
     return yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout);
 }
 
 function yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)
 {
-    var al = $(basesel).children('div.alert.yubox-alert-template')
-        .clone()
-        .removeClass('yubox-alert-template')
-        .addClass('yubox-alert')
-        .addClass('alert-'+alertstyle);
-    al.find('button.close').before(content);
+    basesel = yuboxUnwrapJQ(basesel);
+    if (typeof basesel == 'string') basesel = document.querySelector(basesel);
 
-    $(basesel).children('div.yubox-alert').remove();
-    $(basesel).children('div.alert.yubox-alert-template').after(al);
+    // Buscar plantilla de mensaje alerta, clonar y preparar con estilo
+    const tpl_al = basesel.querySelector('div.alert.yubox-alert-template');
+    const al = tpl_al.cloneNode(true);
+    al.classList.remove('yubox-alert-template');
+    al.classList.add('yubox-alert');
+    al.classList.add('alert-'+alertstyle);
+
+    // Insertar contenido DOM que es texto del mensaje
+    content = yuboxUnwrapJQ(content);
+    al.querySelector('button.close').insertAdjacentElement('beforebegin', content);
+
+    // Quitar cualquier alarma vieja, insertar la nueva
+    const old_al = basesel.querySelector('div.yubox-alert');
+    if (old_al != null && old_al.parentNode !== null) old_al.parentNode.removeChild(old_al);
+    tpl_al.insertAdjacentElement('afterend', al);
+
+    // Quitar mensaje de alarma luego de timeout
     if (timeout != undefined) {
         setTimeout(function() {
-            al.remove();
+            if (al.parentNode !== null) al.parentNode.removeChild(al);
         }, timeout);
     }
 
-    return al;
+    return yuboxWrapJQ(al);
 }
 
 function yuboxStdAjaxFailHandler(e, timeout)
@@ -76,5 +98,94 @@ function yuboxStdAjaxFailHandlerDlg(basesel, e, timeout)
     yuboxDlgMostrarAlertText(basesel, 'danger', msg, timeout);
 }
 
-function getYuboxPane(modname) { return $('div#yuboxMainTabContent > div.tab-pane#'+modname); }
-function getYuboxNavTab(modname) { return $('ul#yuboxMainTab a#'+modname+'-tab[data-toggle="tab"]'); }
+function getYuboxPane(modname, raw = false)
+{
+    let dom = document.querySelector('div#yuboxMainTabContent > div.tab-pane#'+modname);
+    return raw ? dom : yuboxWrapJQ(dom);
+}
+function getYuboxNavTab(modname, raw = false)
+{
+    let dom = document.querySelector('ul#yuboxMainTab a#'+modname+'-tab[data-toggle="tab"]');
+    return raw ? dom : yuboxWrapJQ(dom);
+}
+
+function yuboxFetch(module, rsrc = '', postData = null)
+{
+    let method = (postData == null) ? 'GET' : 'POST';
+    return yuboxFetchMethod(method, module, rsrc, postData);
+}
+
+function yuboxFetchURL(url, postData = null)
+{
+    let method = (postData == null) ? 'GET' : 'POST';
+    return yuboxFetchMethodURL(method, url, postData);
+}
+
+function yuboxFetchMethod(method, module, rsrc = '', postData = null)
+{
+    let url = yuboxAPI(module);
+    if (rsrc != '') url += '/' + rsrc;
+
+    return yuboxFetchMethodURL(method, url, postData);
+}
+
+function yuboxFetchMethodURL(method, url, postData = null)
+{
+    // Decidir Content-Type
+    if (postData != null) {
+        if (postData instanceof FormData) {
+        } else if (postData instanceof URLSearchParams) {
+        } else {
+            // Se asume objeto ordinario
+            postData = new URLSearchParams(postData);
+        }
+    }
+
+    let init = {
+        method: method
+    };
+    if (postData != null) init['body'] = postData;
+    return fetch(url, init)
+    .then(response => {
+        let p;
+
+        if (response.status == 204) {
+            // Voy a asumir que realmente no hay más contenido
+            p = Promise.resolve(null);
+        } else {
+            let ct = response.headers.get('content-type');
+            if (ct.toLowerCase().indexOf('application/json') == 0)
+                p = response.json();
+            else if (ct.toLowerCase().indexOf('text/plain') == 0)
+                p =  response.text();
+            else if (ct.toLowerCase().indexOf('text/html') == 0)
+                p = response.text(); // TODO: parseo?
+            else
+                p = response.blob(); // ¿Es esto lo más útil?
+        }
+        return p
+        .then(data => {
+            if (!response.ok) {
+                let e = new Error(response.statusText, { cause: response });
+                e.responseJSON = data;
+                throw e;
+            }
+            return data;
+        });
+    });
+}
+
+// Las siguientes dos funciones envuelven un DOM pelado en jQuery, y lo extraen
+// de un objeto jQuery, si jQuery está presente. De lo contrario, no hacen nada.
+function yuboxWrapJQ(domobj)
+{
+    if (typeof jQuery == 'undefined') return domobj;
+    return $(domobj);
+}
+function yuboxUnwrapJQ(jqobj)
+{
+    if (typeof jQuery == 'undefined') return jqobj;
+    if (!(jqobj instanceof jQuery)) return jqobj;
+    if (jqobj.length > 0) return jqobj[0];
+    return null;
+}
