@@ -2,7 +2,7 @@ function setupMqttTab()
 {
     const mqttpane = getYuboxPane('mqtt', true);
 
-    mqttpane.querySelector('input[name=mqttauth]').addEventListener('click', function() {
+    let mqttauth_click_cb = function() {
         const div_mqttauth = mqttpane.querySelector('form div.mqttauth');
         const div_mqttauth_inputs = mqttpane.querySelectorAll('form div.mqttauth input');
         const nstat = mqttpane.querySelector('input[name=mqttauth]:checked').value;
@@ -13,7 +13,9 @@ function setupMqttTab()
             div_mqttauth.style.display = 'none';
             div_mqttauth_inputs.forEach((elem) => { elem.required = false; });
         }
-    });
+    };
+    mqttpane.querySelectorAll('input[name=mqttauth]')
+        .forEach(el => { el.addEventListener('click', mqttauth_click_cb) });
     mqttpane.querySelector('button[name=apply]').addEventListener('click', function () {
         var postData = {
             host:           mqttpane.querySelector('input#mqtthost').value,
