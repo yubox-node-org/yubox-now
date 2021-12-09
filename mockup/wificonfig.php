@@ -123,7 +123,7 @@ function handle_connection()
         break;
     case 'PUT':     // Conectar suministrando las credenciales
         $hdrs = isset($_SERVER['CONTENT_TYPE']) ? explode('; ', $_SERVER['CONTENT_TYPE']) : array();
-        if (count($hdrs) <= 0 || $hdrs[0] != 'application/x-www-form-urlencoded') {
+        if (count($hdrs) <= 0 || strpos($hdrs[0], 'application/x-www-form-urlencoded') !== 0) {
             Header('HTTP/1.1 415 Unsupported Media Type');
             break;
         }
