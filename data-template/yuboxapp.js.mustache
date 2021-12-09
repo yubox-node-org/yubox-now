@@ -147,7 +147,23 @@ function yuboxFetchMethodURL(method, url, postData = null)
     if (postData != null) init['body'] = postData;
     return fetch(url, init)
     .then(response => {
-        return response.json()
+        let p;
+
+        if (response.status == 204) {
+            // Voy a asumir que realmente no hay más contenido
+            p = Promise.resolve(null);
+        } else {
+            let ct = response.headers.get('content-type');
+            if (ct.toLowerCase().indexOf('application/json') == 0)
+                p = response.json();
+            else if (ct.toLowerCase().indexOf('text/plain') == 0)
+                p =  response.text();
+            else if (ct.toLowerCase().indexOf('text/html') == 0)
+                p = response.text(); // TODO: parseo?
+            else
+                p = response.blob(); // ¿Es esto lo más útil?
+        }
+        return p
         .then(data => {
             if (!response.ok) {
                 let e = new Error(response.statusText, { cause: response });
