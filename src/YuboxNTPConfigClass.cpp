@@ -8,26 +8,51 @@
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
-#include "AsyncJson.h"
-#include "ArduinoJson.h"
+#include <ArduinoJson.h>
 
 #include "lwip/apps/sntp.h"
+
+// Requerido para arrastrar definición de sntp_set_time_sync_notification_cb en arduino-esp32 v2.0.0-rc1
+#include "esp_sntp.h"
 
 static const char * yubox_default_ntpserver = "pool.ntp.org";
 
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
+volatile bool YuboxNTPConfigClass::_ntpValid = false;
+
+static void YuboxNTPConfigClass_sntp_sync_time_cb(struct timeval * tv)
+{
+  YuboxNTPConf._sntp_sync_time_cb(tv);
+}
+
 YuboxNTPConfigClass::YuboxNTPConfigClass(void)
 {
     _ntpStart = false;
-    _ntpValid = false;
     _ntpFirst = true;
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
+    _rtcHint = 0;
+
+    sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
+}
+
+void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
+{
+  if (tv != NULL) {
+    _ntpValid = true;
+
+    log_d("tv.tv_sec=%ld tv.tv_usec=%ld", tv->tv_sec, tv->tv_usec);
+
+    // Guardar respuesta NTP recién recibida
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
+    nvram.putLong("ntpsec", tv->tv_sec);
+  }
 }
 
 void YuboxNTPConfigClass::begin(AsyncWebServer & srv)
 {
-  WiFi.onEvent(std::bind(&YuboxNTPConfigClass::_cbHandler_WiFiEvent, this, std::placeholders::_1));
+  WiFi.onEvent(std::bind(&YuboxNTPConfigClass::_cbHandler_WiFiEvent, this, std::placeholders::_1, std::placeholders::_2));
   _loadSavedCredentialsFromNVRAM();
   _setupHTTPRoutes(srv);
 }
@@ -43,7 +68,109 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 
   _ntpServerName = nvram.getString("ntphost", _ntpServerName);
   _ntpOffset = nvram.getLong("ntptz", _ntpOffset);
+
+  // Se elige el timestamp más reciente de entre todas las fuentes de hora
+
+  // Hora actualmente programada en el sistema
+  struct timeval tv; bool updatetime = false; long t;
+  if (0 == gettimeofday(&tv, NULL)) {
+    log_d("gettimeofday() devuelve %ld", tv.tv_sec);
+    updatetime = false;
+  } else {
+    log_d("gettimeofday() falla errno=%d", errno);
+    updatetime = true;
+    memset(&tv, 0, sizeof(struct timeval));
+  }
+
+  // Hora de compilación del sketch
+  t = _getSketchCompileTimestamp();
+  if (t > tv.tv_sec) {
+    log_d("sketch t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+    updatetime = true;
+    tv.tv_sec = t;
+  } else {
+    log_d("sketch t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+  }
+
+  // Última hora obtenida desde NTP, si existe
+  t = nvram.getLong("ntpsec", 0);
+  if (t > tv.tv_sec) {
+    log_d("nvram t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+    updatetime = true;
+    tv.tv_sec = t;
+  } else {
+    log_d("nvram t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+  }
+
+  // Hora obtenida de posible fuente RTC
+  if (_rtcHint > 0) {
+    t = _rtcHint;
+    if (t > tv.tv_sec) {
+      log_d("RTC t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else {
+      log_d("RTC t(%ld) <= tv_sec(%ld), se ignora", t, tv.tv_sec);
+    }
+
+    // El valor de RTC se invalida una vez consumido a menos se se lo setee otra vez
+    _rtcHint = 0;
+  }
+
+  // Actualizar hora si se dispone de hora válida
+  if (updatetime && tv.tv_sec != 0) {
+    log_d("actualizando hora a tv_sec=%ld...", tv.tv_sec);
+    settimeofday(&tv, NULL);
+  }
+
+  log_d("time() devuelve ahora: %ld", time(NULL));
+
   _configTime();
+}
+
+uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
+{
+  struct tm tm = {0};
+
+  const char *builddate = __DATE__;
+  const char *buildtime = __TIME__;
+
+  log_d("sketch compilado en %s %s", builddate, buildtime);
+
+  tm.tm_hour = atoi(buildtime);
+  tm.tm_min = atoi(buildtime+3);
+  tm.tm_sec = atoi(buildtime+6);
+  tm.tm_mday = atoi(builddate+4);
+  tm.tm_year = atoi(builddate+7) - 1900;
+
+  switch (builddate[0]) {
+  case 'J':
+    tm.tm_mon = (builddate[1] == 'a') ? 0 : ((builddate[2] == 'n') ? 5 : 6);
+    break;
+  case 'F':
+    tm.tm_mon = 1;
+    break;
+  case 'A':
+    tm.tm_mon = builddate[2] == 'r' ? 3 : 7;
+    break;
+  case 'M':
+    tm.tm_mon = builddate[2] == 'r' ? 2 : 4;
+    break;
+  case 'S':
+    tm.tm_mon = 8;
+    break;
+  case 'O':
+    tm.tm_mon = 9;
+    break;
+  case 'N':
+    tm.tm_mon = 10;
+    break;
+  case 'D':
+    tm.tm_mon = 11;
+    break;
+  }
+
+  return mktime(&tm);
 }
 
 void YuboxNTPConfigClass::_configTime(void)
@@ -56,13 +183,17 @@ void YuboxNTPConfigClass::_configTime(void)
   }
 }
 
-void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event)
+void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
-  //Serial.printf("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent [WiFi-event] event: %d\r\n", event);
+  log_d("event: %d", event);
   switch(event) {
+#if ESP_IDF_VERSION_MAJOR > 3
+  case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+#else
   case SYSTEM_EVENT_STA_GOT_IP:
+#endif
     if (!_ntpStart) {
-      //Serial.println("DEBUG: YuboxNTPConfigClass::_cbHandler_WiFiEvent - estableciendo conexión UDP para NTP...");
+      log_i("iniciando SNTP para obtener hora de red...");
       _configTime();
       _ntpStart = true;
     }
@@ -81,7 +212,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["ntpsync"] = isNTPValid();
@@ -177,7 +308,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 
@@ -190,7 +321,10 @@ bool YuboxNTPConfigClass::update(uint32_t ms_timeout)
   if (!_ntpStart) return false;
   if (!WiFi.isConnected()) return _ntpValid;
   if (_ntpFirst) {
-    ESP_LOGD(__FILE__, "YuboxNTPConfigClass::update - conexión establecida, pidiendo hora de red vía NTP...");
+    if (_ntpValid)
+      log_d("conexión establecida, NTP ya indicó hora de red...");
+    else
+      log_d("conexión establecida, esperando hora de red vía NTP...");
     _ntpFirst = false;
   }
   _ntpValid = isNTPValid(ms_timeout);
@@ -202,16 +336,9 @@ bool YuboxNTPConfigClass::isNTPValid(uint32_t ms_timeout)
   if (_ntpValid) return true;
 
   uint32_t start = millis();
-  time_t now;
-  struct tm info;
   do {
-    time(&now);
-    gmtime_r(&now, &info);
-    if (info.tm_year > (2016 - 1900)) {
-      _ntpValid = true;
-      break;
-    }
-    if (ms_timeout > 0) delay(10);
+    if (_ntpValid) break;
+    if (ms_timeout > 0) delay(50);
   } while (millis() - start <= ms_timeout);
 
   return _ntpValid;

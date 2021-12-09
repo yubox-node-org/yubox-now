@@ -15,7 +15,7 @@ YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
     _responseMsg = "";
     _tgzupload_currentOp = YBX_OTA_IDLE;
     _tgzupload_foundFirmware = false;
-    _tgzupload_canFlash = false;
+    _tgzupload_flashSuccess = false;
     _tgzupload_hasManifest = false;
     _tgzupload_filelist.clear();
 
@@ -45,32 +45,14 @@ String YuboxOTA_Flasher_ESP32::getLastErrorMessage(void)
 bool YuboxOTA_Flasher_ESP32::startUpdate(void)
 {
     FREE_FILEBUF;
-    _filebuf = (uint8_t *)malloc(YUBOX_BUFSIZ);
-    if (_filebuf == NULL) {
-      _responseMsg= "No se puede asignar bufer para escribir archivos!";
-      _uploadRejected = true;
-      return false;
-    }
     _filebuf_used = 0;
+    _tgzupload_flashSuccess = false;
 
     return true;
 }
 
-#define CHECK_VALID_FILEBUF \
-  do {\
-    if (_filebuf == NULL) {\
-      if (!_uploadRejected) {\
-        _responseMsg = "Bufer de escritura no ha sido asignado en ";\
-        _responseMsg += __FUNCTION__;\
-        _uploadRejected = true;\
-      }\
-      return false;\
-    }\
-  } while (false)
-
 bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long filesize)
 {
-    CHECK_VALID_FILEBUF;
     if (_filebuf_used != 0) {
       if (!_uploadRejected) {
         _responseMsg = "Datos de búfer no han sido evacuados. Esto no debería pasar.";
@@ -89,6 +71,14 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
       if (_tgzupload_foundFirmware) {
         log_w("Se ignora firmware duplicado: %s longitud %d bytes", filename, (unsigned long)(filesize & 0xFFFFFFFFUL));
       } else {
+        // Previo a la escritura de firmware, el búfer de escritura de archivo se libera
+        // porque no va a ser usado, y para mitigar escenarios de falta de RAM que impidan
+        // el éxito de Update.begin(), que asigna un búfer interno.
+        if (_filebuf != NULL) {
+          FREE_FILEBUF;
+          log_d("Liberado búfer de escritura de archivo previo a inicio de escritura firmware");
+        }
+
         _tgzupload_foundFirmware = true;
         if ((unsigned long)(filesize >> 32) != 0) {
           // El firmware excede de 4GB. Un dispositivo así de grande no existe
@@ -97,7 +87,22 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
           _uploadRejected = true;
         } else if (!Update.begin(filesize, U_FLASH)) {
           _responseMsg = "OTA Code update: no se puede iniciar actualización - ";
-          _responseMsg += _updater_errstr(Update.getError());
+          auto upderr = Update.getError();
+          if (upderr != UPDATE_ERROR_OK) {
+            // Hay una causa reconocida para error de OTA
+            _responseMsg += _updater_errstr(upderr);
+          } else {
+            // El objeto updater no ha reportado la causa del error. Se presume
+            // que la verdadera causa (por examen del código) es memoria insuficiente
+            // para el bloque de 4096 bytes del sector de flash a escribir.
+            _responseMsg += "no hay suficiente RAM - libre ";
+
+            multi_heap_info_t info = {0};
+            heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
+            _responseMsg += info.total_free_bytes;
+            _responseMsg += " max alloc ";
+            _responseMsg += info.largest_free_block;
+          }
           _uploadRejected = true;
         } else {
           _tgzupload_currentOp = YBX_OTA_FIRMWARE_FLASH;
@@ -132,6 +137,16 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
           _tgzupload_bytesWritten = 0;
           _filestart_cb(filename, false, filesize);
 
+          // Asignar búfer de escritura de archivos, si es posible
+          if (_filebuf == NULL) {
+            _filebuf = (uint8_t *)malloc(YUBOX_BUFSIZ);
+            if (_filebuf == NULL) {
+              log_w("No se puede asignar bufer para escribir archivos! Se continúa sin búfer (más lento)...");
+            } else {
+              log_d("Asignado búfer de escritura de archivos, longitud %d bytes", YUBOX_BUFSIZ);
+            }
+          }
+
           // Detectar si el tar contiene el manifest.txt
           if (strcmp(filename, "manifest.txt") == 0) _tgzupload_hasManifest = true;
         }
@@ -144,6 +159,11 @@ bool YuboxOTA_Flasher_ESP32::startFile(const char * filename, unsigned long long
 bool YuboxOTA_Flasher_ESP32::_flushFileBuffer(const char * filename, unsigned long long filesize)
 {
     size_t r;
+
+    if (_filebuf == NULL) {
+        log_e("invocación con _filebuf == NULL - no debería pasar!");
+        return false;
+    }
 
     r = _tgzupload_rsrc.write(_filebuf, _filebuf_used);
     if (r <= 0) {
@@ -175,22 +195,43 @@ bool YuboxOTA_Flasher_ESP32::appendFileData(const char * filename, unsigned long
 
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
-        CHECK_VALID_FILEBUF;
-
         // Esto asume que el archivo ya fue abierto previamente
         while (size > 0) {
-            // Copiar cuanto se pueda del block al búfer hasta llenarlo
-            r = YUBOX_BUFSIZ - _filebuf_used;
-            if (r > size) r = size;
-            memcpy(_filebuf + _filebuf_used, block, r);
-            _filebuf_used += r;
-            size -= r;
-            block += r;
+            if (_filebuf != NULL) {
+                // Copiar cuanto se pueda del block al búfer hasta llenarlo
+                r = YUBOX_BUFSIZ - _filebuf_used;
+                if (r > size) r = size;
+                memcpy(_filebuf + _filebuf_used, block, r);
+                _filebuf_used += r;
+                size -= r;
+                block += r;
 
-            // ¿Ya se puede evacuar el búfer al archivo abierto?
-            if (_filebuf_used >= YUBOX_BUFSIZ) {
-                if (!_flushFileBuffer(filename, filesize)) break;
+                // ¿Ya se puede evacuar el búfer al archivo abierto?
+                if (_filebuf_used >= YUBOX_BUFSIZ) {
+                    if (!_flushFileBuffer(filename, filesize)) break;
+                }
+            } else {
+                // Escribir datos directamente ya que no hay _filebuf asignado
+                r = _tgzupload_rsrc.write(block, size);
+                if (r <= 0) {
+                    _tgzupload_rsrc.close();
+                    _responseMsg = "Fallo al escribir archivo: ";
+                    _responseMsg += filename;
+                    _responseMsg += " ";
+                    _responseMsg += _reportFilesystemSpace();
+                    _uploadRejected = true;
+                    _tgzupload_currentOp = YBX_OTA_IDLE;
+                    break;
+                }
+                _tgzupload_bytesWritten += r;
+                size -= r;
+                block += r;
             }
+        }
+
+        // Invocar directamente callback progreso si no hay búfer
+        if (_filebuf == NULL) {
+            _fileprogress_cb(filename, false, filesize, _tgzupload_bytesWritten);
         }
         break;
     case YBX_OTA_FIRMWARE_FLASH:
@@ -219,8 +260,7 @@ bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long lon
 {
     switch (_tgzupload_currentOp) {
     case YBX_OTA_SPIFFS_WRITE:
-        CHECK_VALID_FILEBUF;
-
+        // Si no hay _filebuf asignado, se espera que _filebuf_used ya sea 0
         while (_filebuf_used > 0 && !_uploadRejected) {
             if (!_flushFileBuffer(filename, filesize)) break;
         }
@@ -232,7 +272,31 @@ bool YuboxOTA_Flasher_ESP32::finishFile(const char * filename, unsigned long lon
         break;
     case YBX_OTA_FIRMWARE_FLASH:
         _tgzupload_currentOp = YBX_OTA_IDLE;
-        _tgzupload_canFlash = true;
+
+        if (!_uploadRejected) {
+          vTaskDelay(1);
+
+          // Finalizar operación de flash de firmware, si es necesaria
+          log_d("YUBOX OTA: firmware-commit-start");
+          if (!Update.end()) {
+            _responseMsg = "OTA Code update: fallo al finalizar - ";
+            _responseMsg += _updater_errstr(Update.getError());
+            _uploadRejected = true;
+            log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
+          } else if (!Update.isFinished()) {
+            _responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
+            _responseMsg += _updater_errstr(Update.getError());
+            _uploadRejected = true;
+            log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
+          } else {
+            log_d("YUBOX OTA: firmware-commit-end");
+            _tgzupload_flashSuccess = true;
+          }
+          log_d(" ...done");
+
+          vTaskDelay(1);
+        }
+
         _fileend_cb(filename, true, filesize);
         break;
     }
@@ -266,29 +330,6 @@ bool YuboxOTA_Flasher_ESP32::finishUpdate(void)
       //_tgzupload_clientError = true;
       _responseMsg = "No se encuentra manifest.txt, archivo subido no es un firmware";
       _uploadRejected = true;
-    }
-
-    if (!_uploadRejected && _tgzupload_canFlash) {
-      vTaskDelay(1);
-
-      // Finalizar operación de flash de firmware, si es necesaria
-      log_d("YUBOX OTA: firmware-commit-start");
-      if (!Update.end()) {
-        _responseMsg = "OTA Code update: fallo al finalizar - ";
-        _responseMsg += _updater_errstr(Update.getError());
-        _uploadRejected = true;
-        log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
-      } else if (!Update.isFinished()) {
-        _responseMsg = "OTA Code update: actualización no ha podido finalizarse - ";
-        _responseMsg += _updater_errstr(Update.getError());
-        _uploadRejected = true;
-        log_e("YUBOX OTA: firmware-commit-failed: %s", _responseMsg.c_str());
-      } else {
-        log_d("YUBOX OTA: firmware-commit-end");
-      }
-      log_d(" ...done");
-
-      vTaskDelay(1);
     }
 
     if (!_uploadRejected) {
@@ -416,8 +457,14 @@ const char * YuboxOTA_Flasher_ESP32::_updater_errstr(uint8_t e)
 void YuboxOTA_Flasher_ESP32::_firmwareAbort(void)
 {
   if (_tgzupload_foundFirmware) {
-    // Abortar la operación de firmware si se estaba escribiendo
-    Update.abort();
+    if (_tgzupload_flashSuccess) {
+      // Realizar rollback del flasheo de firmware que había tenido éxito anteriormente
+      Update.rollBack();
+      _tgzupload_flashSuccess = false;
+    } else {
+      // Abortar la operación de firmware si se estaba escribiendo
+      Update.abort();
+    }
   }
 
   cleanupFailedUpdateFiles();
@@ -481,7 +528,14 @@ void YuboxOTA_Flasher_ESP32::_listFilesWithPrefix(std::vector<String> & flist, c
     while (f) {
       String s = f.name();
       f.close();
-      log_v("listado %s", s.c_str());
+      if (s.startsWith("/")) {
+        // Comportamiento arduino-esp32 hasta 1.0.6
+        log_v("listado %s", s.c_str());
+      } else {
+        // Comportamiento arduino-esp32 2.0.0-alpha
+        log_v("listado {/}%s", s.c_str());
+        s = "/" + s;
+      }
       if (s.startsWith(prefix)) {
         log_v("- se agrega a lista...");
         flist.push_back(strip_prefix ? s.substring(prefix.length()) : s);

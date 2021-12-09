@@ -2,7 +2,6 @@
 #define _YUBOX_WIFI_CLASS_H_
 
 #include "FS.h"
-#include "SPIFFS.h"
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
@@ -67,6 +66,10 @@ private:
   // Bandera de asumir control del WiFi o no.
   bool _assumeControlOfWiFi;
 
+  // Bandera de activar la interfaz softAP o no
+  bool _enableSoftAP;
+  bool _softAPConfigured;
+
   // La siguiente es una caché de los valores de las redes guardadas en NVRAM.
   // En estado estable, .size() se corresponde con valor de net/n en NVRAM
   // NOTA: elemento i-ésimo contando desde 0 se corresponde a net/n/... donde
@@ -96,6 +99,7 @@ private:
   void _loadSavedNetworksFromNVRAM(void);
   void _saveNetworksToNVRAM(void);
   void _updateActiveNetworkNVRAM(void);
+  void _enableWiFiMode(void);
   void _startWiFi(void);
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
@@ -104,10 +108,12 @@ private:
 
   String _buildAvailableNetworksJSONReport(void);
 
+  void _bootstrapWebServer(void);
+
   // Callbacks y timers
-  void _cbHandler_WiFiEvent(WiFiEvent_t event);
-  void _cbHandler_WiFiEvent_ready(WiFiEvent_t event);
-  void _cbHandler_WiFiEvent_scandone(WiFiEvent_t event);
+  void _cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t);
+  void _cbHandler_WiFiEvent_ready(WiFiEvent_t event, WiFiEventInfo_t);
+  void _cbHandler_WiFiEvent_scandone(WiFiEvent_t event, WiFiEventInfo_t);
   void _cbHandler_WiFiRescan(TimerHandle_t);
 
   void _setupHTTPRoutes(AsyncWebServer &);
@@ -119,7 +125,6 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_networks_POST(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request);
-  void _routeHandler_spiffslist_GET(AsyncWebServerRequest *request);
 
   // Funciones de ayuda para responder a peticiones web
   void _serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i);
@@ -144,6 +149,13 @@ public:
   bool haveControlOfWiFi(void) { return _assumeControlOfWiFi; }
   void saveControlOfWiFi(void);
   YuboxWiFi_cred getLastActiveNetwork(void);
+
+  // Activar y desactivar únicamente la interfaz softAP. Se requiere control de
+  // WiFi. Este soporte es necesario para activiar Bluetooth en simultáneo con WiFi
+  // en modo cliente luego de desactivar la porción softAP.
+  void toggleStateAP(bool);
+  bool getSavedStateAP(void) { return _enableSoftAP; }
+  void saveStateAP(void);
 
   friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
 };

@@ -2,19 +2,21 @@
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
-#include "AsyncJson.h"
-#include "ArduinoJson.h"
+#include <ArduinoJson.h>
 
 #include <functional>
 
-#include "uzlib/uzlib.h"     // https://github.com/pfalcon/uzlib
 extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
+#include "YuboxOTA_Streamer.h"
+
 #include "esp_task_wdt.h"
 
 #include "YuboxOTA_Flasher_ESP32.h"
+#include "YuboxOTA_Streamer_GZ.h"
+#include "YuboxOTA_Streamer_Identity.h"
 
 typedef struct YuboxOTAVetoList
 {
@@ -42,15 +44,6 @@ typedef struct YuboxOTA_Flasher_Factory_rec{
 
 static std::vector<YuboxOTA_Flasher_Factory_rec_t> flasherFactoryList;
 
-#define GZIP_DICT_SIZE 32768
-#define GZIP_BUFF_SIZE 4096
-
-/* De pruebas se ha visto que el máximo tamaño de segmento de datos en el upload es
- * de 1460 bytes. Si el espacio libre en _gz_srcdata es igual o menor al siguiente
- * valor, se iniciará la descompresión con los datos leídos hasta el momento.
- */
-#define GZIP_FILL_WATERMARK 1500
-
 int _tar_cb_feedFromBuffer(unsigned char *, size_t);
 int _tar_cb_gotEntryHeader(header_translated_t *, int, void *);
 int _tar_cb_gotEntryData(header_translated_t *, int, void *, unsigned char *, int);
@@ -62,10 +55,8 @@ YuboxOTAClass::YuboxOTAClass(void)
 
   _uploadRejected = false;
   _shouldReboot = false;
-  _gz_srcdata = NULL;
-  _gz_dstdata = NULL;
-  _gz_dict = NULL;
-  _gz_actualExpandedSize = 0;
+  _uploadFinished = false;
+  _streamerImpl = NULL;
   _tarCB.header_cb = ::_tar_cb_gotEntryHeader;
   _tarCB.data_cb = ::_tar_cb_gotEntryData;
   _tarCB.end_cb = ::_tar_cb_gotEntryEnd;
@@ -82,6 +73,11 @@ YuboxOTAClass::YuboxOTAClass(void)
 
 void YuboxOTAClass::begin(AsyncWebServer & srv)
 {
+  srv.on("/yubox-api/yuboxOTA/hwreport.json", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxhwreport_GET, this, std::placeholders::_1));
+  srv.on("/_spiffslist.html", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_spiffslist_GET, this, std::placeholders::_1));
+
   srv.on("/yubox-api/yuboxOTA/firmwarelist.json", HTTP_GET,
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/yuboxOTA/reboot", HTTP_POST,
@@ -187,7 +183,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
 
     // Construir tabla de flasheadores disponibles
     String json_tableOutput = "[";
-    DynamicJsonDocument json_tablerow(JSON_OBJECT_SIZE(4));
+    StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_tablerow;
     for (auto it = flasherFactoryList.begin(); it != flasherFactoryList.end(); it++) {
       if (json_tableOutput.length() > 1) json_tableOutput += ",";
 
@@ -205,14 +201,34 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
     request->send(response);
 }
 
+void YuboxOTAClass::_rejectUpload(const String & s, bool serverError)
+{
+  if (!_tgzupload_serverError && !_tgzupload_clientError) {
+    if (serverError) _tgzupload_serverError = true; else _tgzupload_clientError = true;
+  }
+  if (_tgzupload_responseMsg.isEmpty()) _tgzupload_responseMsg = s;
+  _uploadRejected = true;
+}
+
+void YuboxOTAClass::_rejectUpload(const char * msg, bool serverError)
+{
+  String s = msg;
+  _rejectUpload(s, serverError);
+}
+
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(AsyncWebServerRequest * request,
     String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
-  log_d("filename=%s index=%d data=%p len=%d final=%d",
+  log_v("filename=%s index=%d data=%p len=%d final=%d",
     filename.c_str(), index, data, len, final ? 1 : 0);
 
-  if (!filename.endsWith(".tar.gz") && !filename.endsWith(".tgz")) {
+  if (filename.endsWith(".tar.gz") || filename.endsWith(".tgz")) {
+    if (_streamerImpl == NULL) _streamerImpl = new YuboxOTA_Streamer_GZ();
+  } else if (filename.endsWith(".tar")) {
+    if (_streamerImpl == NULL) _streamerImpl = new YuboxOTA_Streamer_Identity();
+  } else {
     // Este upload no parece ser un tarball, se rechaza localmente.
+    _rejectUpload("Archivo no parece un tarball - se espera extensión .tar.gz o .tgz", false);
     return;
   }
   if (index == 0) {
@@ -225,31 +241,24 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
       _uploadRejected = true;
     } else {
       if (_flasherImpl != NULL) {
-        _tgzupload_responseMsg = "El flasheo concurrente de firmwares no está soportado.";
-        _tgzupload_clientError = true;
-        _uploadRejected = true;
+        _rejectUpload("El flasheo concurrente de firmwares no está soportado.", false);
       } else {
         int idxFlash = _idxFlasherFromURL(request->url());
         if (idxFlash < 0) {
-          _tgzupload_responseMsg = "No implementado flasheo para ruta: ";
-          _tgzupload_responseMsg += request->url();
-          _tgzupload_serverError = true;
-          _uploadRejected = true;
+          String msg = "No implementado flasheo para ruta: ";
+          msg += request->url();
+          _rejectUpload(msg, true);
         } else {
           _flasherImpl = _buildFlasherFromIdx(idxFlash);
           if (_flasherImpl == NULL) {
-            _tgzupload_responseMsg = "Fallo al instanciar flasheador";
-            _tgzupload_serverError = true;
-            _uploadRejected = true;
+            _rejectUpload("Fallo al instanciar flasheador", true);
           }
         }
       }
     }
   } else {
     if (!_uploadRejected && _flasherImpl == NULL) {
-      _tgzupload_responseMsg = "No se ha instanciado flasheador y se sigue recibiendo datos!";
-      _tgzupload_serverError = true;
-      _uploadRejected = true;
+      _rejectUpload("No se ha instanciado flasheador y se sigue recibiendo datos!", true);
     }
   }
   
@@ -291,40 +300,26 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
   if (index == 0) {
     String vetoMsg = _checkOTA_Veto(false);
     if (!vetoMsg.isEmpty()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = vetoMsg;
-      _uploadRejected = true;
+      _rejectUpload(vetoMsg, true);
 
       return;
     }
   }
 
   assert(_flasherImpl != NULL);
+  assert(_streamerImpl != NULL);
 
   // Inicializar búferes al encontrar el primer segmento
   if (index == 0) {
     _tgzupload_rawBytesReceived = 0;
     _shouldReboot = false;
+    _uploadFinished = false;
 
-    /* El valor de GZIP_BUFF_SIZE es suficiente para al menos dos fragmentos de datos entrantes.
-     * Se descomprime únicamente TAR_BLOCK_SIZE a la vez para simplificar el código y para que
-     * no ocurra que se acabe el búfer de datos de entrada antes de llenar el búfer de salida.
-     */
-    _gz_dict = new unsigned char[GZIP_DICT_SIZE];
-    _gz_srcdata = new unsigned char[GZIP_BUFF_SIZE];
-    _gz_dstdata = new unsigned char[2 * TAR_BLOCK_SIZE];
-    _gz_actualExpandedSize = 0;
-    _gz_headerParsed = false;
-
-    uzlib_init();
-
-    memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
-    _uzLib_decomp.source = _gz_srcdata;         // <-- El búfer inicial de datos
-    _uzLib_decomp.source_limit = _gz_srcdata;   // <-- Será movido al agregar los datos recibidos
-    uzlib_uncompress_init(&_uzLib_decomp, _gz_dict, GZIP_DICT_SIZE);
+    if (!_streamerImpl->begin()) {
+      _rejectUpload(_streamerImpl->getErrorMessage(), true);
+    }
 
     // Inicialización de parseo tar
-    _tar_available = 0;
     _tar_emptyChunk = 0;
     _tar_eof = false;
     tar_setup(&_tarCB, this);
@@ -333,170 +328,82 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
 
-    if (!_flasherImpl->startUpdate()) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-      _uploadRejected = true;
+    if (!_uploadRejected && !_flasherImpl->startUpdate()) {
+      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
     }
   }
 
   _tgzupload_rawBytesReceived += len;
 
-  // Agregar búfer recibido al búfer de entrada, notando si debe empezarse a parsear gzip
-  unsigned int used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
-  unsigned int consumed;
-  log_v("INICIO: used=%u MAX=%u", used, GZIP_BUFF_SIZE);
-  bool runUnzip = false;
-  if (_uploadRejected) {
-    log_e("falla upload en index %d - %s", index, _tgzupload_responseMsg.c_str());
-  } else if (GZIP_BUFF_SIZE - used < len) {
-    // No hay suficiente espacio para este bloque de datos. ESTO NO DEBERÍA PASAR
-    log_e("no hay suficiente espacio en _gz_srcdata: libre=%u requerido=%u", GZIP_BUFF_SIZE - used, len);
-    _tgzupload_serverError = true;
-    _tgzupload_responseMsg = "(internal) Falta espacio en búfer para siguiente pedazo de datos!";
-    _uploadRejected = true;
-  } else {
-    unsigned long gz_expectedExpandedSize = 0;
-
-    memcpy((void *)_uzLib_decomp.source_limit, data, len);
-    _uzLib_decomp.source_limit += len;
-    used += len;
-    log_v("LUEGO DE AGREGAR chunk: used=%u MAX=%u", used, GZIP_BUFF_SIZE);
-
-    if (final) {
-      // Para el último bloque HTTP debería tenerse los 4 últimos bytes LSB que indican
-      // el tamaño esperado de longitud expandida.
-      if (used < 4) {
-        log_e("no hay suficientes datos luego de bloque final para determinar tamaño expandido, se tienen %u bytes", used);
-        _tgzupload_clientError = true;
-        _tgzupload_responseMsg = "Archivo es demasiado corto para validar longitud gzip";
-        _uploadRejected = true;
-      } else {
-        gz_expectedExpandedSize =
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 4))      ) |
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 3)) <<  8) |
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 2)) << 16) |
-          ((unsigned long)(*(_uzLib_decomp.source_limit - 1)) << 24);
-        log_v("longitud esperada de datos expandidos es %lu bytes", gz_expectedExpandedSize);
-        if (gz_expectedExpandedSize < _gz_actualExpandedSize) {
-          log_e("longitud ya expandida excede longitud esperada! %lu > %lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
-          _tgzupload_clientError = true;
-          _tgzupload_responseMsg = "Longitud esperada inconsistente con datos ya expandidos";
-          _uploadRejected = true;
-        }
-      }
+  if (!_uploadRejected) {
+    if (!_streamerImpl->attachInputBuffer(data, len, final)) {
+      _rejectUpload(_streamerImpl->getErrorMessage(), false);
     }
+  }
 
-    // Ejecutar descompresión si es el ÚLTIMO bloque, o si hay menos espacio que el necesario
-    // para agregar un bloque más.
-    runUnzip = (final || (GZIP_BUFF_SIZE - used < GZIP_FILL_WATERMARK));
-    while (!_uploadRejected && runUnzip && !_tar_eof && (gz_expectedExpandedSize == 0 || _gz_actualExpandedSize < gz_expectedExpandedSize)) {
-      log_v("_gz_actualExpandedSize=%lu gz_expectedExpandedSize=%lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
-      log_v("se tienen %u bytes, se ejecuta gunzip...", used);
-      if (!_gz_headerParsed) {
-        // Se requiere parsear cabecera gzip para validación
-        r = uzlib_gzip_parse_header(&_uzLib_decomp);
-        if (r != TINF_OK) {
-          // Fallo al parsear la cabecera gzip
-          log_e("fallo al parsear cabecera gzip");
-          _tgzupload_clientError = true;
-          _tgzupload_responseMsg = "Archivo no parece ser un archivo tar.gz, o está corrupto";
-          _uploadRejected = true;
-          break;
-        }
-        // Cabecera gzip OK, se ajustan búferes
-        _gz_headerParsed = true;
-      } else {
-        _uzLib_decomp.dest_start = _gz_dstdata;
-        _uzLib_decomp.dest = _gz_dstdata + _tar_available;
-        _uzLib_decomp.dest_limit = _gz_dstdata + 2 * TAR_BLOCK_SIZE;
-        if (final && (gz_expectedExpandedSize - _gz_actualExpandedSize) < 2 * TAR_BLOCK_SIZE - _tar_available) {
-          _uzLib_decomp.dest_limit = _gz_dstdata + _tar_available + (gz_expectedExpandedSize - _gz_actualExpandedSize);
-        }
-        while (_uzLib_decomp.dest < _uzLib_decomp.dest_limit) {
-          r = uzlib_uncompress(&_uzLib_decomp);
-          if (r != TINF_DONE && r != TINF_OK) {
-            log_e("fallo al descomprimir gzip (err=%d)", r);
-            _tgzupload_clientError = true;
-            _tgzupload_responseMsg = "Archivo corrupto o truncado (gzip), no puede descomprimirse";
-            _uploadRejected = true;
-            break;
-          }
-          if (_uploadRejected) break;
-        }
-        _gz_actualExpandedSize += (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available;
-        log_v("producidos %u bytes expandidos:", (_uzLib_decomp.dest - _uzLib_decomp.dest_start) - _tar_available);
-        _tar_available = _uzLib_decomp.dest - _uzLib_decomp.dest_start;
+  if (!_uploadRejected) {
+    bool tar_progress;
 
-        // Pasar búfer descomprimido a rutina tar
-        while (!_tar_eof && !_uploadRejected && ((_tar_available >= 2 * TAR_BLOCK_SIZE)
-          || (final && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize && _tar_available > 0))) {
-          log_v("_tar_available=%u se ejecuta lectura tar", _tar_available);
-          // _tar_available se actualiza en _tar_cb_feedFromBuffer()
-          // Procesamiento continúa en callbacks _tar_cb_*
-          r = _tar_eof ? 0 : read_tar_step();
-          if (r == -1 && _tar_emptyChunk >= 2 && gz_expectedExpandedSize != 0) {
-            _tar_eof = true;
-            log_v("se alcanzó el final del tar actual=%lu esperado=%lu", _gz_actualExpandedSize, gz_expectedExpandedSize);
-          } else if (r != 0) {
-            // Error -5 es fallo por _tar_cb_gotEntry[Header|End] que devuelve != 0 - debería manejarse vía _uploadRejected
-            // Error -7 es fallo por _tar_cb_gotEntryData que devuelve != 0 - debería manejarse vía _uploadRejected
-            if (r != -7 && r != -5) {
-              log_e("fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu",
-                _tar_available, r, _tar_emptyChunk, _gz_actualExpandedSize, gz_expectedExpandedSize);
-            }
-            // No sobreescribir mensaje raíz si ha sido ya asignado
-            if (!_tgzupload_clientError && !_tgzupload_serverError) {
-              _tgzupload_clientError = true;
-              _tgzupload_responseMsg = "Archivo corrupto o truncado (tar), no puede procesarse";
-            }
-            _uploadRejected = true;
-          } else {
-            log_v("luego de parseo tar: _tar_available=%u", _tar_available);
-          }
-        }
+    do {
+      if (!_streamerImpl->transformInputBuffer()) {
+        _rejectUpload(_streamerImpl->getErrorMessage(), false);
+      }
 
-        if (final && !_uploadRejected && gz_expectedExpandedSize != 0 && _gz_actualExpandedSize >= gz_expectedExpandedSize
-          && _tar_available <= 0 && _tar_emptyChunk >= 2) {
+      tar_progress = false;
+      while (!_tar_eof && !_uploadRejected && (
+        _streamerImpl->isOutputBufferFull() || (final && _streamerImpl->getAvailableOutputLength() > 0 && _streamerImpl->inputStreamEOF())
+      )) {
+        tar_progress = true;
+
+        log_v("_tar_available=%u se ejecuta lectura tar", _streamerImpl->getAvailableOutputLength());
+        // _tar_available se actualiza en _tar_cb_feedFromBuffer()
+        // Procesamiento continúa en callbacks _tar_cb_*
+        r = _tar_eof ? 0 : read_tar_step();
+        if (r == -1 && _tar_emptyChunk >= 2 /*&& _streamerImpl->getTotalExpectedOutput() != 0*/) {
           _tar_eof = true;
-        }
-      }
-
-      consumed = _uzLib_decomp.source - _gz_srcdata;
-      if (consumed != 0) {
-        log_v("parseo gzip consumió %u bytes, se ajusta...", consumed);
-        if (_uzLib_decomp.source < _uzLib_decomp.source_limit) {
-          memmove(_gz_srcdata, _gz_srcdata + consumed, _uzLib_decomp.source_limit - _uzLib_decomp.source);
-          _uzLib_decomp.source_limit -= consumed;
-          _uzLib_decomp.source -= consumed;
+          log_d("se alcanzó el final del tar actual=%lu esperado=%lu",
+            _streamerImpl->getTotalProducedOutput(),
+            _streamerImpl->getTotalExpectedOutput());
+        } else if (r != 0) {
+          // Error -5 es fallo por _tar_cb_gotEntry[Header|End] que devuelve != 0 - debería manejarse vía _uploadRejected
+          // Error -7 es fallo por _tar_cb_gotEntryData que devuelve != 0 - debería manejarse vía _uploadRejected
+          if (r != -7 && r != -5) {
+            log_e("fallo al procesar tar en bloque available %u error %d emptychunk %d actual=%lu esperado=%lu",
+              _streamerImpl->getAvailableOutputLength(), r, _tar_emptyChunk,
+              _streamerImpl->getTotalProducedOutput(),
+              _streamerImpl->getTotalExpectedOutput());
+          }
+          _rejectUpload("Archivo corrupto o truncado (tar), no puede procesarse", false);
         } else {
-          _uzLib_decomp.source = _gz_srcdata;
-          _uzLib_decomp.source_limit = _gz_srcdata;
+          log_v("luego de parseo tar: _tar_available=%u", _streamerImpl->getAvailableOutputLength());
         }
-      } else {
-        log_v("parseo gzip no consumió bytes...");
       }
-      used = _uzLib_decomp.source_limit - _uzLib_decomp.source;
-      runUnzip = (final || (GZIP_BUFF_SIZE - used < GZIP_FILL_WATERMARK));
 
-      log_v("quedan %u bytes en búfer de entrada gzip", used);
-    }
+      if (final && !_uploadRejected && _streamerImpl->inputStreamEOF()
+        && _streamerImpl->getAvailableOutputLength() <= 0 && _tar_emptyChunk >= 2) {
+        _tar_eof = true;
+      }
+
+    } while (tar_progress && !_tar_eof && !_uploadRejected);
+  }
+
+  if (!_uploadRejected) {
+    _streamerImpl->detachInputBuffer();
   }
 
   // Cada llamada al callback de upload cede el CPU al menos aquí.
   vTaskDelay(pdMS_TO_TICKS(5));
 
   if (_tar_eof) {
-    if (_flasherImpl != NULL) {
+    if (final && _flasherImpl != NULL && !_uploadFinished) {
       bool ok = _flasherImpl->finishUpdate();
       if (!ok) {
         // TODO: distinguir entre error de formato y error de flasheo
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-        _uploadRejected = true;
+        _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
       } else {
         _shouldReboot = _flasherImpl->shouldReboot();
       }
+      _uploadFinished = true;
     }
   } else if (final) {
     // Se ha llegado al último chunk y no se ha detectado el fin del tar.
@@ -504,17 +411,13 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     if (_flasherImpl != NULL) {
       _flasherImpl->truncateUpdate();
     }
-    _tgzupload_clientError = true;
-    _tgzupload_responseMsg = "No se ha detectado final del tar al término del upload";
-    _uploadRejected = true;
+    _rejectUpload("No se ha detectado final del tar al término del upload", false);
   }
 
   if (_uploadRejected || final) {
     tar_abort("tar cleanup", 0);
-    if (_gz_dict != NULL) { delete _gz_dict; _gz_dict = NULL; }
-    if (_gz_srcdata != NULL) { delete _gz_srcdata; _gz_srcdata = NULL; }
-    if (_gz_dstdata != NULL) { delete _gz_dstdata; _gz_dstdata = NULL; }
-    memset(&_uzLib_decomp, 0, sizeof(struct uzlib_uncomp));
+    delete _streamerImpl;
+    _streamerImpl = NULL;
   }
 
   if (final && _flasherImpl != NULL) {
@@ -532,7 +435,7 @@ void YuboxOTAClass::cleanupFailedUpdateFiles(void)
 
 int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 {
-  log_d("(0x%p, %u)", buf, size);
+  log_v("(0x%p, %u)", buf, size);
   if (size % TAR_BLOCK_SIZE != 0) {
     log_e("longitud pedida %d no es múltiplo de %d", size, TAR_BLOCK_SIZE);
     return 0;
@@ -540,28 +443,18 @@ int YuboxOTAClass::_tar_cb_feedFromBuffer(unsigned char * buf, size_t size)
 
   _tar_emptyChunk++;
 
-  unsigned int copySize = _tar_available;
-  log_v("máximo copia posible %d bytes...", copySize);
-  if (copySize > size) copySize = size;
+  unsigned int copySize = _streamerImpl->transferOutputData(buf, size);
   log_v("copiando %d bytes...", copySize);
   if (copySize < size) {
     log_w("se piden %d bytes pero sólo se pueden proveer %d bytes",
       size, copySize);
-  }
-  if (copySize > 0) {
-    memcpy(buf, _uzLib_decomp.dest_start, copySize);
-    if (_tar_available - copySize > 0) {
-      memmove(_uzLib_decomp.dest_start, _uzLib_decomp.dest_start + copySize, _tar_available - copySize);
-    }
-    _uzLib_decomp.dest -= copySize;
-    _tar_available -= copySize;
   }
   return copySize;
 }
 
 int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_index)
 {
-  log_d("INICIO: %s", hdr->filename);
+  log_v("INICIO: %s", hdr->filename);
   switch (hdr->type)
   {
   case T_NORMAL:
@@ -569,9 +462,7 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
     if (_flasherImpl != NULL) {
       bool ok = _flasherImpl->startFile(hdr->filename, hdr->filesize);
       if (!ok) {
-        _tgzupload_serverError = true;
-        _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-        _uploadRejected = true;
+        _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
       }
     }
 
@@ -596,13 +487,11 @@ int YuboxOTAClass::_tar_cb_gotEntryHeader(header_translated_t * hdr, int entry_i
 
 int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_index, unsigned char * block, int size)
 {
-  log_d("DATA: %s entry_index=%d (0x%p, %u)", hdr->filename, entry_index, block, size);
+  log_v("DATA: %s entry_index=%d (0x%p, %u)", hdr->filename, entry_index, block, size);
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->appendFileData(hdr->filename, hdr->filesize, block, size);
     if (!ok) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
     }
   }
 
@@ -612,13 +501,11 @@ int YuboxOTAClass::_tar_cb_gotEntryData(header_translated_t * hdr, int entry_ind
 
 int YuboxOTAClass::_tar_cb_gotEntryEnd(header_translated_t * hdr, int entry_index)
 {
-  log_d("FINAL: %s entry_index=%d", hdr->filename, entry_index);
+  log_v("FINAL: %s entry_index=%d", hdr->filename, entry_index);
   if (_flasherImpl != NULL) {
     bool ok = _flasherImpl->finishFile(hdr->filename, hdr->filesize);
     if (!ok) {
-      _tgzupload_serverError = true;
-      _tgzupload_responseMsg = _flasherImpl->getLastErrorMessage();
-      _uploadRejected = true;
+      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
     }
   }
 
@@ -661,7 +548,7 @@ void YuboxOTAClass::_emitUploadEvent_FileStart(const char * filename, bool isfir
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
   json_doc["event"] = "uploadFileStart";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -679,7 +566,7 @@ void YuboxOTAClass::_emitUploadEvent_FileProgress(const char * filename, bool is
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(6));
+  StaticJsonDocument<JSON_OBJECT_SIZE(6)> json_doc;
   json_doc["event"] = "uploadFileProgress";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -697,7 +584,7 @@ void YuboxOTAClass::_emitUploadEvent_FileEnd(const char * filename, bool isfirmw
 
   _tgzupload_lastEventSent = millis();
   String s;
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(5));
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
   json_doc["event"] = "uploadFileEnd";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -735,8 +622,14 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
   }
 
+  if (_streamerImpl != NULL) {
+    log_w("streamer no fue destruido al terminar manejo upload, se destruye ahora...");
+    delete _streamerImpl;
+    _streamerImpl = NULL;
+  }
+
   if (_flasherImpl != NULL) {
-    Serial.println("WARN: flasheador no fue destruido al terminar manejo upload, se destruye ahora...");
+    log_w("flasheador no fue destruido al terminar manejo upload, se destruye ahora...");
     delete _flasherImpl;
     _flasherImpl = NULL;
   }
@@ -752,7 +645,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
   json_doc["reboot"] = (_shouldReboot && !clientError && !serverError);
@@ -775,7 +668,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerR
   delete fi;
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(1));
+  StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
   response->setCode(200);
   json_doc["canrollback"] = canRollBack;
 
@@ -788,7 +681,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(false); // Rollback cuenta como flasheo
@@ -838,7 +731,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(2));
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(true);
@@ -863,6 +756,87 @@ void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
   log_w("YUBOX OTA: reiniciando luego de cambio de firmware...");
   ESP.restart();
+}
+
+#include "SPIFFS.h"
+
+void YuboxOTAClass::_routeHandler_spiffslist_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("text/html");
+
+  response->print(
+    "<!DOCTYPE html><html lang=\"en\"><head><title>Index of SPIFFS</title></head><body><h1>Index of SPIFFS</h1>");
+  response->print("<table><tr><th>Name</th><th>Size</th></tr><tr><th colspan=\"2\"><hr></th></tr>");
+
+  File h = SPIFFS.open("/");
+  if (h && h.isDirectory()) {
+    File f = h.openNextFile();
+    while (f) {
+      String s = f.name();
+      unsigned int sz = f.size();
+      bool gzcomp = s.endsWith(".gz");
+      f.close();
+      if (gzcomp) {
+        s.remove(s.length() - 3);
+      }
+      response->printf("<tr><td><a href=\"%s\">%s</a>%s</td><td align=\"right\">%u</td></tr>",
+        s.c_str(), s.c_str(), gzcomp ? ".gz" : "", sz);
+      f = h.openNextFile();
+    }
+
+    h.close();
+  }
+
+  response->print("<tr><th colspan=\"2\"><hr></th></tr></table>");
+
+  // Reportar uso total de partición SPIFFS
+  size_t total = SPIFFS.totalBytes();
+  size_t used = SPIFFS.usedBytes();
+  response->printf("<p>Total bytes: %d Used bytes: %d Free bytes: %d</p>", total, used, (total - used));
+
+  response->print("</body></html>");
+  request->send(response);
+}
+
+#include "core_version.h"
+
+void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(18));
+
+  json_doc["ARDUINO_ESP32_GIT_VER"] = ARDUINO_ESP32_GIT_VER;
+  json_doc["ARDUINO_ESP32_RELEASE"] = ARDUINO_ESP32_RELEASE;
+  json_doc["SKETCH_COMPILE_DATETIME"] = __DATE__ " " __TIME__;
+  json_doc["IDF_VER"] = ESP.getSdkVersion();
+  json_doc["CHIP_MODEL"] = ESP.getChipModel();
+  json_doc["CHIP_CORES"] = ESP.getChipCores();
+  json_doc["CPU_MHZ"] = ESP.getCpuFreqMHz();
+  json_doc["FLASH_SIZE"] = ESP.getFlashChipSize();
+  json_doc["FLASH_SPEED"] = ESP.getFlashChipSpeed();
+
+  json_doc["SKETCH_SIZE"] = ESP.getSketchSize();
+  String sketch_md5 = ESP.getSketchMD5();
+  json_doc["SKETCH_MD5"] = sketch_md5.c_str();
+  json_doc["EFUSE_MAC"] = ESP.getEfuseMac();
+
+  json_doc["psramsize"] = ESP.getPsramSize();
+  json_doc["psramfree"] = ESP.getFreePsram();
+  json_doc["psrammaxalloc"] = ESP.getMaxAllocPsram();
+
+  // MALLOC_CAP_DEFAULT es la memoria directamente provista vía malloc() y operator new
+  multi_heap_info_t info = {0};
+  heap_caps_get_info(&info, /*MALLOC_CAP_INTERNAL*/MALLOC_CAP_DEFAULT);
+  json_doc["heapfree"] = info.total_free_bytes;
+  json_doc["heapmaxalloc"] = info.largest_free_block;
+  json_doc["heapsize"] = info.total_free_bytes + info.total_allocated_bytes;
+
+  serializeJson(json_doc, *response);
+  request->send(response);
 }
 
 YuboxOTAClass YuboxOTA;

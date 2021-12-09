@@ -1,9 +1,10 @@
 <form>
-<div class="form-group">
-    <label for="yuboxfirmwarelist">Firmware a actualizar:</label>
-    <select class="form-control" id="yuboxfirmwarelist" name="yuboxfirmwarelist">
-    </select>
-</div>
+    <button type="button" class="btn btn-info btn-lg btn-block mb-2" name="hwreport">Resumen ESP32</button>
+    <div class="form-group">
+        <label for="yuboxfirmwarelist">Firmware a actualizar:</label>
+        <select class="form-control" id="yuboxfirmwarelist" name="yuboxfirmwarelist">
+        </select>
+    </div>
 </form>
 
 <div class="row row-cols-1">
@@ -15,7 +16,7 @@
                     <div class="form-group">
                         <div class="custom-file">
                             <input type="file" class="custom-file-input" id="tgzupload">
-                            <label class="custom-file-label" for="tgzupload" data-browse="Elegir">Indique archivo de firmware:</label>
+                            <label class="custom-file-label" for="tgzupload" data-browse="Elegir" id="lbl-tgzupload">Indique archivo de firmware:</label>
                         </div>
                     </div>
                     <div class="form-group">
@@ -68,3 +69,107 @@
     </div>
 </div>
 
+<!-- El siguiente es el diálogo que se usa para mostrar detalles del hardware y el sketch cargado -->
+<div class="modal fade" id="hwreport" tabindex="-1" role="dialog" aria-labelledby="hwreport-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+
+          <!-- Título con nombre de red a usar -->
+          <h5 class="modal-title" id="hwreport-title">Resumen YUBOX</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+
+        </div>
+        <div class="modal-body">
+
+            <table id="hwinfo" class="table table-sm table-borderless">
+                <tbody>
+                    <tr id="ARDUINO_ESP32_RELEASE">
+                        <td>Versión de Arduino ESP32:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="ARDUINO_ESP32_GIT_VER">
+                        <td>Revisión GIT de Arduino ESP32:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="SKETCH_COMPILE_DATETIME">
+                        <td>Fecha compilación sketch:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="IDF_VER">
+                        <td>Versión de ESP-IDF</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="CHIP_MODEL">
+                        <td>Modelo de chip:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="CHIP_CORES">
+                        <td>Núcleos en chip:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="CPU_MHZ">
+                        <td>Velocidad CPU:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="FLASH_SIZE">
+                        <td>Tamaño total de Flash:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="FLASH_SPEED">
+                        <td>Velocidad Flash:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="SKETCH_SIZE">
+                        <td>Tamaño de sketch:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="SKETCH_MD5">
+                        <td>Checksum MD5 sketch:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="EFUSE_MAC">
+                        <td>MAC de chip:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="heapsize">
+                        <td>Memoria RAM total:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="heapfree">
+                        <td>Memoria RAM libre:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="heapmaxalloc">
+                        <td>Tamaño máx. asignable RAM:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="psramsize">
+                        <td>Memoria PSRAM total:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="psramfree">
+                        <td>Memoria PSRAM libre:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr id="psrammaxalloc">
+                        <td>Tamaño máx. asignable PSRAM:</td>
+                        <td class="text-muted"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <a class="btn btn-info btn-block" href="/_spiffslist.html" target="_blank">Listado de archivos en SPIFFS</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" name="cancel" formnovalidate data-dismiss="modal">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>

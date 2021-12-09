@@ -113,16 +113,30 @@ Se requieren las siguientes bibliotecas de código como dependencias de YUBOX Fr
   principalmente para construir respuestas JSON a las peticiones AJAX. Esta biblioteca se la puede instalar desde el
   gestor de bibliotecas del Arduino IDE. El YUBOX Framework ha sido probado con la versión 6.15.2 al 22 de julio de
   2020.
-- `AsyncTCP` que es una biblioteca para realizar conexiones TCP/IP de forma asíncrona en una tarea separada del ESP32.
-  Esta biblioteca **NO** está disponible en el gestor de bibliotecas de Arduino IDE. Para instalarla, visite
-  https://github.com/me-no-dev/AsyncTCP y descargue un zip con el código fuente desde https://github.com/me-no-dev/AsyncTCP/archive/master.zip
-  o (para uso avanzado) haga un checkout usando `git`. En cualquier caso, debe existir un directorio con el código de
-  la biblioteca debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/AsyncTCP`. Esta
-  biblioteca es un requisito para las dos bibliotecas siguientes.
-- `ESPAsyncWebServer` que es una biblioteca para exponer un servidor web en el ESP32, usando `AsyncTCP`. Para instalar
-  esta biblioteca, visite https://github.com/me-no-dev/ESPAsyncWebServer y descargue un zip con el código fuente desde
-  https://github.com/me-no-dev/ESPAsyncWebServer/archive/master.zip . Debe existir eventualmente un directorio con el
-  código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/ESPAsyncWebServer`.
+- `AsyncTCPSock` que es una biblioteca para realizar conexiones TCP/IP de forma asíncrona en una tarea separada del ESP32.
+  Esta biblioteca es una reimplementación de la biblioteca `AsyncTCP` [AsyncTCP](https://github.com/me-no-dev/AsyncTCP),
+  hecha para resolver una falla de diseño discutida [aquí](https://github.com/me-no-dev/ESPAsyncWebServer/issues/825#issuecomment-680291383)
+  la cual consiste en un bloqueo mutuo (deadlock) que arriesga reinicios anormales en
+  escenarios de alta actividad de red. La biblioteca `AsyncTCPSock` **NO** está disponible en el gestor de bibliotecas
+  de Arduino IDE. Para instalarla, visite https://github.com/yubox-node-org/AsyncTCPSock y descargue un zip con el código
+  fuente desde https://github.com/yubox-node-org/AsyncTCPSock/archive/master.zip o (para uso avanzado) haga un checkout
+  usando `git`. En cualquier caso, debe existir un directorio con el código de la biblioteca debajo de
+  `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/AsyncTCPSock`. Esta biblioteca es un requisito
+  para las dos bibliotecas siguientes.
+  - **NOTA**: en una versión anterior de este documento, se recomendaba la instalación de `AsyncTCP` antes de diagnosticar
+    el escenario de deadlock que condujo al desarrollo de `AsyncTCPSock`. La biblioteca `AsyncTCPSock` es deliberadamente
+    incompatible con `AsyncTCP` ya que reimplementa el mismo API. Por lo tanto, ambas bibliotecas **NO** deben estar
+    instaladas simultáneamente en la misma instalación de Arduino IDE. Si se va a instalar `AsyncTCPSock`, se debe
+    también quitar `AsyncTCP` para poder usar la versión correcta.
+- `ESPAsyncWebServer` que es una biblioteca para exponer un servidor web en el ESP32, usando `AsyncTCP` o `AsyncTCPSock`.
+  Para proyectos nuevos usando YUBOX-Now, se recomienda usar el fork disponible en https://github.com/yubox-node-org/ESPAsyncWebServer
+  el cual apunta a la rama (por omisión) llamada `yuboxfixes-0xFEEDC0DE64-cleanup`. Visite el enlace indicado y descargue
+  un zip con el código fuente desde https://github.com/yubox-node-org/ESPAsyncWebServer/archive/refs/heads/yuboxfixes-0xFEEDC0DE64-cleanup.zip .
+  Debe existir eventualmente un directorio con el código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo,
+  `/home/fulano/Arduino/libraries/ESPAsyncWebServer`.
+  - **NOTA**: en una versión anterior de este documento, se recomendaba la instalación de la versión base de
+    `ESPAsyncWebServer`. El fork indicado más arriba contiene correcciones de fugas de memoria y otras condiciones
+    de carrera que han sido corregidas por YUBOX al usar la biblioteca en nuestros proyectos.
 - `Async MQTT client for ESP8266 and ESP32` que es una biblioteca para un cliente MQTT, construida sobre `AsyncTCP`.
   Para instalar esta biblioteca, visite https://github.com/marvinroger/async-mqtt-client y descargue un zip con el código
   fuente desde https://github.com/marvinroger/async-mqtt-client/archive/master.zip . Debe existir eventualmente un
@@ -419,7 +433,6 @@ En el código C++ del sketch de Arduino, se debe realizar una inicialización de
 
   #define ARDUINOJSON_USE_LONG_LONG 1
 
-  #include "AsyncJson.h"
   #include "ArduinoJson.h"
 
   #include "YuboxWiFiClass.h"

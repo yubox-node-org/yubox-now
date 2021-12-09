@@ -62,7 +62,7 @@ function setupYuboxOTATab()
     });
 
     otapane.find('input[type=file]#tgzupload').change(function () {
-        var lbl = $(this).next('label.custom-file-label');
+        var lbl = $(this).next('label#lbl-tgzupload');
         if (lbl.data('default') == undefined) {
             // Almacenar texto original para restaurar si archivo vacío
             lbl.data('default', lbl.text())
@@ -160,6 +160,28 @@ function setupYuboxOTATab()
             yuboxStdAjaxFailHandler(e, 5000);
             yuboxOTAUpload_setDisableBtns(false);
         });
+    });
+
+    // Diálogo modal de reporte de hardware
+    otapane.find('button[name=hwreport]').click(function () {
+        $.getJSON(yuboxAPI('yuboxOTA')+'/hwreport.json')
+        .done(function (data) {
+            var dlg_hwinfo = otapane.find('div#hwreport');
+            var hwtable = dlg_hwinfo.find('table#hwinfo > tbody');
+
+            // Formatos especiales para algunos campos
+            data.ARDUINO_ESP32_GIT_VER = data.ARDUINO_ESP32_GIT_VER.toString(16);
+            data.EFUSE_MAC = data.EFUSE_MAC.toString(16);
+            data.CPU_MHZ = data.CPU_MHZ + ' MHz';
+            data.FLASH_SPEED = (data.FLASH_SPEED / 1000000) + ' MHz';
+
+            for (const key in data) {
+                hwtable.find('tr#'+key+' > td.text-muted').text(data[key]);
+            }
+
+            dlg_hwinfo.modal({ focus: true });
+        })
+        .fail(function (e) { yuboxStdAjaxFailHandler(e, 2000); });
     });
 }
 

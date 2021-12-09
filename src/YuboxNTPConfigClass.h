@@ -4,24 +4,25 @@
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-
-#include "AsyncJson.h"
-#include "ArduinoJson.h"
-
 #include "time.h"
 
 class YuboxNTPConfigClass
 {
 private:
   static const char * _ns_nvram_yuboxframework_ntpclient;
+  static volatile bool _ntpValid;
 
   // El cliente NTP que se administra con esta clase
   String _ntpServerName;
   long _ntpOffset;
   bool _ntpStart;
-  bool _ntpValid;
   bool _ntpFirst;
+
+  // Si el proyecto dispone de RTC, aquí se almacena el valor de unixtime
+  // generado a partir del RTC hasta hacer funcionar el NTP.
+  uint32_t _rtcHint;
+
+  uint32_t _getSketchCompileTimestamp(void);
 
   void _loadSavedCredentialsFromNVRAM(void);
   void _configTime(void);
@@ -33,10 +34,13 @@ private:
 
   bool _isValidHostname(String & h);
 
-  void _cbHandler_WiFiEvent(WiFiEvent_t event);
+  void _cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t);
 
 public:
   YuboxNTPConfigClass(void);
+
+  void setRTCHint(uint32_t t) { _rtcHint = t; }
+
   void begin(AsyncWebServer & srv);
 
   bool isNTPValid(uint32_t ms_timeout = 1000);
@@ -47,6 +51,9 @@ public:
   // Mantener separación entre hora local y hora UTC
   unsigned long getLocalTime(void);
   unsigned long getUTCTime(void);
+
+  // NO LLAMAR DESDE APLICACIÓN
+  void _sntp_sync_time_cb(struct timeval *);
 };
 
 extern YuboxNTPConfigClass YuboxNTPConf;

@@ -17,7 +17,7 @@ private:
 
     YuboxOTA_operationWithFile _tgzupload_currentOp;
     bool _tgzupload_foundFirmware;
-    bool _tgzupload_canFlash;
+    bool _tgzupload_flashSuccess;
     File _tgzupload_rsrc;
     unsigned long _tgzupload_bytesWritten;
     std::vector<String> _tgzupload_filelist;

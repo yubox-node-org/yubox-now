@@ -4,11 +4,11 @@
 #include <ESPAsyncWebServer.h>
 #include "YuboxWebAuthClass.h"
 
-#include "uzlib/uzlib.h"
 extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
+#include "YuboxOTA_Streamer.h"
 #include "YuboxOTA_Flasher.h"
 
 #include "FS.h"
@@ -31,20 +31,17 @@ private:
   // Bandera de reinicio requerido para aplicar cambios
   bool _shouldReboot;
 
+  // Bandera para indicar que ya se invocó la finalización del flasheo
+  bool _uploadFinished;
+
   // Cuenta de datos subidos del archivo para reportar en eventos
   unsigned long _tgzupload_rawBytesReceived;
 
   // Datos requeridos para manejar la descompresión gzip
-  struct uzlib_uncomp _uzLib_decomp;    // Estructura de descompresión de uzlib
-  unsigned char * _gz_srcdata;          // Memoria de búfer de datos comprimidos
-  unsigned char * _gz_dstdata;          // Memoria de búfer de datos expandidos
-  unsigned char * _gz_dict;             // Diccionario de símbolos gzip
-  unsigned long _gz_actualExpandedSize; // Cuenta de bytes ya expandidos de gzip
-  bool _gz_headerParsed;                // Bandera de si ya se parseó cabecera
+  YuboxOTA_Streamer * _streamerImpl;
 
   // Datos requeridos para manejar el parseo tar
   entry_callbacks_t _tarCB;             // Callbacks a llamar en cabecera, datos, final de archivos
-  unsigned int _tar_available;          // Cantidad de bytes de datos expandidos que son válidos
   unsigned int _tar_emptyChunk;         // Número de bloques de 512 bytes llenos de ceros contiguos
   bool _tar_eof;                        // Bandera de si se llegó a fin normal de tar
 
@@ -70,6 +67,9 @@ private:
   void _routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRequest *);
 
+  void _routeHandler_spiffslist_GET(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *request);
+
   void _handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len, bool final);
 
   // Verificación de veto sobre operación de flasheo o reinicio
@@ -90,6 +90,9 @@ private:
   int _idxFlasherFromURL(String);
   YuboxOTA_Flasher * _buildFlasherFromIdx(int);
   YuboxOTA_Flasher * _buildFlasherFromURL(String);
+
+  void _rejectUpload(const String &, bool serverError);
+  void _rejectUpload(const char *, bool serverError);
 
 public:
   YuboxOTAClass(void);

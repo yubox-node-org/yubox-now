@@ -11,7 +11,7 @@ static void yubox_json_notFound(AsyncWebServerRequest *request)
 void yuboxSimpleSetup(void)
 {
   if (!SPIFFS.begin(true)) {
-    Serial.println("ERR: ha ocurrido un error al montar SPIFFS");
+    log_e("ha ocurrido un error al montar SPIFFS");
     return;
   }
 
@@ -47,7 +47,7 @@ void yuboxSimpleLoopTask(void)
   if (last_check == 0 || t - last_check >= 5000) {
     last_check = t;
     if (!YuboxNTPConf.update(0)) {
-      if (WiFi.isConnected()) ESP_LOGE(__FILE__, "fallo al obtener hora de red");
+      if (WiFi.isConnected()) log_w("fallo al obtener hora de red");
     }
   }
 }
