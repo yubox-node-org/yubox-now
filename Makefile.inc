@@ -148,7 +148,7 @@ ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=build.defines="$(ARDUINO_BUILD_EXTRA_FLAGS)"
 endif
 
-YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *.h),*.h,)
+YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *.h),*.h,) $(if $(wildcard *.c),*.c,)
 
 all: $(YUBOX_PROJECT).tar.gz
 
