@@ -20,9 +20,7 @@ function setupMqttTab()
         var postData = {
             host:           mqttpane.querySelector('input#mqtthost').value,
             port:           mqttpane.querySelector('input#mqttport').value,
-            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value,
-            user:           null,
-            pass:           null
+            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value
         };
         if (mqttpane.querySelector('input[name=mqttauth]:checked').value == 'on') {
             postData.user = mqttpane.querySelector('input#mqttuser').value;
