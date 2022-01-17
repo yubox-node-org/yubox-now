@@ -19,6 +19,7 @@ static const char * yubox_default_ntpserver = "pool.ntp.org";
 
 const char * YuboxNTPConfigClass::_ns_nvram_yuboxframework_ntpclient = "YUBOX/NTP";
 volatile bool YuboxNTPConfigClass::_ntpValid = false;
+volatile uint32_t YuboxNTPConfigClass::_ntpLastSync = 0;
 
 static void YuboxNTPConfigClass_sntp_sync_time_cb(struct timeval * tv)
 {
@@ -40,6 +41,7 @@ void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
 {
   if (tv != NULL) {
     _ntpValid = true;
+    _ntpLastSync = millis();
 
     log_d("tv.tv_sec=%ld tv.tv_usec=%ld", tv->tv_sec, tv->tv_usec);
 
@@ -212,10 +214,16 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["ntpsync"] = isNTPValid();
+  json_doc["utctime"] = getUTCTime();
+  if (_ntpLastSync == 0) {
+    json_doc["ntpsync_msec"] = (const char *)NULL;
+  } else {
+    json_doc["ntpsync_msec"] = millis() - _ntpLastSync;
+  }
 
   // Valores a cambiar vía web
   json_doc["ntphost"] = _ntpServerName.c_str();
