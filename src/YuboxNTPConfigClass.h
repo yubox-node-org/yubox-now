@@ -32,6 +32,7 @@ private:
 
   void _routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServerRequest *);
+  void _routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerRequest *);
 
   bool _isValidHostname(String & h);
 

@@ -36,7 +36,6 @@ function setupNTPConfTab()
         yuboxFetch('ntpconfig', 'conf.json', postData)
         .then((r) => {
             if (r.success) {
-                // Recargar los datos recién guardados del dispositivo
                 yuboxMostrarAlertText('success', r.msg, 3000);
 
                 // Recargar luego de 5 segundos para verificar que la conexión
@@ -47,8 +46,28 @@ function setupNTPConfTab()
             }
         }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
     });
+    ntppane.querySelector('button[name=browsertime]').addEventListener('click', function () {
+        const ntppane = getYuboxPane('ntpconfig', true);
+
+        let postData = {
+            utctime_ms: Date.now()
+        };
+
+        yuboxFetch('ntpconfig', 'rtc.json', postData)
+        .then((r) => {
+            if (r.success) {
+                yuboxMostrarAlertText('success', r.msg, 3000);
+
+                // Recargar luego de 5 segundos para verificar la hora
+                setTimeout(yuboxLoadNTPConfig, 5 * 1000);
+            } else {
+                yuboxMostrarAlertText('danger', r.msg);
+            }
+        }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
+    });
 
     ntppane.data['clocktimer'] = setInterval(() => {
+        const ntppane = getYuboxPane('ntpconfig', true);
         let datetext = (ntppane.data['yuboxoffset'] == null)
             ? '(no disponible)'
             : (new Date(Date.now() + ntppane.data['yuboxoffset'])).toString();

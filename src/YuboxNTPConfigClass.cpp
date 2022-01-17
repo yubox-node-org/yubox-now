@@ -207,6 +207,7 @@ void YuboxNTPConfigClass::_setupHTTPRoutes(AsyncWebServer & srv)
 {
   srv.on("/yubox-api/ntpconfig/conf.json", HTTP_GET, std::bind(&YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/ntpconfig/conf.json", HTTP_POST, std::bind(&YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/ntpconfig/rtc.json", HTTP_POST, std::bind(&YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST, this, std::placeholders::_1));
 }
 
 void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerRequest *request)
@@ -238,7 +239,7 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerR
 void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServerRequest *request)
 {
   YUBOX_RUN_AUTH(request);
-  
+
   /* Se esperan en el POST los siguientes escenarios de parámetros:
     - Parámetro "ntphost" siempre debe estar presente. El host debe consistir únicamente
       de componentes no-vacíos separados por puntos, que consistan únicamente de
@@ -309,6 +310,66 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
 
   if (!clientError && !serverError) {
     responseMsg = "Parámetros actualizados correctamente";
+  }
+  unsigned int httpCode = 200;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+  AsyncWebParameter * p;
+
+  unsigned long long n_utctime_ms = 0xFFFFFFFFFFFFFFFFULL;
+
+  if (!clientError && !request->hasParam("utctime_ms", true)) {
+    clientError = true;
+    responseMsg = "Se requiere timestamp de hora de navegador";
+  }
+  if (!clientError) {
+    p = request->getParam("utctime_ms", true);
+    if (0 >= sscanf(p->value().c_str(), "%Lu", &n_utctime_ms)) {
+      clientError = true;
+      responseMsg = "Valor de timestamp de hora no es válido";
+    }
+  }
+
+  // Si todos los parámetros son válidos, se intenta guardar
+  if (!clientError) {
+    struct timeval tv;
+    tv.tv_sec = n_utctime_ms / 1000;
+    tv.tv_usec = (n_utctime_ms % 1000) * 1000;  // valor en usec
+
+    if (0 != settimeofday(&tv, NULL)) {
+      serverError = true;
+      responseMsg = "No se puede asignar nueva hora de sistema (fallo de settimeofday())";
+    } else {
+      // Guardar timestamp de referencia de navegador
+      Preferences nvram;
+      nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
+      if (!nvram.putLong("ntpsec", tv.tv_sec)) {
+        serverError = true;
+        responseMsg = "No se puede asignar nueva hora de sistema (fallo de NVRAM)";
+      }
+    }
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Hora de sistema actualizada correctamente";
   }
   unsigned int httpCode = 200;
   if (clientError) httpCode = 400;
