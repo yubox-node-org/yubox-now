@@ -106,6 +106,8 @@ private:
   void _connectToActiveNetwork(void);
   void _startCondRescanTimer(bool);
 
+  void _loadBootstrapNetworkFromFS(void);
+
   String _buildAvailableNetworksJSONReport(void);
 
   void _bootstrapWebServer(void);

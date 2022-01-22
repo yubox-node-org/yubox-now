@@ -2,6 +2,7 @@
 #include "esp_wpa2.h"
 #include <ESPmDNS.h>
 #include <Preferences.h>
+#include <SPIFFS.h>
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
@@ -72,6 +73,8 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
 {
   _loadSavedNetworksFromNVRAM();
   _setupHTTPRoutes(srv);
+
+  _loadBootstrapNetworkFromFS();
 
   // SIEMPRE instalar el manejador de evento de WiFi listo
   _eventId_cbHandler_WiFiEvent_ready = WiFi.onEvent(
@@ -524,6 +527,80 @@ void YuboxWiFiClass::_updateActiveNetworkNVRAM(void)
       _savedNetworks[i].selectedNet = nv;
       sprintf(key, "net/%u/lastsel", i+1); nvram.putBool(key, _savedNetworks[i].selectedNet);
     }
+  }
+}
+
+void YuboxWiFiClass::_loadBootstrapNetworkFromFS(void)
+{
+  const char * wifiboot = "/yuboxwifiboot.txt";
+
+  if (!SPIFFS.exists(wifiboot)) {
+    log_d("Archivo %s no existe, se asume funcionamiento normal.", wifiboot);
+    return;
+  }
+
+  // Archivo de arranque wifi existe. Lo necesito?
+  if (_savedNetworks.size() == 0) {
+    log_d("No hay redes cargadas al arranque, se intenta cargar red inicial desde %s ...", wifiboot);
+
+    File h = SPIFFS.open(wifiboot, FILE_READ);
+    if (!h) {
+      log_w("%s existe pero no se puede abrir. No puede cargarse red inicial!", wifiboot);
+    } else {
+      String s1, s2, s3;
+      while (h.available()) {
+        String s;
+
+        s = h.readStringUntil('\n');
+        s.trim();
+        if (!s.isEmpty()) {
+          if (s1.isEmpty())
+            s1 = s;
+          else if (s2.isEmpty())
+            s2 = s;
+          else if (s3.isEmpty())
+            s3 = s;
+          else
+            break;
+        }
+      }
+      h.close();
+
+      /* Se asume que el archivo es un archivo de texto que contiene una de
+       * las siguientes:
+       * - una sola línea, se asume que es un SSID sin autenticación
+       * - dos líneas, se asume que es SSID, y clave en 2da línea
+       * - tres líneas, se asume que es SSID, identidad WPA en 2da línea, contraseña en 3ra línea
+       */
+      YuboxWiFi_nvramrec r;
+      if (!s1.isEmpty()) {
+        log_d("boot SSID: %s", s1.c_str());
+        r.cred.ssid = s1;
+
+        if (s2.isEmpty()) {
+          log_d("boot SSID SIN AUTENTICACIÓN");
+        } else if (s3.isEmpty()) {
+          log_d("boot PSK: %s", s2.c_str());
+          r.cred.psk = s2;
+        } else {
+          log_d("boot WPA: %s %s", s2.c_str(), s3.c_str());
+          r.cred.identity = s2;
+          r.cred.password = s3;
+        }
+
+
+        r.numFails = 0;
+        r._dirty = true;
+        _savedNetworks.push_back(r);
+        _saveNetworksToNVRAM();
+      }
+    }
+  }
+
+  // Debe de borrarse el archivo si existe, incondicionalmente
+  log_v("BORRANDO %s ...", wifiboot);
+  if (!SPIFFS.remove(wifiboot)) {
+    log_w("no se pudo borrar %s !", wifiboot);
   }
 }
 
