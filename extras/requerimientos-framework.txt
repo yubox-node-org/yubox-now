@@ -45,7 +45,7 @@ NTP y reloj
 - (YA) Interfaz debe permitir configurar zona horaria como offset GMT (por omisión GMT-5 Ecuador)
 - Como fallback, si se tiene una conexión Wifi con acceso al exterior, una petición HTTPS de HEAD puede devolver una cabecera Date: que puede parsearse para tener una fecha y hora inicial GMT.
 - Última hora válida (NTP o HTTP) debe almacenarse regularmente como preferencia (flash) para reducir error en caso de reseteo y conexión internet no disponible
-- Soporte opcional reloj RTC en lugar de preferencia flash
+- (YA) Soporte opcional reloj RTC en lugar de preferencia flash
 
 GSM/GPRS
 --------

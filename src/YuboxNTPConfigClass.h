@@ -11,6 +11,7 @@ class YuboxNTPConfigClass
 private:
   static const char * _ns_nvram_yuboxframework_ntpclient;
   static volatile bool _ntpValid;
+  static volatile uint32_t _ntpLastSync;
 
   // El cliente NTP que se administra con esta clase
   String _ntpServerName;
@@ -31,6 +32,7 @@ private:
 
   void _routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServerRequest *);
+  void _routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerRequest *);
 
   bool _isValidHostname(String & h);
 

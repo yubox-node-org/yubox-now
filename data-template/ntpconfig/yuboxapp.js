@@ -1,6 +1,11 @@
 function setupNTPConfTab()
 {
     const ntppane = getYuboxPane('ntpconfig', true);
+    var data = {
+        yuboxoffset: null,  // Offset desde hora actual a hora YUBOX, en msec
+        clocktimer: null
+    };
+    ntppane.data = data;
 
     // Llenar los select con valores para elegir zona horaria
     const sel_tzh = ntppane.querySelector('select#ntptz_hh');
@@ -31,7 +36,6 @@ function setupNTPConfTab()
         yuboxFetch('ntpconfig', 'conf.json', postData)
         .then((r) => {
             if (r.success) {
-                // Recargar los datos recién guardados del dispositivo
                 yuboxMostrarAlertText('success', r.msg, 3000);
 
                 // Recargar luego de 5 segundos para verificar que la conexión
@@ -42,6 +46,33 @@ function setupNTPConfTab()
             }
         }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
     });
+    ntppane.querySelector('button[name=browsertime]').addEventListener('click', function () {
+        const ntppane = getYuboxPane('ntpconfig', true);
+
+        let postData = {
+            utctime_ms: Date.now()
+        };
+
+        yuboxFetch('ntpconfig', 'rtc.json', postData)
+        .then((r) => {
+            if (r.success) {
+                yuboxMostrarAlertText('success', r.msg, 3000);
+
+                // Recargar luego de 5 segundos para verificar la hora
+                setTimeout(yuboxLoadNTPConfig, 5 * 1000);
+            } else {
+                yuboxMostrarAlertText('danger', r.msg);
+            }
+        }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
+    });
+
+    ntppane.data['clocktimer'] = setInterval(() => {
+        const ntppane = getYuboxPane('ntpconfig', true);
+        let datetext = (ntppane.data['yuboxoffset'] == null)
+            ? '(no disponible)'
+            : (new Date(Date.now() + ntppane.data['yuboxoffset'])).toString();
+        ntppane.querySelector('form span#utctime').textContent = datetext;
+    }, 500);
 
     // https://getbootstrap.com/docs/4.4/components/navs/#events
     getYuboxNavTab('ntpconfig')
@@ -63,11 +94,20 @@ function yuboxLoadNTPConfig()
 
     yuboxFetch('ntpconfig', 'conf.json')
     .then((data) => {
+        // Cantidad de milisegundos a sumar a timestamp browser para obtener timestamp
+        // en el dispositivo. Esto asume que no hay desvíos de reloj RTC.
+        ntppane.data['yuboxoffset'] = data.utctime * 1000 - Date.now();
+
         span_connstatus.classList.remove('badge-danger', 'badge-success', 'badge-secondary');
         span_timestamp.textContent = '';
         if (data.ntpsync) {
             span_connstatus.classList.add('badge-success');
             span_connstatus.textContent = 'SINCRONIZADO';
+
+            // Cálculo de fecha de última sincronización NTP dispositivo
+            const date_lastsync = new Date(Date.now() - data.ntpsync_msec);
+            span_timestamp.textContent = 'Últ. sinc. NTP: '
+                + date_lastsync.toString();
         } else {
             span_connstatus.classList.add('badge-danger');
             span_connstatus.textContent = 'NO SINCRONIZADO';

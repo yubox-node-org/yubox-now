@@ -20,9 +20,7 @@ function setupMqttTab()
         var postData = {
             host:           mqttpane.querySelector('input#mqtthost').value,
             port:           mqttpane.querySelector('input#mqttport').value,
-            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value,
-            user:           null,
-            pass:           null
+            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value
         };
         if (mqttpane.querySelector('input[name=mqttauth]:checked').value == 'on') {
             postData.user = mqttpane.querySelector('input#mqttuser').value;
@@ -130,22 +128,21 @@ function yuboxLoadMqttConfig()
         }
 
         const div_mqtt_tls = mqttpane.querySelectorAll('div.mqtt-tls');
+        // Nivel de soporte TLS deseado
+        mqttpane.querySelector('input[name=tls_verifylevel]#tls_verifylevel_'+data.tls_verifylevel).click();
+
+        // Archivos de certificados presentes en servidor
+        const span_tls_servercert_present = mqttpane.querySelector('form span#tls_servercert_present');
+        span_tls_servercert_present.classList.remove('badge-warning', 'badge-success');
+        span_tls_servercert_present.classList.add(data.tls_servercert ? 'badge-success' : 'badge-warning');
+        span_tls_servercert_present.textContent = (data.tls_servercert ? 'SÍ' : 'NO');
+        const span_tls_clientcert_present = mqttpane.querySelector('form span#tls_clientcert_present');
+        span_tls_clientcert_present.classList.remove('badge-warning', 'badge-success')
+        span_tls_clientcert_present.classList.add(data.tls_clientcert ? 'badge-success' : 'badge-warning');
+        span_tls_clientcert_present.textContent = (data.tls_clientcert ? 'SÍ' : 'NO');
         if (data.tls_capable) {
             // Hay soporte TLS
             div_mqtt_tls.forEach((div) => { div.style.display = ''; });
-
-            // Nivel de soporte TLS deseado
-            mqttpane.querySelector('input[name=tls_verifylevel]#tls_verifylevel_'+data.tls_verifylevel).click();
-
-            // Archivos de certificados presentes en servidor
-            const span_tls_servercert_present = mqttpane.querySelector('form span#tls_servercert_present');
-            span_tls_servercert_present.classList.remove('badge-warning', 'badge-success');
-            span_tls_servercert_present.classList.add(data.tls_servercert ? 'badge-success' : 'badge-warning');
-            span_tls_servercert_present.textContent = (data.tls_servercert ? 'SÍ' : 'NO');
-            const span_tls_clientcert_present = mqttpane.querySelector('form span#tls_clientcert_present');
-            span_tls_clientcert_present.classList.remove('badge-warning', 'badge-success')
-            span_tls_clientcert_present.classList.add(data.tls_clientcert ? 'badge-success' : 'badge-warning');
-            span_tls_clientcert_present.textContent = (data.tls_clientcert ? 'SÍ' : 'NO');
         } else {
             // No hay soporte TLS
             div_mqtt_tls.forEach((div) => { div.style.display = 'none'; });
