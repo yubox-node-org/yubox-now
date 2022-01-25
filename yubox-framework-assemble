@@ -190,9 +190,11 @@ for t in content:
             tpl_content = f.read()
         tpl_context = {
             'modules':      [],
-            'extra_jslibs': []
+            'extra_jslibs': [],
+            'extra_css':    []
         }
         extra_jslibs = []
+        extra_css = []
         for m in modules_enabled:
             modrow = {}
             for k in modules[m]:
@@ -204,11 +206,17 @@ for t in content:
                         for ejl in modules[m]['templates'][t][k].split(' '):
                             if ejl != '' and not ejl in extra_jslibs:
                                 extra_jslibs.append(ejl)
+                    elif k in ('module_extra_css'):
+                        for ecss in modules[m]['templates'][t][k].split(' '):
+                            if ecss != '' and not ecss in extra_css:
+                                extra_css.append(ecss)
                     else:
                         modrow[k] = modules[m]['templates'][t][k]
             tpl_context['modules'].append(modrow)
         for ejl in extra_jslibs:
             tpl_context['extra_jslibs'].append({ 'jslib': ejl })
+        for ecss in extra_css:
+            tpl_context['extra_css'].append({ 'cssfile': ecss })
         tpl_render = pystache.render(tpl_content, tpl_context)
         with open(os.path.join('data', t), 'w') as f:
             f.write(tpl_render)
