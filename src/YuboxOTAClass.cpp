@@ -264,6 +264,14 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_handleUpload(Async
   
   if (_uploadRejected) return;
 
+  if (_flasherImpl != NULL && index == 0) {
+    // Instalar un manejador de desconexión que destruya _flasherImpl si al momento de desconexión
+    // no ha sido destruido todavía. Esto debería lidiar con conexiones truncadas.
+    request->onDisconnect([this]() {
+      _cleanupUploadState("y conexión desconectada");
+    });
+  }
+
   _handle_tgzOTAchunk(index, data, len, final);
 }
 
@@ -622,22 +630,7 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
     responseMsg = "Firmware actualizado correctamente. El equipo se reiniciará en unos momentos.";
   }
 
-  if (_streamerImpl != NULL) {
-    log_w("streamer no fue destruido al terminar manejo upload, se destruye ahora...");
-    delete _streamerImpl;
-    _streamerImpl = NULL;
-  }
-
-  if (_flasherImpl != NULL) {
-    log_w("flasheador no fue destruido al terminar manejo upload, se destruye ahora...");
-    delete _flasherImpl;
-    _flasherImpl = NULL;
-  }
-
-  _uploadRejected = false;
-  _tgzupload_clientError = false;
-  _tgzupload_serverError = false;
-  _tgzupload_responseMsg = "";
+  _cleanupUploadState("al terminar manejo upload");
 
   unsigned int httpCode = 200;
   if (clientError) httpCode = 400;
@@ -652,6 +645,26 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   serializeJson(json_doc, *response);
   request->send(response);
+}
+
+void YuboxOTAClass::_cleanupUploadState(const char * s)
+{
+  if (_streamerImpl != NULL) {
+    log_w("streamer no fue destruido %s, se destruye ahora...", s);
+    delete _streamerImpl;
+    _streamerImpl = NULL;
+  }
+
+  if (_flasherImpl != NULL) {
+    log_w("flasheador no fue destruido %s, se destruye ahora...", s);
+    delete _flasherImpl;
+    _flasherImpl = NULL;
+  }
+
+  _uploadRejected = false;
+  _tgzupload_clientError = false;
+  _tgzupload_serverError = false;
+  _tgzupload_responseMsg = "";
 }
 
 void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerRequest * request)

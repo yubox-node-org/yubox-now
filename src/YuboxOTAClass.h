@@ -94,6 +94,8 @@ private:
   void _rejectUpload(const String &, bool serverError);
   void _rejectUpload(const char *, bool serverError);
 
+  void _cleanupUploadState(const char *);
+
 public:
   YuboxOTAClass(void);
   void begin(AsyncWebServer & srv);
