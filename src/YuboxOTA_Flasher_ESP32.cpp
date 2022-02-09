@@ -30,6 +30,10 @@ YuboxOTA_Flasher_ESP32::~YuboxOTA_Flasher_ESP32()
 {
   FREE_FILEBUF;
   cleanupFailedUpdateFiles();
+  if (_tgzupload_currentOp == YBX_OTA_FIRMWARE_FLASH) {
+    log_w("Flasheo de firmware en curso, ABORTANDO...");
+    Update.abort();
+  }
 }
 
 bool YuboxOTA_Flasher_ESP32::isUpdateRejected(void)

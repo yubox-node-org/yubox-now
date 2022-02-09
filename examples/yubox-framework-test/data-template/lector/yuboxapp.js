@@ -30,6 +30,7 @@ function setupLectorTab()
         data:       chtData,
         options:    {
             responsive: true,
+            maintainAspectRatio: false,
             hoverMode: 'index',
             stacked: false,
             title: {
