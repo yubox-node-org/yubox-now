@@ -40,6 +40,20 @@ function setupMqttTab()
             }
         }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
     });
+    mqttpane.querySelector('button[name=forget]').addEventListener('click', function () {
+        if (!confirm('Presione OK para OLVIDAR las credenciales MQTT y DESCONECTAR el dispositivo de cualquier conexión MQTT activa.'))
+            return;
+
+        yuboxFetchMethod('DELETE', 'mqtt', 'conf.json')
+        .then((r) => {
+            // Credenciales borradas
+            if (r == null) {
+                setTimeout(yuboxLoadMqttConfig, 5 * 1000);
+            } else {
+                yuboxMostrarAlertText('danger', r.msg);
+            }
+        }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
+    });
     mqttpane.querySelectorAll('input[type=file].custom-file-input').forEach((elem) => {
         elem.addEventListener('change', function (ev) {
             const lbl = ev.target.nextElementSibling;
