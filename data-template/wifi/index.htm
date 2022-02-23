@@ -94,13 +94,12 @@
         <div class="form-group scanned-only">
           <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">Anclar a esta red:</legend>
-            <div class="btn-group btn-group-toggle col-sm-8" data-bs-toggle="buttons">
-              <label class="btn btn-secondary">
-                <input type="radio" name="pin" id="N" value="0" autocomplete="off">No
-              </label>
-              <label class="btn btn-secondary">
-                <input type="radio" name="pin" id="Y" value="1" autocomplete="off">Sí
-              </label>
+            <div class="btn-group col-sm-8" role="group">
+              <input type="radio" class="btn-check" name="pin" id="N" value="0" autocomplete="off">
+              <label class="btn btn-secondary" for="N">No</label>
+
+              <input type="radio" class="btn-check" name="pin" id="Y" value="1" autocomplete="off">
+              <label class="btn btn-secondary" for="Y">Sí</label>
             </div>
           </div>
           <small class="form-text text-muted">Si se ancla a la red, no se conectará a otra red conocida más fuerte o si se pierde conexión.</small>
