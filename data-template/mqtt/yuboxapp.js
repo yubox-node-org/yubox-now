@@ -84,7 +84,7 @@ function yuboxLoadMqttConfig_connstatus(badgeclass, msg)
     const mqttpane = getYuboxPane('mqtt', true);
     const span_connstatus = mqttpane.querySelector('form span#mqtt_connstatus');
 
-    span_connstatus.classList.remove('badge-danger', 'badge-success', 'badge-secondary');
+    span_connstatus.classList.remove('bg-danger', 'bg-success', 'bg-secondary');
     span_connstatus.classList.add(badgeclass);
     span_connstatus.textContent = msg;
 }
@@ -95,27 +95,27 @@ function yuboxLoadMqttConfig()
     const span_reason = mqttpane.querySelector('form span#mqtt_disconnected_reason');
     span_reason.textContent = '...';
 
-    yuboxLoadMqttConfig_connstatus('badge-secondary', '(consultando)');
+    yuboxLoadMqttConfig_connstatus('bg-secondary', '(consultando)');
     yuboxFetch('mqtt', 'conf.json')
     .then((data) => {
         mqttpane.querySelector('form span#mqtt_clientid').textContent = data.clientid;
         const span_tls_capable = mqttpane.querySelector('form span#tls_capable');
-        span_tls_capable.classList.remove('badge-success', 'badge-secondary');
+        span_tls_capable.classList.remove('bg-success', 'bg-secondary');
         if (data.tls_capable) {
-            span_tls_capable.classList.add('badge-success')
+            span_tls_capable.classList.add('bg-success')
             span_tls_capable.textContent = 'PRESENTE';
         } else {
-            span_tls_capable.classList.add('badge-secondary')
+            span_tls_capable.classList.add('bg-secondary')
             span_tls_capable.textContent = 'AUSENTE';
         }
 
         span_reason.textContent = '';
         if (data.connected) {
-            yuboxLoadMqttConfig_connstatus('badge-success', 'CONECTADO');
+            yuboxLoadMqttConfig_connstatus('bg-success', 'CONECTADO');
         } else if (!data.want2connect) {
-            yuboxLoadMqttConfig_connstatus('badge-secondary', 'NO REQUERIDO');
+            yuboxLoadMqttConfig_connstatus('bg-secondary', 'NO REQUERIDO');
         } else {
-            yuboxLoadMqttConfig_connstatus('badge-danger', 'DESCONECTADO');
+            yuboxLoadMqttConfig_connstatus('bg-danger', 'DESCONECTADO');
             const reasonmsg = [
                 'Desconectado a nivel de red',
                 'Versión de protocolo MQTT incompatible',
@@ -147,12 +147,12 @@ function yuboxLoadMqttConfig()
 
         // Archivos de certificados presentes en servidor
         const span_tls_servercert_present = mqttpane.querySelector('form span#tls_servercert_present');
-        span_tls_servercert_present.classList.remove('badge-warning', 'badge-success');
-        span_tls_servercert_present.classList.add(data.tls_servercert ? 'badge-success' : 'badge-warning');
+        span_tls_servercert_present.classList.remove('bg-warning', 'bg-success');
+        span_tls_servercert_present.classList.add(data.tls_servercert ? 'bg-success' : 'bg-warning');
         span_tls_servercert_present.textContent = (data.tls_servercert ? 'SÍ' : 'NO');
         const span_tls_clientcert_present = mqttpane.querySelector('form span#tls_clientcert_present');
-        span_tls_clientcert_present.classList.remove('badge-warning', 'badge-success')
-        span_tls_clientcert_present.classList.add(data.tls_clientcert ? 'badge-success' : 'badge-warning');
+        span_tls_clientcert_present.classList.remove('bg-warning', 'bg-success')
+        span_tls_clientcert_present.classList.add(data.tls_clientcert ? 'bg-success' : 'bg-warning');
         span_tls_clientcert_present.textContent = (data.tls_clientcert ? 'SÍ' : 'NO');
         if (data.tls_capable) {
             // Hay soporte TLS

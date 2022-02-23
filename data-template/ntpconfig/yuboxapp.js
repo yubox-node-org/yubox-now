@@ -87,8 +87,8 @@ function yuboxLoadNTPConfig()
     const span_connstatus = ntppane.querySelector('form span#ntp_connstatus');
     const span_timestamp = ntppane.querySelector('form span#ntp_timestamp');
 
-    span_connstatus.classList.remove('badge-success', 'badge-danger');
-    span_connstatus.classList.add('badge-secondary');
+    span_connstatus.classList.remove('bg-success', 'bg-danger');
+    span_connstatus.classList.add('bg-secondary');
     span_connstatus.textContent = '(consultando)';
     span_timestamp.textContent = '...';
 
@@ -98,10 +98,10 @@ function yuboxLoadNTPConfig()
         // en el dispositivo. Esto asume que no hay desvíos de reloj RTC.
         ntppane.data['yuboxoffset'] = data.utctime * 1000 - Date.now();
 
-        span_connstatus.classList.remove('badge-danger', 'badge-success', 'badge-secondary');
+        span_connstatus.classList.remove('bg-danger', 'bg-success', 'bg-secondary');
         span_timestamp.textContent = '';
         if (data.ntpsync) {
-            span_connstatus.classList.add('badge-success');
+            span_connstatus.classList.add('bg-success');
             span_connstatus.textContent = 'SINCRONIZADO';
 
             // Cálculo de fecha de última sincronización NTP dispositivo
@@ -109,7 +109,7 @@ function yuboxLoadNTPConfig()
             span_timestamp.textContent = 'Últ. sinc. NTP: '
                 + date_lastsync.toString();
         } else {
-            span_connstatus.classList.add('badge-danger');
+            span_connstatus.classList.add('bg-danger');
             span_connstatus.textContent = 'NO SINCRONIZADO';
             span_timestamp.textContent = 'No se ha contactado a servidor NTP';
         }
@@ -119,8 +119,8 @@ function yuboxLoadNTPConfig()
         ntppane.querySelector('select#ntptz_hh').value = (Math.trunc(data.ntptz / 3600));
         ntppane.querySelector('select#ntptz_mm').value = (Math.trunc(Math.abs((data.ntptz % 3600) / 60)));
     }, (e) => {
-        span_connstatus.classList.remove('badge-danger', 'badge-success', 'badge-secondary');
-        span_connstatus.classList.add('badge-danger');
+        span_connstatus.classList.remove('bg-danger', 'bg-success', 'bg-secondary');
+        span_connstatus.classList.add('bg-danger');
         span_connstatus.textContent = 'NO SINCRONIZADO';
         span_timestamp.textContent = '(error en consulta)';
 

@@ -40,13 +40,13 @@ function setupYuboxOTATab()
             const spanRB = otapane.querySelector('span#canrollback');
             const btnRB = otapane.querySelector('button[name="rollback"]');
 
-            spanRB.classList.remove('badge-danger', 'badge-success');
+            spanRB.classList.remove('bg-danger', 'bg-success');
             if (data.canrollback) {
-                spanRB.classList.add('badge-success');
+                spanRB.classList.add('bg-success');
                 spanRB.textContent = 'RESTAURABLE';
                 btnRB.disabled = false;
             } else {
-                spanRB.classList.add('badge-danger');
+                spanRB.classList.add('bg-danger');
                 spanRB.textContent = 'NO RESTAURABLE';
                 btnRB.disabled = true;
             }
