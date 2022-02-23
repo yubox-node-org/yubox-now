@@ -62,6 +62,7 @@ private:
 
   void _routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerRequest *);
   void _routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServerRequest *);
+  void _routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServerRequest *);
 
   bool _isValidHostname(String & h);
 

@@ -296,6 +296,7 @@ void YuboxMQTTConfClass::_setupHTTPRoutes(AsyncWebServer & srv)
 {
   srv.on("/yubox-api/mqtt/conf.json", HTTP_GET, std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/mqtt/conf.json", HTTP_POST, std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/mqtt/conf.json", HTTP_DELETE, std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_DELETE, this, std::placeholders::_1));
 #if ASYNC_TCP_SSL_ENABLED
   srv.on("/yubox-api/mqtt/tls_servercert", HTTP_POST,
     std::bind(&YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_POST, this, std::placeholders::_1),
@@ -509,6 +510,49 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
 
   serializeJson(json_doc, *response);
   request->send(response);
+}
+
+void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+
+  Preferences nvram;
+  nvram.begin(_ns_nvram_yuboxframework_mqtt, false);
+  serverError = !nvram.clear();
+  nvram.end();
+
+  if (!serverError) {
+    // Cerrar la conexión MQTT, si hay una previa, y volver a abrir
+    if (_mqttClient.connected()) {
+      log_i("Cerrando conexión previa de MQTT para refresco de credenciales...");
+      _mqttClient.disconnect();
+    }
+    _loadSavedCredentialsFromNVRAM();
+    if (WiFi.isConnected()) _connectMQTT();
+  } else {
+    responseMsg = "No se pueden borrar configuraciones de MQTT";
+  }
+
+  if (!clientError && !serverError) {
+    request->send(204);
+  } else {
+    unsigned int httpCode = 200;
+    if (clientError) httpCode = 400;
+    if (serverError) httpCode = 500;
+
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    response->setCode(httpCode);
+    StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+    json_doc["success"] = !(clientError || serverError);
+    json_doc["msg"] = responseMsg.c_str();
+
+    serializeJson(json_doc, *response);
+    request->send(response);
+  }
 }
 
 #if ASYNC_TCP_SSL_ENABLED
