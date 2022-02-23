@@ -12,18 +12,20 @@
   <body>
     <header>
       <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a class="navbar-brand" href="https://yubox.com" target="_new">YUBOX</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul class="navbar-nav mr-auto nav" role="tablist" id="yuboxMainTab">
-          {{#modules}}
-            <li class="nav-item">
-              <a class="nav-link {{module_active}}" id="{{module_name}}-tab" data-toggle="tab" role="tab" aria-controls="{{module_name}}" aria-selected="false" href="#{{module_name}}">{{module_desc}}</a>
-            </li>
-          {{/modules}}
-          </ul>
+        <div class="container-fluid">
+          <a class="navbar-brand" href="https://yubox.com" target="_new">YUBOX</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto mb-2 mb-lg-0 nav" role="tablist" id="yuboxMainTab">
+            {{#modules}}
+              <li class="nav-item">
+                <a class="nav-link {{module_active}}" id="{{module_name}}-tab" data-bs-toggle="tab" role="tab" aria-controls="{{module_name}}" aria-selected="false" href="#{{module_name}}">{{module_desc}}</a>
+              </li>
+            {{/modules}}
+            </ul>
+          </div>
         </div>
       </nav>
     </header>
@@ -32,7 +34,7 @@
         <!-- El siguiente div se clona para mostrar una alerta vía yuboxMostrarAlert() -->
         <div class="alert alert-dismissible fade show yubox-alert-template" role="alert">
           <!-- Ubicación donde estará el contenido de la alerta -->
-          <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+          <button type="button" class="close" data-bs-dismiss="alert" aria-label="Cerrar">
             <span aria-hidden="true">&times;</span>
           </button>
         </div>

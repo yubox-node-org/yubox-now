@@ -74,9 +74,9 @@ function setupNTPConfTab()
         ntppane.querySelector('form span#utctime').textContent = datetext;
     }, 500);
 
-    // https://getbootstrap.com/docs/4.4/components/navs/#events
-    getYuboxNavTab('ntpconfig')
-    .on('shown.bs.tab', function (e) {
+    // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
+    getYuboxNavTab('ntpconfig', true)
+    .addEventListener('shown.bs.tab', function (e) {
         yuboxLoadNTPConfig();
     });
 }

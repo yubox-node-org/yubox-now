@@ -15,7 +15,8 @@ function yuboxSetupAllTabs()
     // Mostrar el tab preparado por omisión como activo
     const tab = document.querySelector('ul#yuboxMainTab a.set-active');
     tab.classList.remove('set-active');
-    yuboxWrapJQ(tab).tab('show');   // <-- Bootstrap 4 requiere jQuery
+    const bsTab = new bootstrap.Tab(tab);
+    bsTab.show();
 }
 
 {{#modules}}
@@ -105,7 +106,7 @@ function getYuboxPane(modname, raw = false)
 }
 function getYuboxNavTab(modname, raw = false)
 {
-    let dom = document.querySelector('ul#yuboxMainTab a#'+modname+'-tab[data-toggle="tab"]');
+    let dom = document.querySelector('ul#yuboxMainTab a#'+modname+'-tab[data-bs-toggle="tab"]');
     return raw ? dom : yuboxWrapJQ(dom);
 }
 

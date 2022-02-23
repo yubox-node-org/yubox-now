@@ -72,9 +72,9 @@ function setupMqttTab()
         yuboxUploadMQTTCerts('tls_clientcert', ['tls_clientcert', 'tls_clientkey']);
     });
 
-    // https://getbootstrap.com/docs/4.4/components/navs/#events
-    getYuboxNavTab('mqtt')
-    .on('shown.bs.tab', function (e) {
+    // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
+    getYuboxNavTab('mqtt', true)
+    .addEventListener('shown.bs.tab', function (e) {
         yuboxLoadMqttConfig();
     });
 }

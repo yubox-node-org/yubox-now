@@ -12,12 +12,12 @@ function setupWiFiTab()
     data['wifinetworks-template'].remove();
     wifipane.data = data;
 
-    // https://getbootstrap.com/docs/4.4/components/navs/#events
-    getYuboxNavTab('wifi')
-    .on('shown.bs.tab', function (e) {
+    // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
+    const wifitab = getYuboxNavTab('wifi', true);
+    wifitab.addEventListener('shown.bs.tab', function (e) {
         yuboxWiFi_setupWiFiScanListener();
     })
-    .on('hide.bs.tab', function (e) {
+    wifitab.addEventListener('hide.bs.tab', function (e) {
         if (wifipane.data['sse'] != null) {
           wifipane.data['sse'].close();
           wifipane.data['sse'] = null;
