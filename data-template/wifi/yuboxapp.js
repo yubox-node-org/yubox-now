@@ -81,22 +81,22 @@ function setupWiFiTab()
         const dlg_wificred = wifipane.querySelector('div#wifi-credentials');
         var authmode = this.value;
 
-        dlg_wificred.querySelectorAll('div.form-group.wifi-auth')
+        dlg_wificred.querySelectorAll('div.wifi-auth')
             .forEach((el) => { el.style.display = 'none'; });
-        dlg_wificred.querySelectorAll('div.form-group.wifi-auth input')
+        dlg_wificred.querySelectorAll('div.wifi-auth input')
             .forEach((el) => { el.value = ''; });
         dlg_wificred.querySelector('button[name=connect]').disabled = true;
         if (authmode == 5) {
             // Autenticación WPA-ENTERPRISE
-            dlg_wificred.querySelectorAll('div.form-group.wifi-auth-eap')
+            dlg_wificred.querySelectorAll('div.wifi-auth-eap')
                 .forEach((el) => { el.style.display = ''; });
-            dlg_wificred.querySelector('div.form-group.wifi-auth-eap input#password')
+            dlg_wificred.querySelector('div.wifi-auth-eap input#password')
                 .dispatchEvent(new Event('change'));
         } else if (authmode > 0) {
             // Autenticación con contraseña
-            dlg_wificred.querySelectorAll('div.form-group.wifi-auth-psk')
+            dlg_wificred.querySelectorAll('div.wifi-auth-psk')
                 .forEach((el) => { el.style.display = ''; });
-            dlg_wificred.querySelector('div.form-group.wifi-auth-psk input#psk')
+            dlg_wificred.querySelector('div.wifi-auth-psk input#psk')
                 .dispatchEvent(new Event('change'));
         } else {
             // Red sin autenticación, activar directamente opción de conectar
@@ -180,10 +180,10 @@ function setupWiFiTab()
 
     // Comportamiento de controles de diálogo de ingresar credenciales red
     const dlg_wificred = wifipane.querySelector('div#wifi-credentials');
-    dlg_wificred.querySelectorAll('div.form-group.wifi-auth-eap input').forEach((el) => {
+    dlg_wificred.querySelectorAll('div.wifi-auth-eap input').forEach((el) => {
         ['change', 'keypress', 'blur'].forEach((k) => { el.addEventListener(k, checkValidWifiCred_EAP); });
     });
-    dlg_wificred.querySelectorAll('div.form-group.wifi-auth-psk input').forEach((el) => {
+    dlg_wificred.querySelectorAll('div.wifi-auth-psk input').forEach((el) => {
         ['change', 'keypress', 'blur'].forEach((k) => { el.addEventListener(k, checkValidWifiCred_PSK); });
     });
     dlg_wificred.querySelector('div.modal-footer button[name=connect]').addEventListener('click', function () {
@@ -201,7 +201,7 @@ function setupWiFiTab()
         };
         if (netclass == 'scanned') postData['pin'] = dlg_wificred.querySelector('input[name="pin"]:checked').value;
         ((postData.authmode == 5) ? ['identity', 'password'] : (postData.authmode > 0) ? ['psk'] : [])
-            .forEach((k) => { postData[k] = dlg_wificred.querySelector('div.form-group input#'+k).value; });
+            .forEach((k) => { postData[k] = dlg_wificred.querySelector('div.wifi-auth input#'+k).value; });
 
         if (netclass == 'scanned') {
             // Puede ocurrir que la red ya no exista según el escaneo más reciente
@@ -274,14 +274,14 @@ function yuboxWiFi_displayNetworkDialog(netclass, net)
     const sel_authmode = dlg_wificred.querySelector('select#authmode');
     if (net.authmode == 5) {
         // Autenticación WPA-ENTERPRISE
-        dlg_wificred.querySelector('div.form-group.wifi-auth-eap input#identity')
+        dlg_wificred.querySelector('div.wifi-auth-eap input#identity')
             .value = ((net.identity != null) ? net.identity : '');
-        dlg_wificred.querySelector('div.form-group.wifi-auth-eap input#password')
+        dlg_wificred.querySelector('div.wifi-auth-eap input#password')
             .value = ((net.password != null) ? net.password : '');
         sel_authmode.value = (5);
     } else if (net.authmode > 0) {
         // Autenticación con contraseña
-        dlg_wificred.querySelector('div.form-group.wifi-auth-psk input#psk')
+        dlg_wificred.querySelector('div.wifi-auth-psk input#psk')
             .value = ((net.psk != null) ? net.psk : '');
         sel_authmode.value = (4);
     } else {
@@ -301,7 +301,7 @@ function checkValidWifiCred_EAP()
     // Activar el botón de enviar credenciales si ambos valores son no-vacíos
     const wifipane = getYuboxPane('wifi', true);
     const dlg_wificred = wifipane.querySelector('div#wifi-credentials');
-    var numLlenos = Array.from(dlg_wificred.querySelectorAll('div.form-group.wifi-auth-eap input'))
+    var numLlenos = Array.from(dlg_wificred.querySelectorAll('div.wifi-auth-eap input'))
         .filter(function(inp) { return (inp.value != ''); })
         .length;
     dlg_wificred.querySelector('button[name=connect]').disabled = !(numLlenos >= 2);
@@ -312,7 +312,7 @@ function checkValidWifiCred_PSK()
     // Activar el botón de enviar credenciales si la clave es de al menos 8 caracteres
     const wifipane = getYuboxPane('wifi', true);
     const dlg_wificred = wifipane.querySelector('div#wifi-credentials');
-    var psk = dlg_wificred.querySelector('div.form-group.wifi-auth-psk input#psk').value;
+    var psk = dlg_wificred.querySelector('div.wifi-auth-psk input#psk').value;
     dlg_wificred.querySelector('button[name=connect]').disabled = !(psk.length >= 8);
 }
 

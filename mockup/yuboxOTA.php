@@ -94,6 +94,31 @@ case '/rollback':
         break;
     }
     break;
+case '/hwreport.json':
+    print json_encode(array(
+        "ARDUINO_ESP32_GIT_VER" => 3404677126,
+        "ARDUINO_ESP32_RELEASE" => "2_0_2",
+        "SKETCH_COMPILE_DATETIME" => "Feb 23 2022 15:43:18",
+        "IDF_VER" => "v4.4-beta1-189-ga79dc75f0a",
+        "CHIP_MODEL" => "ESP32-S2",
+        "CHIP_CORES" => 1,
+        "CPU_MHZ" => 240,
+        "FLASH_SIZE" => 4194304,
+        "FLASH_SPEED" => 80000000,
+
+        "SKETCH_SIZE" => 1086912,
+        "SKETCH_MD5" => "4167f86f2301a168b30da0e0bda4411b",
+        "EFUSE_MAC" => 30919580835708,
+
+        "psramsize" => 2094447,
+        "psramfree" => 2038667,
+        "psrammaxalloc" => 2031604,
+
+        "heapfree" => 2144123,
+        "heapmaxalloc" => 2031604,
+        "heapsize" => 2296911,
+    ));
+    break;
 default:
     Header('HTTP/1.1 404 Not Found');
     print json_encode(array(
