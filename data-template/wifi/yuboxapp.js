@@ -478,12 +478,12 @@ function mostrarReintentoScanWifi(msg)
     dv.classList.add('clearfix');
 
     const spn = document.createElement('span');
-    spn.classList.add('float-left');
+    spn.classList.add('float-start');
     spn.textContent = msg;
     dv.appendChild(spn);
 
     const btn = document.createElement('button');
-    btn.classList.add('btn', 'btn-primary', 'float-right');
+    btn.classList.add('btn', 'btn-primary', 'float-end');
     btn.textContent = 'Reintentar';
     dv.appendChild(btn);
 
