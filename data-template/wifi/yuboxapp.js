@@ -70,8 +70,8 @@ function setupWiFiTab()
                     div_dns.appendChild(r);
                 }
 
-                // Diálogo modal Bootstrap 4 requiere jQuery
-                $(dlg_wifiinfo).modal({ focus: true });
+                bootstrap.Modal.getOrCreateInstance(dlg_wifiinfo, { focus: true })
+                .show();
             }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
         } else {
             yuboxWiFi_displayNetworkDialog('scanned', net);
@@ -132,8 +132,8 @@ function setupWiFiTab()
                 tbody_wifinetworks.appendChild(tr_wifinet);
             });
 
-            // Diálogo modal Bootstrap 4 requiere jQuery
-            $(dlg_wifinetworks).modal({ focus: true });
+            bootstrap.Modal.getOrCreateInstance(dlg_wifinetworks, { focus: true })
+            .show();
         }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
     });
 
@@ -144,8 +144,8 @@ function setupWiFiTab()
     let addnet_cb = function () {
         const dlg_wifinetworks = wifipane.querySelector('div#wifi-networks');
         if (dlg_wifinetworks.classList.contains('show')) {
-            // Diálogo modal Bootstrap 4 requiere jQuery
-            $(dlg_wifinetworks).modal('hide');
+            bootstrap.Modal.getOrCreateInstance(dlg_wifinetworks)
+            .hide();
         }
         yuboxWiFi_displayNetworkDialog('manual', { authmode : 4, psk: null});
     };
@@ -209,8 +209,8 @@ function setupWiFiTab()
                 .filter((tr) => { return (tr.data['ssid'] == postData.ssid); })
                 .length > 0);
             if (!existe) {
-                // Diálogo modal Bootstrap 4 requiere jQuery
-                $(dlg_wificred).modal('hide');
+                bootstrap.Modal.getOrCreateInstance(dlg_wificred)
+                .hide();
                 yuboxMostrarAlertText('warning', 'La red '+postData.ssid+' ya no se encuentra disponible', 3000);
                 return;
             }
@@ -227,8 +227,8 @@ function setupWiFiTab()
             if (netclass == 'scanned') {
                 marcarRedDesconectandose();
             }
-            // Diálogo modal Bootstrap 4 requiere jQuery
-            $(dlg_wificred).modal('hide');
+            bootstrap.Modal.getOrCreateInstance(dlg_wificred)
+            .hide();
         }, (e) => {
             yuboxStdAjaxFailHandlerDlg(dlg_wificred.querySelector('div.modal-body'), e, 2000);
         });
@@ -241,8 +241,8 @@ function setupWiFiTab()
         .then((data) => {
             // Credenciales aceptadas, se espera a que se conecte
             marcarRedDesconectandose();
-            // Diálogo modal Bootstrap 4 requiere jQuery
-            $(dlg_wifiinfo).modal('hide');
+            bootstrap.Modal.getOrCreateInstance(dlg_wifiinfo)
+            .hide();
         }, (e) => {
             yuboxStdAjaxFailHandlerDlg(dlg_wifiinfo.querySelector('div.modal-body'), e, 2000);
         });
@@ -292,8 +292,8 @@ function yuboxWiFi_displayNetworkDialog(netclass, net)
     dlg_wificred.querySelector('div.modal-footer button[name=connect]')
         .textContent = (netclass == 'scanned') ? 'Conectar a WIFI' : 'Guardar';
 
-    // Diálogo modal Bootstrap 4 requiere jQuery
-    $(dlg_wificred).modal({ focus: true });
+    bootstrap.Modal.getOrCreateInstance(dlg_wificred, { focus: true })
+    .show();
 }
 
 function checkValidWifiCred_EAP()

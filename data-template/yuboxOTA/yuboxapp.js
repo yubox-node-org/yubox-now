@@ -161,8 +161,8 @@ function setupYuboxOTATab()
                 hwtable.querySelector('tr#'+key+' > td.text-muted').textContent = data[key];
             }
 
-            // Diálogo modal Bootstrap 4 requiere jQuery
-            $(dlg_hwinfo).modal({ focus: true });
+            bootstrap.Modal.getOrCreateInstance(dlg_hwinfo, { focus: true })
+            .show();
         }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
     });
 }
