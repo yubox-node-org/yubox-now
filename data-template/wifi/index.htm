@@ -45,7 +45,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" />
         </div>
         <div class="form-group manual-only">
-          <label for="ssid">SSID:</label>
+          <label class="form-label" for="ssid">SSID:</label>
           <input type="text" name="ssid" id="ssid" value="(nombre-de-red)" class="form-control" />
         </div>
         <div class="form-group row scanned-only">
@@ -56,7 +56,7 @@
           </div>
         </div>
         <div class="form-group manual-only">
-          <label for="authmode" >Seguridad:</label>
+          <label class="form-label" for="authmode" >Seguridad:</label>
           <select name="authmode" id="authmode" class="form-select">
             <option value="0">(ninguna)</option>
             <option value="4">WPA/WPA2 PSK</option>
@@ -76,15 +76,15 @@
           </div>
         </div>
         <div class="form-group wifi-auth wifi-auth-psk">
-          <label for="psk">Contraseña:</label>
+          <label class="form-label" for="psk">Contraseña:</label>
           <input type="password" id="psk" name="psk" maxlength="64" minlength="8" class="form-control" pattern=".{8,64}"/>
         </div>
         <div class="form-group wifi-auth wifi-auth-eap">
-          <label for="identity">Identidad EAP:</label>
+          <label class="form-label" for="identity">Identidad EAP:</label>
           <input type="text" id="identity" name="identity" class="form-control"/>
         </div>
         <div class="form-group wifi-auth wifi-auth-eap">
-          <label for="password">Contraseña EAP:</label>
+          <label class="form-label" for="password">Contraseña EAP:</label>
           <input type="password" id="password" name="password" class="form-control"/>
         </div>
         <div class="form-group scanned-only">
