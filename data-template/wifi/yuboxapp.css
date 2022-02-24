@@ -11,8 +11,8 @@ svg.wifipower.at-least-4bars > rect.at-least-1bar, svg.wifipower.at-least-4bars 
     fill: #004085;
 }
 
-div.modal-body.scanned > div.form-group.manual-only,
-div.modal-body.manual > div.form-group.scanned-only
+div.modal-body.scanned > div.manual-only,
+div.modal-body.manual > div.scanned-only
 {
     display: none;
 }
