@@ -64,7 +64,7 @@ function yuboxDlgMostrarAlert(basesel, alertstyle, content, timeout)
 
     // Insertar contenido DOM que es texto del mensaje
     content = yuboxUnwrapJQ(content);
-    al.querySelector('button.close').insertAdjacentElement('beforebegin', content);
+    al.querySelector('button.btn-close').insertAdjacentElement('beforebegin', content);
 
     // Quitar cualquier alarma vieja, insertar la nueva
     const old_al = basesel.querySelector('div.yubox-alert');

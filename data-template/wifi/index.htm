@@ -35,18 +35,14 @@
 
         <!-- Título con nombre de red a usar -->
         <h5 class="modal-title" id="wifi-credentials-title">(nombre-de-red)</h5>
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Cerrar">
-          <span aria-hidden="true">&times;</span>
-        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar" />
 
       </div>
       <div class="modal-body">
         <!-- El siguiente div se clona para mostrar una alerta vía yuboxMostrarAlert() -->
         <div class="alert alert-dismissible fade show yubox-alert-template" role="alert">
           <!-- Ubicación donde estará el contenido de la alerta -->
-          <button type="button" class="close" data-bs-dismiss="alert" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
-          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" />
         </div>
         <div class="form-group manual-only">
           <label for="ssid">SSID:</label>
@@ -122,18 +118,14 @@
         <!-- Título con nombre de red a usar -->
         <h5 class="modal-title" id="wifi-details-title">(nombre-de-red)</h5>
         <input type="hidden" name="ssid" id="ssid" value="(nombre-de-red)" />
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Cerrar">
-          <span aria-hidden="true">&times;</span>
-        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar" />
 
       </div>
       <div class="modal-body">
         <!-- El siguiente div se clona para mostrar una alerta vía yuboxMostrarAlert() -->
         <div class="alert alert-dismissible fade show yubox-alert-template" role="alert">
           <!-- Ubicación donde estará el contenido de la alerta -->
-          <button type="button" class="close" data-bs-dismiss="alert" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
-          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" />
         </div>
 
         <table id="wifiinfo" class="table table-borderless">
@@ -216,18 +208,14 @@
       <div class="modal-header">
 
         <h5 class="modal-title" id="wifi-networks-title">Redes Guardadas</h5>
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Cerrar">
-          <span aria-hidden="true">&times;</span>
-        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar" />
 
       </div>
       <div class="modal-body">
         <!-- El siguiente div se clona para mostrar una alerta vía yuboxMostrarAlert() -->
         <div class="alert alert-dismissible fade show yubox-alert-template" role="alert">
           <!-- Ubicación donde estará el contenido de la alerta -->
-          <button type="button" class="close" data-bs-dismiss="alert" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
-          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" />
         </div>
 
         <table id="wifi-saved-networks" class="table table-borderless table-sm table-hover">
@@ -235,9 +223,7 @@
 
             <tr class="template">
               <td id="delete" title="Olvidar esta red">
-                <button type="button" class="btn btn-danger btn-sm">
-                  <span aria-hidden="true" style="font-size: 1.5em;line-height: 1;font-weight: 700;">&times;</span>
-                </button>
+                <button type="button" class="btn btn-danger btn-sm btn-close" />
               </td>
               <td id="ssid" style="width: 100%;">?</td>
               <td id="auth" title="">
