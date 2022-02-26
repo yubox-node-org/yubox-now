@@ -53,15 +53,6 @@ function setupYuboxOTATab()
         }, (e) => { yuboxStdAjaxFailHandler(e, 5000); });
     });
 
-    otapane.querySelector('input[type=file]#tgzupload').addEventListener('change', function (ev) {
-        const lbl = ev.target.nextElementSibling;
-        if (lbl.data == undefined) lbl.data = {};
-        if (lbl.data['default'] == undefined) {
-            // Almacenar texto original para restaurar si archivo vacío
-            lbl.data['default'] = lbl.textContent;
-        }
-        lbl.textContent = (ev.target.files.length > 0) ? ev.target.files[0].name : lbl.data['default'];
-    });
     otapane.querySelector('button[name=apply]').addEventListener('click', function () {
         const sel_firmwarelist = otapane.querySelector('select#yuboxfirmwarelist');
         const route_tgzupload = sel_firmwarelist.querySelector('option[value='+sel_firmwarelist.value+']').data['tgzupload'];

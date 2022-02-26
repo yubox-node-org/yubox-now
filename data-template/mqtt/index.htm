@@ -125,10 +125,8 @@
             </div>
         </div>
         <div class="mb-4">
-            <div class="custom-file">
-                <input type="file" class="custom-file-input" id="tls_servercert">
-                <label class="custom-file-label" for="tls_servercert" data-bs-browse="Elegir" id="lbl-tls_servercert">Certificado raíz serv.:</label>
-            </div>
+            <label class="form-label" for="tls_servercert">Certificado raíz serv.:</label>
+            <input type="file" class="form-control" id="tls_servercert">
         </div>
         <div class="mb-4">
             <button type="button" class="btn btn-primary" name="tls_servercert_upload">Actualizar</button>
@@ -144,16 +142,12 @@
             </div>
         </div>
         <div class="mb-4">
-            <div class="custom-file">
-                <input type="file" class="custom-file-input" id="tls_clientcert">
-                <label class="custom-file-label" for="tls_clientcert" data-bs-browse="Elegir" id="lbl-tls_clientcert">Certificado cliente:</label>
-            </div>
+            <label class="form-label" for="tls_clientcert" id="lbl-tls_clientcert">Certificado cliente:</label>
+            <input type="file" class="form-control" id="tls_clientcert">
         </div>
         <div class="mb-4">
-            <div class="custom-file">
-                <input type="file" class="custom-file-input" id="tls_clientkey">
-                <label class="custom-file-label" for="tls_clientkey" data-bs-browse="Elegir" id="lbl-tls_clientkey">Clave privada cliente:</label>
-            </div>
+            <label class="form-label" for="tls_clientkey" id="lbl-tls_clientkey">Clave privada cliente:</label>
+            <input type="file" class="form-control" id="tls_clientkey">
         </div>
         <div class="mb-4">
             <button type="button" class="btn btn-primary" name="tls_clientcert_upload">Actualizar</button>

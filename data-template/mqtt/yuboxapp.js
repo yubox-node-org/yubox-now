@@ -54,17 +54,6 @@ function setupMqttTab()
             }
         }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
     });
-    mqttpane.querySelectorAll('input[type=file].custom-file-input').forEach((elem) => {
-        elem.addEventListener('change', function (ev) {
-            const lbl = ev.target.nextElementSibling;
-            if (lbl.data == undefined) lbl.data = {};
-            if (lbl.data['default'] == undefined) {
-                // Almacenar texto original para restaurar si archivo vacío
-                lbl.data['default'] = lbl.textContent;
-            }
-            lbl.textContent = (ev.target.files.length > 0) ? ev.target.files[0].name : lbl.data['default'];
-        })
-    });
     mqttpane.querySelector('button[name=tls_servercert_upload]').addEventListener('click', function() {
         yuboxUploadMQTTCerts('tls_servercert', ['tls_servercert']);
     });
