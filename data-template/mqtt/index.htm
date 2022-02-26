@@ -48,13 +48,13 @@
             <label class="form-label" for="mqtthost">Broker MQTT para envío de datos:</label>
             <input type="text" id="mqtthost" name="mqtthost" class="form-control" placeholder="mqtt.example.com"
                 aria-describedby="mqtthostAyuda" value="" required />
-            <small id="mqtthostAyuda" class="form-text text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
+            <small id="mqtthostAyuda" class="form-text d-block text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
         </div>
         <div class="mb-4 col-sm-4">
             <label class="form-label" for="mqttport">Puerto TCP/IP para MQTT:</label>
             <input type="number" id="mqttport" name="mqttport" class="form-control" placeholder="1883"
                 aria-describedby="mqttportAyuda" value="" min="1" max="65535" required />
-            <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
+            <small id="mqttportAyuda" class="form-text d-block text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
         </div>
     </div>
     <div class="mb-4 mqtt-tls" style="display: none;">
@@ -73,7 +73,7 @@
                 <input type="radio" class="btn-check" name="tls_verifylevel" id="tls_verifylevel_3" value="3" autocomplete="off">
                 <label class="btn btn-secondary" for="tls_verifylevel_3">TLS, SERV. y CLIENTE</label>
             </div>
-            <small id="tls_verifylevelAyuda" class="form-text text-muted">Si el certificado requerido no está presente, se procederá a conectar SIN VERIFICACIÓN.</small>
+            <small id="tls_verifylevelAyuda" class="form-text d-block text-muted">Si el certificado requerido no está presente, se procederá a conectar SIN VERIFICACIÓN.</small>
         </div>
     </div>
     <div class="mb-4">
@@ -93,13 +93,13 @@
             <label class="form-label" for="mqttuser">Nombre de usuario:</label>
             <input type="text" id="mqttuser" name="mqttuser" class="form-control"
                 aria-describedby="mqttuserAyuda" value="" />
-            <small id="mqttuserAyuda" class="form-text text-muted">Nombre de usuario para autenticación MQTT</small>
+            <small id="mqttuserAyuda" class="form-text d-block text-muted">Nombre de usuario para autenticación MQTT</small>
         </div>
         <div class="mb-4 col-sm-6">
             <label class="form-label" for="mqttpass">Contraseña:</label>
             <input type="password" id="mqttpass" name="mqttpass" class="form-control"
                 aria-describedby="mqttpassAyuda" value="" />
-            <small id="mqttpassAyuda" class="form-text text-muted">Contraseña para autenticación MQTT</small>
+            <small id="mqttpassAyuda" class="form-text d-block text-muted">Contraseña para autenticación MQTT</small>
         </div>
     </div>
     <button type="button" class="btn btn-primary" name="apply">Actualizar</button>

@@ -420,7 +420,7 @@ function yuboxWiFi_actualizarRedes(data)
         }
         if (connlabel != null) {
             let sm_connlabel = document.createElement('small');
-            sm_connlabel.classList.add('form-text', 'text-muted');
+            sm_connlabel.classList.add('form-text', 'd-block', 'text-muted');
             sm_connlabel.textContent = connlabel;
             tr_wifiscan.querySelector('td#ssid').appendChild(sm_connlabel);
         }
