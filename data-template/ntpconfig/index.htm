@@ -2,7 +2,7 @@
     <div class="card mb-2" id="card_snapshot">
         <div class="card-header">Hora de sistema</div>
         <div class="card-body">
-            <div class="form-group row">
+            <div class="mb-4 row">
                 <legend class="col-form-label col-auto col-sm-3">Fecha/hora YUBOX:</legend>
                 <div class="col-form-label col-auto col-sm-9">
                     <span id="utctime">???</span>
@@ -15,7 +15,7 @@
     <div class="card mb-2" id="card_snapshot">
         <div class="card-header">Sincronización NTP</div>
         <div class="card-body">
-            <div class="form-group row">
+            <div class="mb-4 row">
                 <legend class="col-form-label col-auto col-sm-3">Estado NTP:</legend>
                 <div class="col-form-label col-6 col-sm-2">
                     <h5><span id="ntp_connstatus" class="badge bg-danger">NO SINCRONIZADO</span></h5>
@@ -24,13 +24,13 @@
                     <span id="ntp_timestamp">???</span>
                 </div>
             </div>
-            <div class="form-group">
+            <div class="mb-4">
                 <label class="form-label" for="ntphost">Servidor NTP:</label>
                 <input type="text" id="ntphost" name="ntphost" class="form-control" placeholder="ntp.example.com"
                     aria-describedby="ntphostAyuda" value="" required />
                 <small id="ntphostAyuda" class="form-text text-muted">Nombre de host o IP del servidor NTP para sincronizar hora</small>
             </div>
-            <div class="form-group row">
+            <div class="mb-4 row">
                 <label class="form-label" for="ntptz_hh" class="col-12 col-sm-auto col-form-label">Diferencia zona horaria:</label>
                 <div class="col"><select id="ntptz_hh" name="ntptz_hh" class="form-select"></select></div>
                 <div class="col"><select id="ntptz_mm" name="ntptz_mm" class="form-select"></select></div>

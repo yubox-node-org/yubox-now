@@ -3,8 +3,8 @@
     <div class="card-header">Estado actual de conexión</div>
     <div class="card-body">
 
-    <div class="form-row">
-        <div class="form-group col-sm-6">
+    <div class="row">
+        <div class="mb-4 col-sm-6">
             <div class="row">
                 <legend class="col-form-label col">ID de cliente MQTT:</legend>
                 <div class="col-form-label col">
@@ -12,7 +12,7 @@
                 </div>
             </div>
             </div>
-        <div class="form-group col-sm-6">
+        <div class="mb-4 col-sm-6">
             <div class="row">
                 <legend class="col-form-label col">Soporte SSL/TLS:</legend>
                 <div class="col-form-label col">
@@ -22,7 +22,7 @@
                 </div>
             </div>
         </div>
-        <div class="form-group col-sm-6">
+        <div class="mb-4 col-sm-6">
             <div class="row">
                 <legend class="col-form-label col">Estado MQTT:</legend>
                 <div class="col-form-label col">
@@ -43,21 +43,21 @@
         <div class="card-header">Parámetros de conexión</div>
         <div class="card-body">
 
-    <div class="form-row">
-        <div class="form-group col-sm-8">
+    <div class="row">
+        <div class="mb-4 col-sm-8">
             <label class="form-label" for="mqtthost">Broker MQTT para envío de datos:</label>
             <input type="text" id="mqtthost" name="mqtthost" class="form-control" placeholder="mqtt.example.com"
                 aria-describedby="mqtthostAyuda" value="" required />
             <small id="mqtthostAyuda" class="form-text text-muted">Nombre de host o IP del broker MQTT que recibe la telemetría</small>
         </div>
-        <div class="form-group col-sm-4">
+        <div class="mb-4 col-sm-4">
             <label class="form-label" for="mqttport">Puerto TCP/IP para MQTT:</label>
             <input type="number" id="mqttport" name="mqttport" class="form-control" placeholder="1883"
                 aria-describedby="mqttportAyuda" value="" min="1" max="65535" required />
             <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
         </div>
     </div>
-    <div class="form-group mqtt-tls" style="display: none;">
+    <div class="mb-4 mqtt-tls" style="display: none;">
         <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">Nivel TLS:</legend>
             <div class="btn-group col-sm-8" role="group">
@@ -76,7 +76,7 @@
             <small id="tls_verifylevelAyuda" class="form-text text-muted">Si el certificado requerido no está presente, se procederá a conectar SIN VERIFICACIÓN.</small>
         </div>
     </div>
-    <div class="form-group">
+    <div class="mb-4">
         <div class="row">
         <legend class="col-form-label col-sm-4 pt-0">Autenticación MQTT:</legend>
         <div class="btn-group col-sm-8" role="group">
@@ -88,14 +88,14 @@
         </div>
         </div>
     </div>
-    <div class="form-row mqttauth">
-        <div class="form-group col-sm-6">
+    <div class="row mqttauth">
+        <div class="mb-4 col-sm-6">
             <label class="form-label" for="mqttuser">Nombre de usuario:</label>
             <input type="text" id="mqttuser" name="mqttuser" class="form-control"
                 aria-describedby="mqttuserAyuda" value="" />
             <small id="mqttuserAyuda" class="form-text text-muted">Nombre de usuario para autenticación MQTT</small>
         </div>
-        <div class="form-group col-sm-6">
+        <div class="mb-4 col-sm-6">
             <label class="form-label" for="mqttpass">Contraseña:</label>
             <input type="password" id="mqttpass" name="mqttpass" class="form-control"
                 aria-describedby="mqttpassAyuda" value="" />
@@ -118,44 +118,44 @@
         <div class="row">
             <div class="col-md-6">
     <form>
-        <div class="form-group row">
+        <div class="mb-4 row">
             <legend class="col-form-label col-sm-auto">Certificado raíz en dispositivo:</legend>
             <div class="col-form-label col">
                 <h5><span id="tls_servercert_present" class="badge bg-warning">???</span></h5>
             </div>
         </div>
-        <div class="form-group">
+        <div class="mb-4">
             <div class="custom-file">
                 <input type="file" class="custom-file-input" id="tls_servercert">
                 <label class="custom-file-label" for="tls_servercert" data-bs-browse="Elegir" id="lbl-tls_servercert">Certificado raíz serv.:</label>
             </div>
         </div>
-        <div class="form-group">
+        <div class="mb-4">
             <button type="button" class="btn btn-primary" name="tls_servercert_upload">Actualizar</button>
         </div>
     </form>
             </div>
             <div class="col-md-6">
     <form>
-        <div class="form-group row">
+        <div class="mb-4 row">
             <legend class="col-form-label col-sm-auto">Certificado cliente en dispositivo:</legend>
             <div class="col-form-label col">
                 <h5><span id="tls_clientcert_present" class="badge bg-warning">???</span></h5>
             </div>
         </div>
-        <div class="form-group">
+        <div class="mb-4">
             <div class="custom-file">
                 <input type="file" class="custom-file-input" id="tls_clientcert">
                 <label class="custom-file-label" for="tls_clientcert" data-bs-browse="Elegir" id="lbl-tls_clientcert">Certificado cliente:</label>
             </div>
         </div>
-        <div class="form-group">
+        <div class="mb-4">
             <div class="custom-file">
                 <input type="file" class="custom-file-input" id="tls_clientkey">
                 <label class="custom-file-label" for="tls_clientkey" data-bs-browse="Elegir" id="lbl-tls_clientkey">Clave privada cliente:</label>
             </div>
         </div>
-        <div class="form-group">
+        <div class="mb-4">
             <button type="button" class="btn btn-primary" name="tls_clientcert_upload">Actualizar</button>
         </div>
     </form>

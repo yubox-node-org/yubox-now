@@ -1,8 +1,8 @@
-<div class="form-group clearfix">
+<div class="mb-4 clearfix">
   <button type="button" class="btn btn-warning btn-sm float-end ms-2" name="addnet">Agregar red</button>
   <button type="button" class="btn btn-info btn-sm float-end ms-2" name="networks">Redes guardadas</button>
 </div>
-<div class="form-group">
+<div class="mb-4">
   <table id="wifiscan" class="table table-borderless table-hover">
     <caption>Redes visibles</caption>
     <tbody>
@@ -44,18 +44,18 @@
           <!-- Ubicación donde estará el contenido de la alerta -->
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" />
         </div>
-        <div class="form-group manual-only">
+        <div class="mb-4 manual-only">
           <label class="form-label" for="ssid">SSID:</label>
           <input type="text" name="ssid" id="ssid" value="(nombre-de-red)" class="form-control" />
         </div>
-        <div class="form-group row scanned-only">
+        <div class="mb-4 row scanned-only">
           <legend class="col-sm-2 col-form-label">Seguridad:</legend>
           <div class="col-sm-10">
             <input type="text" readonly class="form-control-plaintext" id="key_mgmt" value="NONE|WPA-PSK|WPA-EAP" />
             <input type="hidden" name="authmode" id="authmode" value="0" />
           </div>
         </div>
-        <div class="form-group manual-only">
+        <div class="mb-4 manual-only">
           <label class="form-label" for="authmode" >Seguridad:</label>
           <select name="authmode" id="authmode" class="form-select">
             <option value="0">(ninguna)</option>
@@ -63,31 +63,31 @@
             <option value="5">WPA2-ENTERPRISE</option>
           </select>
         </div>
-        <div class="form-group row scanned-only">
+        <div class="mb-4 row scanned-only">
           <legend class="col-sm-2 col-form-label">BSSID:</legend>
           <div class="col-sm-10">
             <input type="text" readonly class="form-control-plaintext" id="bssid" value="???" />
           </div>
         </div>
-        <div class="form-group row scanned-only">
+        <div class="mb-4 row scanned-only">
           <legend class="col-sm-2 col-form-label">Canal:</legend>
           <div class="col-sm-10">
             <input type="text" readonly class="form-control-plaintext" id="channel" value="0" />
           </div>
         </div>
-        <div class="form-group wifi-auth wifi-auth-psk">
+        <div class="mb-4 wifi-auth wifi-auth-psk">
           <label class="form-label" for="psk">Contraseña:</label>
           <input type="password" id="psk" name="psk" maxlength="64" minlength="8" class="form-control" pattern=".{8,64}"/>
         </div>
-        <div class="form-group wifi-auth wifi-auth-eap">
+        <div class="mb-4 wifi-auth wifi-auth-eap">
           <label class="form-label" for="identity">Identidad EAP:</label>
           <input type="text" id="identity" name="identity" class="form-control"/>
         </div>
-        <div class="form-group wifi-auth wifi-auth-eap">
+        <div class="mb-4 wifi-auth wifi-auth-eap">
           <label class="form-label" for="password">Contraseña EAP:</label>
           <input type="password" id="password" name="password" class="form-control"/>
         </div>
-        <div class="form-group scanned-only">
+        <div class="mb-4 scanned-only">
           <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">Anclar a esta red:</legend>
             <div class="btn-group col-sm-8" role="group">

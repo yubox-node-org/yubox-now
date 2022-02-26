@@ -1,6 +1,6 @@
 <form>
     <button type="button" class="btn btn-info btn-lg btn-block mb-2" name="hwreport">Resumen ESP32</button>
-    <div class="form-group">
+    <div class="mb-4">
         <label class="form-label" for="yuboxfirmwarelist">Firmware a actualizar:</label>
         <select class="form-select" id="yuboxfirmwarelist" name="yuboxfirmwarelist">
         </select>
@@ -13,16 +13,16 @@
             <div class="card-header"><span class="yubox-firmware-desc"></span>: Actualización de firmware</div>
             <div class="card-body">
                 <form>
-                    <div class="form-group">
+                    <div class="mb-4">
                         <div class="custom-file">
                             <input type="file" class="custom-file-input" id="tgzupload">
                             <label class="custom-file-label" for="tgzupload" data-bs-browse="Elegir" id="lbl-tgzupload">Indique archivo de firmware:</label>
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-4">
                         <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
                     </div>
-                    <div class="form-group row upload-progress" style="display: none;">
+                    <div class="mb-4 row upload-progress" style="display: none;">
                         <div class="col-5 col-sm-2"><b>Copiando:</b></div>
                         <div class="col-7 col-sm-4"><span id="filename">algo.txt</span></div>
                         <div class="col-5 col-sm-2"><span id="current">?</span> de <span id="total">?</span> Kb</div>
@@ -40,10 +40,10 @@
             <div class="card-header"><span class="yubox-firmware-desc"></span>: Restauración de firmware previo</div>
             <div class="card-body">
                 <form>
-                    <div class="form-group">
+                    <div class="mb-4">
                         <p>El firmware anterior es: <span id="canrollback" class="badge bg-danger" style="font-size: 100%">NO RESTAURABLE</span></p>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-4">
                         <button type="button" class="btn btn-danger" name="rollback">Restaurar</button>
                     </div>
                 </form>
@@ -55,7 +55,7 @@
             <div class="card-header">Reinicio de YUBOX</div>
             <div class="card-body">
                 <form>
-                    <div class="form-group">
+                    <div class="mb-4">
                         <button type="button" class="btn btn-danger" name="reboot">Reiniciar</button>
                     </div>
                 </form>
