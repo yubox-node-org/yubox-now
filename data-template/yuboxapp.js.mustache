@@ -88,14 +88,18 @@ function yuboxStdAjaxFailHandler(e, timeout)
 
 function yuboxStdAjaxFailHandlerDlg(basesel, e, timeout)
 {
-    var msg;
-    if (e.status == 0) {
+    let msg;
+    if ('responseJSON' in e) {
+        if ('msg' in e.responseJSON)
+            msg = e.responseJSON.msg;
+        else
+            msg = 'Tipo de contenido inesperado en respuesta';
+    } else if ('status' in e && e.status == 0) {
         msg = 'Fallo al contactar dispositivo';
-    } else if (e.responseJSON == undefined) {
-        msg = 'Tipo de contenido inesperado en respuesta';
     } else {
-        msg = e.responseJSON.msg;
+        msg = e.message;
     }
+
     yuboxDlgMostrarAlertText(basesel, 'danger', msg, timeout);
 }
 
