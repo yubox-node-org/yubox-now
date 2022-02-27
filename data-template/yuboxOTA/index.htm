@@ -1,5 +1,7 @@
 <form>
-    <button type="button" class="btn btn-info btn-lg btn-block mb-2" name="hwreport">Resumen ESP32</button>
+    <div class="d-grid mb-2">
+        <button type="button" class="btn btn-info btn-lg" name="hwreport">Resumen ESP32</button>
+    </div>
     <div class="mb-4">
         <label class="form-label" for="yuboxfirmwarelist">Firmware a actualizar:</label>
         <select class="form-select" id="yuboxfirmwarelist" name="yuboxfirmwarelist">
@@ -151,7 +153,9 @@
                     </tr>
                     <tr>
                         <td colspan="2">
-                            <a class="btn btn-info btn-block" href="/_spiffslist.html" target="_blank">Listado de archivos en SPIFFS</a>
+                            <div class="d-grid">
+                                <a class="btn btn-info" href="/_spiffslist.html" target="_blank">Listado de archivos en SPIFFS</a>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
