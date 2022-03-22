@@ -4,10 +4,12 @@ if (document.readyState == 'loading') {
     yuboxSetupAllTabs();
 }
 
-yuboxBSEvt = (s) => s;
+var yuboxBSEvt;
 
 function yuboxSetupAllTabs()
 {
+    yuboxBSEvt = (s) => s;
+
     if (typeof bootstrap == 'undefined') {
         let copyDataNS = function (el, source, target) {
             for (let k in el.dataset) {
