@@ -4,7 +4,7 @@ function setupWebAuthTab()
 
     // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
     getYuboxNavTab('webauth', true)
-    .addEventListener('shown.bs.tab', function (e) {
+    .addEventListener(yuboxBSEvt('shown.bs.tab'), function (e) {
         yuboxFetch('authconfig')
         .then((data) => {
             authpane.querySelector('input#yubox_username').value = data.username;

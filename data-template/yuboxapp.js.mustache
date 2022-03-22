@@ -4,8 +4,33 @@ if (document.readyState == 'loading') {
     yuboxSetupAllTabs();
 }
 
+yuboxBSEvt = (s) => s;
+
 function yuboxSetupAllTabs()
 {
+    if (typeof bootstrap == 'undefined') {
+        let copyDataNS = function (el, source, target) {
+            for (let k in el.dataset) {
+                if (k.length <= source.length) continue;
+                if (!k.startsWith(source)) continue;
+                let rest = k.substring(source.length);
+                let firstletter = rest.substring(0, 1);
+                if (firstletter.toUpperCase() != firstletter) continue;
+
+                let k2 = target + rest;
+                el.dataset[k2] = el.dataset[k];
+            }
+
+            for (let childElement of el.children) copyDataNS(childElement, source, target);
+        };
+
+        if (typeof coreui == 'object') {
+            bootstrap = coreui;
+            yuboxBSEvt = (s) => s.replace('.bs.', '.coreui.');
+            copyDataNS(document.getElementsByTagName('body')[0], 'bs', 'coreui');
+        }
+    }
+
 {{#modules}}
     {{#module_setupjs}}
     {{{module_setupjs}}}();

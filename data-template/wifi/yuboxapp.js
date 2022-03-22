@@ -14,10 +14,10 @@ function setupWiFiTab()
 
     // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
     const wifitab = getYuboxNavTab('wifi', true);
-    wifitab.addEventListener('shown.bs.tab', function (e) {
+    wifitab.addEventListener(yuboxBSEvt('shown.bs.tab'), function (e) {
         yuboxWiFi_setupWiFiScanListener();
     })
-    wifitab.addEventListener('hide.bs.tab', function (e) {
+    wifitab.addEventListener(yuboxBSEvt('hide.bs.tab'), function (e) {
         if (wifipane.data['sse'] != null) {
           wifipane.data['sse'].close();
           wifipane.data['sse'] = null;

@@ -8,7 +8,7 @@ function setupYuboxOTATab()
 
     // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
     getYuboxNavTab('yuboxOTA', true)
-    .addEventListener('shown.bs.tab', function (e) {
+    .addEventListener(yuboxBSEvt('shown.bs.tab'), function (e) {
         // Si el control select de la lista de firmwares está DESACTIVADO,
         // se asume que esta sesión todavía está subiendo algo al equipo.
         if (otapane.querySelector('select#yuboxfirmwarelist').disabled) {

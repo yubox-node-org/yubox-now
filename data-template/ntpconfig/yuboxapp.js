@@ -76,7 +76,7 @@ function setupNTPConfTab()
 
     // https://getbootstrap.com/docs/5.1/components/navs-tabs/#events
     getYuboxNavTab('ntpconfig', true)
-    .addEventListener('shown.bs.tab', function (e) {
+    .addEventListener(yuboxBSEvt('shown.bs.tab'), function (e) {
         yuboxLoadNTPConfig();
     });
 }
