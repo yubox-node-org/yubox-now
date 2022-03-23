@@ -249,6 +249,20 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
     log_v("[WiFi-event] event: %d", event);
     switch(event) {
 #if ESP_IDF_VERSION_MAJOR > 3
+    case ARDUINO_EVENT_WIFI_AP_START:
+#else
+    case SYSTEM_EVENT_AP_START:
+#endif
+        {
+            // Estos deberían ser los valores por omisión del SDK. Se establecen
+            // explícitamente para recuperar control luego de cederlo a otra lib.
+            IPAddress apIp(192, 168, 4, 1);
+            IPAddress apNetmask(255, 255, 255, 0);
+
+            WiFi.softAPConfig(apIp, apIp, apNetmask);
+        }
+        break;
+#if ESP_IDF_VERSION_MAJOR > 3
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
 #else
     case SYSTEM_EVENT_STA_GOT_IP:
@@ -271,15 +285,9 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 void YuboxWiFiClass::_enableWiFiMode(void)
 {
   if (_enableSoftAP) {
-    // Estos deberían ser los valores por omisión del SDK. Se establecen
-    // explícitamente para recuperar control luego de cederlo a otra lib.
-    IPAddress apIp(192, 168, 4, 1);
-    IPAddress apNetmask(255, 255, 255, 0);
-
     log_i("Iniciando modo dual WiFi (AP+STA)...");
     WiFi.mode(WIFI_AP_STA);
     if (!_softAPConfigured) {
-      WiFi.softAPConfig(apIp, apIp, apNetmask);
       WiFi.softAP(_apName.c_str());
       _softAPConfigured = true;
     }
