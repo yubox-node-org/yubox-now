@@ -47,6 +47,8 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
   _autoConnect = false;
   _lastdisconnect = AsyncMqttClientDisconnectReason::TCP_DISCONNECTED;
   _yuboxMQTT_port = MQTT_PORT;
+  _yuboxMQTT_ws = false;
+  _yuboxMQTT_wsUri = "/";
 
   _mqttReconnectTimer = xTimerCreate(
     "YuboxMQTTConfClass_mqttTimer",
@@ -86,10 +88,17 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   _yuboxMQTT_port = nvram.getUShort("port", MQTT_PORT);
   _yuboxMQTT_user = nvram.getString("user");
   _yuboxMQTT_pass = nvram.getString("pass");
+  _yuboxMQTT_ws = nvram.getBool("ws", false);
+  _yuboxMQTT_wsUri = nvram.getString("wsuri", "/");
 
   log_d("Host de broker MQTT......: %s:%u", _yuboxMQTT_host.c_str(), _yuboxMQTT_port);
   log_d("Usuario de broker MQTT...: %s", _yuboxMQTT_user.c_str());
   log_d("Clave de broker MQTT.....: %s", _yuboxMQTT_pass.c_str());
+  if (_yuboxMQTT_ws) {
+    log_d("MQTT vía Websockets......: NO");
+  } else {
+    log_d("MQTT vía Websockets......: SÍ, %s", _yuboxMQTT_wsUri.c_str());
+  }
 
   _mqttClient.setServer(_yuboxMQTT_host.c_str(), _yuboxMQTT_port);
   if (_yuboxMQTT_user.length() > 0) {
@@ -99,6 +108,8 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   }
   _yuboxMQTT_default_clientid = YuboxWiFi.getMDNSHostname();
   _mqttClient.setClientId(_yuboxMQTT_default_clientid.c_str());
+  _mqttClient.setWsEnabled(_yuboxMQTT_ws);
+  if (_yuboxMQTT_ws) _mqttClient.setWsUri(_yuboxMQTT_wsUri.c_str());
 
 #if ASYNC_TCP_SSL_ENABLED
   _tls_verifylevel = nvram.getUChar("tlslevel", YUBOX_MQTT_SSL_NONE);
@@ -314,7 +325,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(12));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(14));
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["want2connect"] = _autoConnect;
@@ -343,6 +354,9 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
     json_doc["pass"] = (char *)NULL;
   }
   json_doc["port"] = _yuboxMQTT_port;
+
+  json_doc["ws"] = _yuboxMQTT_ws;
+  json_doc["wsuri"] = _yuboxMQTT_wsUri.c_str();
 
   // Valores por omisión para cuando no hay TLS
   json_doc["tls_capable"] = false;
@@ -383,11 +397,15 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   String n_user;
   String n_pass;
   uint16_t n_port;
+  bool n_ws;
+  String n_wsUri;
 
   n_host = _yuboxMQTT_host;
   n_user = _yuboxMQTT_user;
   n_pass = _yuboxMQTT_pass;
   n_port = _yuboxMQTT_port;
+  n_ws = _yuboxMQTT_ws;
+  n_wsUri = _yuboxMQTT_wsUri;
 
 #if ASYNC_TCP_SSL_ENABLED
   uint8_t n_tls_verifylevel = _tls_verifylevel;
@@ -455,6 +473,22 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   }
 #endif
 
+  if (!clientError) {
+    if (request->hasParam("ws", true)) {
+      p = request->getParam("ws", true);
+      n_ws = (p->value() != "0");
+    }
+
+    if (n_ws && request->hasParam("wsuri", true)) {
+      p = request->getParam("wsuri", true);
+      n_wsUri = p->value();
+      if (!n_wsUri.startsWith("/")) {
+        clientError = true;
+        responseMsg = "URI Websocket inválido (no inicia con \"/\")";
+      }
+    }
+  }
+
   // Si todos los parámetros son válidos, se intenta guardar en NVRAM
   if (!clientError) {
     Preferences nvram;
@@ -475,6 +509,14 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     if (!serverError && !NVRAM_PUTSTRING(nvram, "pass", n_pass)) {
       serverError = true;
       responseMsg = "No se puede guardar valor para clave: pass";
+    }
+    if (!serverError && !nvram.putBool("ws", n_ws)) {
+      serverError = true;
+      responseMsg = "No se puede guardar valor para clave: ws";
+    }
+    if (!serverError && !nvram.putString("wsuri", n_wsUri)) {
+      serverError = true;
+      responseMsg = "No se puede guardar valor para clave: wsuri";
     }
 #if ASYNC_TCP_SSL_ENABLED
     if (!serverError && !nvram.putUChar("tlslevel", n_tls_verifylevel)) {
