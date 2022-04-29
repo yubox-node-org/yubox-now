@@ -94,7 +94,7 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   log_d("Host de broker MQTT......: %s:%u", _yuboxMQTT_host.c_str(), _yuboxMQTT_port);
   log_d("Usuario de broker MQTT...: %s", _yuboxMQTT_user.c_str());
   log_d("Clave de broker MQTT.....: %s", _yuboxMQTT_pass.c_str());
-  if (_yuboxMQTT_ws) {
+  if (!_yuboxMQTT_ws) {
     log_d("MQTT vía Websockets......: NO");
   } else {
     log_d("MQTT vía Websockets......: SÍ, %s", _yuboxMQTT_wsUri.c_str());
