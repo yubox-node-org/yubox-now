@@ -660,6 +660,7 @@ void YuboxWiFiClass::saveStateAP(void)
 
 void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
 {
+  srv.on("/yubox-api/wificonfig/connection/pin", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_pin_POST, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_PUT, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_PUT, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/connection", HTTP_DELETE, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_DELETE, this, std::placeholders::_1));
@@ -1025,6 +1026,82 @@ void YuboxWiFiClass::_delOneSavedNetwork(AsyncWebServerRequest *request, String 
   if (deleteconnected && _assumeControlOfWiFi) {
     _startCondRescanTimer(true);
   }
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_pin_POST(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+  AsyncWebParameter * p;
+  bool pinNetwork = false;
+
+  if (!clientError) {
+    if (request->hasParam("pin", true)) {
+      p = request->getParam("pin", true);
+      pinNetwork = (p->value() != "0");
+    } else {
+      clientError = true;
+      responseMsg = "Se requiere nuevo estado de anclaje de red";
+    }
+  }
+
+  if (!clientError) {
+    auto oldPinned = _selNetwork;
+
+    if (pinNetwork) {
+      wl_status_t currNetStatus = WiFi.status();
+      if (currNetStatus != WL_CONNECTED) {
+        serverError = true;
+        responseMsg = "No hay conexión actualmente activa";
+      } else {
+        String currNet = WiFi.SSID();
+
+        auto idx = -1;
+        for (auto i = 0; i < _savedNetworks.size(); i++) {
+          if (_savedNetworks[i].cred.ssid == currNet) {
+            idx = i;
+            break;
+          }
+        }
+
+        if (idx == -1) {
+          // Red actualmente conectada no se encuentra (???)
+          serverError = true;
+          responseMsg = "Red actualmente conectada no ha sido guardada: " + currNet;
+        } else {
+          _selNetwork = idx;
+        }
+      }
+    } else {
+      _selNetwork = -1;
+    }
+
+    if (!serverError) {
+      if (oldPinned != _selNetwork) {
+        _saveNetworksToNVRAM();
+        _publishWiFiStatus();
+      }
+    }
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+  unsigned int httpCode = 200;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
