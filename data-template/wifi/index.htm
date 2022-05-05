@@ -2,6 +2,14 @@
   <button type="button" class="btn btn-warning btn-sm float-right ml-2" name="addnet">Agregar red</button>
   <button type="button" class="btn btn-info btn-sm float-right ml-2" name="networks">Redes guardadas</button>
 </div>
+
+<div id="wifi-pinned" class="p-2 mb-2 border rounded-sm" style="border-left-width: .25rem !important; border-left-color: rgb(23, 162, 184) !important; display: none;">
+  <div class="row">
+    <div class="col">Anclado a red: <span id="pinned_ssid" class="badge badge-info">(ninguna)</span></div>
+    <div class="col-auto"><button type="button" class="btn btn-sm btn-warning" name="unpin">Desanclar red</button></div>
+  </div>
+</div>
+
 <div class="form-group">
   <table id="wifiscan" class="table table-borderless table-hover">
     <caption>Redes visibles</caption>
@@ -137,7 +145,7 @@
           </button>
         </div>
 
-        <table id="wifiinfo" class="table table-borderless">
+        <table id="wifiinfo" class="table table-sm table-borderless">
           <tbody>
             <tr id="rssi">
               <td>
@@ -170,6 +178,10 @@
               <td>&nbsp;</td>
               <td>Canal</td>
               <td class="text-muted">0</td>
+            </tr>
+            <tr>
+              <td colspan="2">&nbsp;</td>
+              <td><button type="button" name="pin2net" class="btn btn-warning">Anclar a red</button></td>
             </tr>
           </tbody>
         </table>
