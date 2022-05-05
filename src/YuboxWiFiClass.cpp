@@ -747,11 +747,20 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
 void YuboxWiFiClass::_publishWiFiStatus(void)
 {
-  StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
+  if (_pEvents->count() <= 0) return;
+
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
   json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
+
+  if (_selNetwork >= 0 && _selNetwork < _savedNetworks.size()) {
+    json_doc["pinned_ssid"] = _savedNetworks[_selNetwork].cred.ssid.c_str();
+  } else {
+    json_doc["pinned_ssid"] = (const char *)NULL;
+  }
+
   String json_str;
   serializeJson(json_doc, json_str);
-  if (_pEvents->count() > 0) _pEvents->send(json_str.c_str(), "WiFiStatus");
+   _pEvents->send(json_str.c_str(), "WiFiStatus");
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
@@ -933,6 +942,8 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
       idx = _savedNetworks.size();
       _savedNetworks.push_back(tempNetwork);
     }
+
+    auto oldPinned = _selNetwork;
     _selNetwork = (pinNetwork) ? idx : -1;
 
     // Mandar a guardar el vector modificado
@@ -941,6 +952,8 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
       _useTrialNetworkFirst = true;
       _trialNetwork = tempNetwork.cred;
     }
+
+    if (oldPinned != _selNetwork) _publishWiFiStatus();
   }
 
   if (!clientError && !serverError) {
@@ -989,6 +1002,7 @@ void YuboxWiFiClass::_delOneSavedNetwork(AsyncWebServerRequest *request, String 
   }
   if (idx != -1) {
     // Manipular el vector de redes para compactar
+    auto oldPinned = _selNetwork;
     if (_selNetwork == idx) _selNetwork = -1;
     if (idx < _savedNetworks.size() - 1) {
       // Copiar último elemento encima del que se elimina
@@ -999,6 +1013,8 @@ void YuboxWiFiClass::_delOneSavedNetwork(AsyncWebServerRequest *request, String 
 
     // Mandar a guardar el vector modificado
     _saveNetworksToNVRAM();
+
+    if (oldPinned != _selNetwork) _publishWiFiStatus();
   } else if (!deleteconnected) {
     request->send(404, "application/json", "{\"msg\":\"No existe la red indicada\"}");
     return;
