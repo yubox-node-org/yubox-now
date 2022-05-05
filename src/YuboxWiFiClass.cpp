@@ -109,6 +109,7 @@ void YuboxWiFiClass::takeControlOfWiFi(void)
   _eventId_cbHandler_WiFiEvent = WiFi.onEvent(
     std::bind(&YuboxWiFiClass::_cbHandler_WiFiEvent, this, std::placeholders::_1, std::placeholders::_2));
   _startWiFi();
+  _publishWiFiStatus();
 }
 
 void YuboxWiFiClass::releaseControlOfWiFi(bool wifioff)
@@ -116,6 +117,7 @@ void YuboxWiFiClass::releaseControlOfWiFi(bool wifioff)
   log_i("Cediendo control del WiFi (WiFi %s)...", wifioff ? "OFF" : "ON");
 
   _assumeControlOfWiFi = false;
+  _publishWiFiStatus();
   if (_eventId_cbHandler_WiFiEvent) WiFi.removeEvent(_eventId_cbHandler_WiFiEvent);
   _eventId_cbHandler_WiFiEvent = 0;
   if (WiFi.status() != WL_DISCONNECTED) {
@@ -743,14 +745,19 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
   return json_output;
 }
 
-void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
+void YuboxWiFiClass::_publishWiFiStatus(void)
 {
-  // Emitir estado actual de control de WiFi
   StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
   json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
   String json_str;
   serializeJson(json_doc, json_str);
-  _pEvents->send(json_str.c_str(), "WiFiStatus");
+  if (_pEvents->count() > 0) _pEvents->send(json_str.c_str(), "WiFiStatus");
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
+{
+  // Emitir estado actual de control de WiFi
+  _publishWiFiStatus();
 
   // Emitir cualquier lista disponible de inmediato, posiblemente poblada por otro dueño de WiFi
   String json_report = _buildAvailableNetworksJSONReport();

@@ -109,6 +109,7 @@ private:
   void _loadBootstrapNetworkFromFS(void);
 
   String _buildAvailableNetworksJSONReport(void);
+  void _publishWiFiStatus(void);
 
   void _bootstrapWebServer(void);
 
