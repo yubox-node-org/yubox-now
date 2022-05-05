@@ -38,6 +38,9 @@ function load_conf()
         'pass'                  =>  NULL,
         'port'                  =>  1883,
 
+        'ws'                    =>  TRUE,
+        'wsuri'                 =>  '/api/websockets/mqtt',
+
         'tls_capable'           =>  TRUE,
         'tls_verifylevel'       =>  0,
         'tls_servercert'        =>  FALSE,
@@ -91,6 +94,19 @@ function handle_conf()
                 $responseMsg = "Formato numérico incorrecto para port";
             } else {
                 $info['port'] = (int)$_POST['port'];
+            }
+        }
+
+        if (!$clientError) {
+            if (isset($_POST['ws'])) {
+                $info['ws'] = ($_POST['ws'] != '0');
+            }
+            if ($info['ws']) {
+                $info['wsuri'] = trim($_POST['wsuri']);
+                if (substr($info['wsuri'], 0, 1) != '/') {
+                    $clientError = true;
+                    $responseMsg = "URI Websocket inválido (no inicia con \"/\")";
+                }
             }
         }
 

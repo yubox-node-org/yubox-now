@@ -16,11 +16,29 @@ function setupMqttTab()
     };
     mqttpane.querySelectorAll('input[name=mqttauth]')
         .forEach(el => { el.addEventListener('click', mqttauth_click_cb) });
+
+    let mqttws_click_cb = function() {
+        const div_mqttws = mqttpane.querySelector('form div.mqtt-ws');
+        const div_mqttws_inputs = mqttpane.querySelectorAll('form div.mqtt-ws input');
+        const nstat = mqttpane.querySelector('input[name=mqttws]:checked').value;
+        if (nstat == '1') {
+            div_mqttws.style.display = '';
+            div_mqttws_inputs.forEach((elem) => { elem.required = true; });
+        } else {
+            div_mqttws.style.display = 'none';
+            div_mqttws_inputs.forEach((elem) => { elem.required = false; });
+        }
+    };
+    mqttpane.querySelectorAll('input[name=mqttws]')
+        .forEach(el => { el.addEventListener('click', mqttws_click_cb) });
+
     mqttpane.querySelector('button[name=apply]').addEventListener('click', function () {
         var postData = {
             host:           mqttpane.querySelector('input#mqtthost').value,
             port:           mqttpane.querySelector('input#mqttport').value,
-            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value
+            tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value,
+            ws:             mqttpane.querySelector('input[name=mqttws]:checked').value,
+            wsuri:          mqttpane.querySelector('input#wsuri').value
         };
         if (mqttpane.querySelector('input[name=mqttauth]:checked').value == 'on') {
             postData.user = mqttpane.querySelector('input#mqttuser').value;
@@ -129,6 +147,8 @@ function yuboxLoadMqttConfig()
             mqttpane.querySelector('form input#mqttpass').value = '';
             mqttpane.querySelector('input[name=mqttauth]#off').click();
         }
+        mqttpane.querySelector('form input#wsuri').value = data.wsuri;
+        mqttpane.querySelector('input[name=mqttws]#'+(data.ws ? 'on' : 'off')).click();
 
         const div_mqtt_tls = mqttpane.querySelectorAll('div.mqtt-tls');
         // Nivel de soporte TLS deseado

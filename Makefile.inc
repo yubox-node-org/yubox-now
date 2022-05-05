@@ -86,11 +86,27 @@ endif
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
 ESP32_FLASHMODE=qio
+ESP32_CDC=default
+ESP32_MSC=default
+ESP32_DFU=default
+ESP32_UPLOADMODE=default
 # Para cada directiva conocida en el FQBN, se debe verificar si la definición
 # del board acepta tal directiva. De lo contrario, arduino-builder falla con
 # error si encuentra una directiva desconocida.
 ESP32_FQBN=
 comma:=,
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.CDCOnBoot.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)CDCOnBoot=$(ESP32_CDC)
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.MSCOnBoot.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)MSCOnBoot=$(ESP32_MSC)
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.DFUOnBoot.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)DFUOnBoot=$(ESP32_DFU)
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.UploadMode.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)UploadMode=$(ESP32_UPLOADMODE)
+endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.SerialMode.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)SerialMode=default
 endif
@@ -190,7 +206,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES) $(ESP32_BOARD_PINS)
 		$(ARDUINO_BUILTIN_LIBS) \
 		-libraries $(ARDUINO_LIBUSR) \
 		-fqbn=$(ESP32_FQBN) \
-		-ide-version=10813 \
+		-ide-version=10819 \
 		-build-path "`pwd`/build" \
 		-warnings=default \
 		-build-cache "`pwd`/build/_cache" \
