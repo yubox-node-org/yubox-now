@@ -152,6 +152,14 @@ function setupWiFiTab()
     wifipane.querySelectorAll('button[name=addnet]')
         .forEach((el) => { el.addEventListener('click', addnet_cb); });
 
+    // Qué hay que hacer al hacer clic en el botón de Desanclar red
+    wifipane.querySelector('button[name=unpin]').addEventListener('click', function() {
+        yuboxFetch('wificonfig', 'connection/pin', { pin: 0 })
+        .then(() => {
+            // Estado de pin debería refrescarse vía SSE
+        }, (e) => { yuboxStdAjaxFailHandler(e, 2000); });
+    });
+
     // Qué hay que hacer al hacer clic en una fila de red guardada
     wifipane.querySelector('div#wifi-networks table#wifi-saved-networks > tbody').addEventListener('click', function(e) {
         let currentTarget = null;
@@ -241,6 +249,15 @@ function setupWiFiTab()
         .then((data) => {
             // Credenciales aceptadas, se espera a que se conecte
             marcarRedDesconectandose();
+            bootstrap.Modal.getOrCreateInstance(dlg_wifiinfo)
+            .hide();
+        }, (e) => {
+            yuboxStdAjaxFailHandlerDlg(dlg_wifiinfo.querySelector('div.modal-body'), e, 2000);
+        });
+    });
+    dlg_wifiinfo.querySelector('button[name=pin2net]').addEventListener('click', function () {
+        yuboxFetch('wificonfig', 'connection/pin', { pin: 1 })
+        .then((data) => {
             bootstrap.Modal.getOrCreateInstance(dlg_wifiinfo)
             .hide();
         }, (e) => {
@@ -341,6 +358,16 @@ function yuboxWiFi_setupWiFiScanListener()
               yuboxMostrarAlertText('warning',
                 'YUBOX Now ha cedido control del WiFi a otra librería. El escaneo WiFi podría no refrescarse, o mostrar datos desactualizados.',
                 5000);
+            }
+
+            // Actualizar estado de anclaje a red WiFi
+            const div_wifipinned = wifipane.querySelector('div#wifi-pinned');
+            const spn_pinned_ssid = div_wifipinned.querySelector('span#pinned_ssid');
+            if (data.pinned_ssid != null) {
+                div_wifipinned.style.display = '';
+                spn_pinned_ssid.textContent = data.pinned_ssid;
+            } else {
+                div_wifipinned.style.display = 'none';
             }
         });
         sse.addEventListener('error', function (e) {
