@@ -1,6 +1,30 @@
 <div class="form-group clearfix">
-  <button type="button" class="btn btn-warning btn-sm float-right ml-2" name="addnet">Agregar red</button>
-  <button type="button" class="btn btn-info btn-sm float-right ml-2" name="networks">Redes guardadas</button>
+
+  <div class="btn-toolbar" role="toolbar" aria-label="Barra de herramientas de red">
+    <div class="input-group input-group-sm">
+      <div class="input-group-prepend">
+        <div class="input-group-text" id="lblSoftAP">SoftAP</div>
+      </div>
+      <input type="text" name="softap_ssid" class="form-control form-control-sm" aria-describedby="lblSoftAP" value="" readonly />
+    </div>
+    <div class="btn-group btn-group-sm btn-group-toggle ml-2" data-toggle="buttons">
+      <label class="btn btn-secondary">
+        <input type="radio" name="softap" id="off" value="off" />Apagado
+      </label>
+      <label class="btn btn-secondary">
+        <input type="radio" name="softap" id="hidden" value="hidden" />Invisible
+      </label>
+      <label class="btn btn-secondary">
+        <input type="radio" name="softap" id="visible" value="visible" />Visible
+      </label>
+    </div>
+
+    <div class="btn-group btn-group-sm ml-2" role="group">
+      <button type="button" class="btn btn-warning float-right" name="addnet">Agregar red</button>
+      <button type="button" class="btn btn-info float-right" name="networks">Redes guardadas</button>
+    </div>
+  </div>
+
 </div>
 
 <div id="wifi-pinned" class="p-2 mb-2 border rounded-sm" style="border-left-width: .25rem !important; border-left-color: rgb(23, 162, 184) !important; display: none;">

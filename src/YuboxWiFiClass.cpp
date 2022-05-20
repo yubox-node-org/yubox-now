@@ -28,6 +28,7 @@ YuboxWiFiClass::YuboxWiFiClass(void)
   _assumeControlOfWiFi = true;
   _enableSoftAP = true;
   _softAPConfigured = false;
+  _softAPHide = false;
 
   _pWebSrvBootstrap = NULL;
   _eventId_cbHandler_WiFiEvent = 0;
@@ -287,10 +288,17 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 void YuboxWiFiClass::_enableWiFiMode(void)
 {
   if (_enableSoftAP) {
-    log_i("Iniciando modo dual WiFi (AP+STA)...");
+    log_i("Iniciando modo dual WiFi (AP+STA), softAP SSID=%s (%s)...",
+      _apName.c_str(),
+      _softAPHide ? "ESCONDIDO" : "VISIBLE");
     WiFi.mode(WIFI_AP_STA);
     if (!_softAPConfigured) {
-      WiFi.softAP(_apName.c_str());
+      WiFi.softAP(
+        _apName.c_str(),
+        NULL,               // passphrase
+        1,                  // channel
+        _softAPHide ? 1 : 0 // ssid_hidden
+        );
       _softAPConfigured = true;
     }
   } else {
@@ -481,6 +489,9 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
 
   // Activación expresa de interfaz softAP
   _enableSoftAP = nvram.getBool("net/softAP", true);
+
+  // Esconder red softAP de los escaneos
+  _softAPHide = nvram.getBool("net/softAPHide", false);
 }
 
 void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
@@ -671,6 +682,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
     "/yubox-api/wificonfig/networks/{SSID}",
     "/yubox-api/wificonfig/networks?ssid={SSID}"
   ));
+  srv.on("/yubox-api/wificonfig/softap", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
@@ -750,7 +762,7 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
 {
   if (_pEvents->count() <= 0) return;
 
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
   json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
 
   if (_selNetwork >= 0 && _selNetwork < _savedNetworks.size()) {
@@ -758,6 +770,10 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
   } else {
     json_doc["pinned_ssid"] = (const char *)NULL;
   }
+
+  json_doc["enable_softap"] = _enableSoftAP;
+  json_doc["softap_ssid"] = _apName.c_str();
+  json_doc["softap_hide"] = _softAPHide;
 
   String json_str;
   serializeJson(json_doc, json_str);
@@ -1178,6 +1194,71 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebS
   bool deleteconnected = (WiFi.status() == WL_CONNECTED && ssid == WiFi.SSID());
 
   _delOneSavedNetwork(request, ssid, deleteconnected);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+  AsyncWebParameter * p;
+
+  bool n_enable_softap = _enableSoftAP;
+  bool n_softap_hide = _softAPHide;
+
+  if (!clientError) {
+    if (request->hasParam("enable_softap", true)) {
+      p = request->getParam("enable_softap", true);
+      n_enable_softap = (p->value() != "0");
+    }
+    if (request->hasParam("softap_hide", true)) {
+      p = request->getParam("softap_hide", true);
+      n_softap_hide = (p->value() != "0");
+    }
+  }
+
+  if (!clientError) {
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+    if (!serverError) {
+      if (!nvram.putBool("net/softAP", n_enable_softap)) {
+        serverError = true;
+        responseMsg = "No se puede guardar nuevo estado softAP";
+      }
+    }
+    if (!serverError) {
+      if (!nvram.putBool("net/softAPHide", n_softap_hide)) {
+        serverError = true;
+        responseMsg = "No se puede guardar estado de softAP escondido";
+      }
+    }
+  }
+
+  if (!clientError && !serverError) {
+    toggleStateAP(false);
+    _softAPHide = n_softap_hide;
+    toggleStateAP(n_enable_softap);
+    _publishWiFiStatus();
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+  unsigned int httpCode = 202;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
 }
 
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)

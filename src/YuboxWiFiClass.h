@@ -69,6 +69,7 @@ private:
   // Bandera de activar la interfaz softAP o no
   bool _enableSoftAP;
   bool _softAPConfigured;
+  bool _softAPHide;
 
   // La siguiente es una caché de los valores de las redes guardadas en NVRAM.
   // En estado estable, .size() se corresponde con valor de net/n en NVRAM
@@ -129,6 +130,7 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_networks_POST(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_pin_POST(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServerRequest *request);
 
   // Funciones de ayuda para responder a peticiones web
   void _serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i);

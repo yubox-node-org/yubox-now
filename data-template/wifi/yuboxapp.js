@@ -4,7 +4,9 @@ function setupWiFiTab()
     var data = {
         'sse':                  null,
         'wifiscan-template':    wifipane.querySelector('table#wifiscan > tbody > tr.template'),
-        'wifinetworks-template':wifipane.querySelector('div#wifi-networks table#wifi-saved-networks > tbody > tr.template')
+        'wifinetworks-template':wifipane.querySelector('div#wifi-networks table#wifi-saved-networks > tbody > tr.template'),
+        'softap_ssid':          null,
+        'softap_status':        null
     }
     data['wifiscan-template'].classList.remove('template');
     data['wifiscan-template'].remove();
@@ -103,6 +105,22 @@ function setupWiFiTab()
             dlg_wificred.querySelector('button[name=connect]').disabled = false;
         }
     });
+
+    // Qué hay que hacer al hacer clic en el radiobutton de modo softAP
+    let softap_cb = function(ev) {
+        if (wifipane.data.softap_status == ev.currentTarget.id) return;
+
+        let postData = {
+            enable_softap:  (ev.currentTarget.id == 'off') ? 0 : 1,
+            softap_hide:    (ev.currentTarget.id == 'hidden') ? 1 : 0
+        };
+        yuboxFetch('wificonfig', 'softap', postData)
+        .then((data) => {
+            console.log(data);
+        }, e => yuboxStdAjaxFailHandler(e, 2000));
+    };
+    wifipane.querySelectorAll('input[name=softap]')
+        .forEach(el => el.addEventListener('change', softap_cb));
 
     // Qué hay que hacer al hacer clic en el botón de Redes Guardadas
     wifipane.querySelector('button[name=networks]').addEventListener('click', function () {
@@ -369,6 +387,17 @@ function yuboxWiFi_setupWiFiScanListener()
             } else {
                 div_wifipinned.style.display = 'none';
             }
+
+            // Actualizar estado de red softAP
+            wifipane.data.softap_ssid = data.softap_ssid;
+            wifipane.querySelector('input[name=softap_ssid]').value = wifipane.data.softap_ssid;
+            if (!data.enable_softap)
+                wifipane.data.softap_status = 'off';
+            else if (data.softap_hide)
+                wifipane.data.softap_status = 'hidden';
+            else
+                wifipane.data.softap_status = 'visible';
+            wifipane.querySelector('input[name=softap]#'+wifipane.data.softap_status).click();
         });
         sse.addEventListener('error', function (e) {
           mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');
