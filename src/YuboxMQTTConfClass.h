@@ -6,6 +6,8 @@
 
 #include <AsyncMqttClient.h>
 
+typedef void (*YuboxMQTT_intervalchange_cb)(void);
+
 class YuboxMQTTConfClass
 {
 private:
@@ -29,6 +31,13 @@ private:
   String _yuboxMQTT_wsUri;
 
   String _yuboxMQTT_default_clientid;
+
+  // Intervalo en MILISEGUNDOS de envío MQTT configurado para aplicación. Es
+  // responsabilidad de la aplicación instalar un callback o de otra forma
+  // recoger el valor, y actualizarse para respetar este intervalo de envío.
+  uint32_t _mqtt_msec;
+  bool _mqtt_msec_changed;
+  YuboxMQTT_intervalchange_cb _mqtt_msec_changed_cb;
 
 #if ASYNC_TCP_SSL_ENABLED
   uint32_t _rootCA_len; uint8_t * _rootCA;
@@ -87,6 +96,12 @@ public:
 
   // Función que devuelve VERDADERO si hay un host broker MQTT configurado
   bool isBrokerConfigured(void) { return (_yuboxMQTT_host.length() > 0); }
+
+  // Instalar callback para cambio de duración de envío MQTT
+  void onMQTTInterval(YuboxMQTT_intervalchange_cb cb);
+
+  uint32_t getRequestedMQTTInterval(void) { return _mqtt_msec; }
+  bool setRequestedMQTTInterval(uint32_t);
 
   friend void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t);
 };

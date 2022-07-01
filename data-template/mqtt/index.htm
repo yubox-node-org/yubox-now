@@ -125,6 +125,23 @@
             <small id="mqttpassAyuda" class="form-text text-muted">Contraseña para autenticación MQTT</small>
         </div>
     </div>
+    <div class="form-group">
+        <label for="mqttsec">Intervalo de transmisión de payload:</label>
+        <input type="number" id="mqttsec" name="mqttsec" class="form-control" list="mqttsec_common"
+            placeholder="30" aria-describedby="mqttsec_help" value="" />
+        <small id="mqttsec_help" class="form-text text-muted">Intervalo de transmisión deseada de datos
+            de aplicación, en segundos.</small>
+        <datalist id="mqttsec_common">
+            <option value="10" />
+            <option value="30" />
+            <option value="60" />
+            <option value="300" />
+            <option value="600" />
+            <option value="1200" />
+            <option value="3600" />
+        </datalist>
+    </div>
+
     <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
 
     <button type="button" class="btn btn-danger" name="forget">Olvidar</button>

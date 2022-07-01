@@ -11,6 +11,8 @@
 
 #include <ArduinoJson.h>
 
+#define YUBOX_MQTT_DEFAULT_INTERVAL_MSEC 30000
+
 #if ASYNC_TCP_SSL_ENABLED
 
 // Los archivos de certificados se guardan en la partición SPIFFS
@@ -50,6 +52,10 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
   _yuboxMQTT_ws = false;
   _yuboxMQTT_wsUri = "/";
 
+  _mqtt_msec = YUBOX_MQTT_DEFAULT_INTERVAL_MSEC;
+  _mqtt_msec_changed = false;
+  _mqtt_msec_changed_cb = NULL;
+
   _mqttReconnectTimer = xTimerCreate(
     "YuboxMQTTConfClass_mqttTimer",
     pdMS_TO_TICKS(2000),
@@ -78,6 +84,11 @@ void YuboxMQTTConfClass::begin(AsyncWebServer & srv)
   _setupHTTPRoutes(srv);
 }
 
+void YuboxMQTTConfClass::onMQTTInterval(YuboxMQTT_intervalchange_cb cb)
+{
+  _mqtt_msec_changed_cb = cb;
+}
+
 void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
 {
   Preferences nvram;
@@ -90,6 +101,7 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   _yuboxMQTT_pass = nvram.getString("pass");
   _yuboxMQTT_ws = nvram.getBool("ws", false);
   _yuboxMQTT_wsUri = nvram.getString("wsuri", "/");
+  _mqtt_msec = nvram.getUInt("mqttmsec", YUBOX_MQTT_DEFAULT_INTERVAL_MSEC);
 
   log_d("Host de broker MQTT......: %s:%u", _yuboxMQTT_host.c_str(), _yuboxMQTT_port);
   log_d("Usuario de broker MQTT...: %s", _yuboxMQTT_user.c_str());
@@ -99,6 +111,7 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   } else {
     log_d("MQTT vía Websockets......: SÍ, %s", _yuboxMQTT_wsUri.c_str());
   }
+  log_d("Intervalo recomendado envío payload MQTT: %u", _mqtt_msec);
 
   _mqttClient.setServer(_yuboxMQTT_host.c_str(), _yuboxMQTT_port);
   if (_yuboxMQTT_user.length() > 0) {
@@ -325,7 +338,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(14));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(15));
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["want2connect"] = _autoConnect;
@@ -337,6 +350,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
     json_doc["disconnected_reason"] = (uint8_t)_lastdisconnect;
   }
   json_doc["clientid"] = _mqttClient.getClientId();
+  json_doc["mqttmsec"] = getRequestedMQTTInterval();
 
   // Valores a cambiar vía web
   if (_yuboxMQTT_host.length() > 0) {
@@ -399,6 +413,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   uint16_t n_port;
   bool n_ws;
   String n_wsUri;
+  uint32_t n_mqttmsec;
 
   n_host = _yuboxMQTT_host;
   n_user = _yuboxMQTT_user;
@@ -406,6 +421,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   n_port = _yuboxMQTT_port;
   n_ws = _yuboxMQTT_ws;
   n_wsUri = _yuboxMQTT_wsUri;
+  n_mqttmsec = _mqtt_msec;
 
 #if ASYNC_TCP_SSL_ENABLED
   uint8_t n_tls_verifylevel = _tls_verifylevel;
@@ -473,6 +489,12 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   }
 #endif
 
+  ASSIGN_FROM_POST(mqttmsec, "%u")
+  if (!clientError && n_mqttmsec <= 50) {
+    clientError = true;
+    responseMsg = "Intervalo MQTT demasiado corto. Mínimo es 0.05 segundos.";
+  }
+
   if (!clientError) {
     if (request->hasParam("ws", true)) {
       p = request->getParam("ws", true);
@@ -502,6 +524,10 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
       serverError = true;
       responseMsg = "No se puede guardar valor para clave: port";
     }
+    if (!serverError && !nvram.putUInt("mqttmsec", n_mqttmsec)) {
+      serverError = true;
+      responseMsg = "No se puede guardar valor para clave: port";
+    }
     if (!serverError && !NVRAM_PUTSTRING(nvram, "user", n_user)) {
       serverError = true;
       responseMsg = "No se puede guardar valor para clave: user";
@@ -527,6 +553,8 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     nvram.end();
 
     if (!serverError) {
+      if (_mqtt_msec != n_mqttmsec) _mqtt_msec_changed = true;
+
       // Cerrar la conexión MQTT, si hay una previa, y volver a abrir
       if (_mqttClient.connected()) {
         log_i("Cerrando conexión previa de MQTT para refresco de credenciales...");
@@ -534,6 +562,11 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
       }
       _loadSavedCredentialsFromNVRAM();
       if (WiFi.isConnected()) _connectMQTT();
+
+      if (_mqtt_msec_changed) {
+        _mqtt_msec_changed = false;
+        if (_mqtt_msec_changed_cb != NULL) _mqtt_msec_changed_cb();
+      }
     }
   }
 

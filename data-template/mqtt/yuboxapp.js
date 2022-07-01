@@ -38,7 +38,8 @@ function setupMqttTab()
             port:           mqttpane.querySelector('input#mqttport').value,
             tls_verifylevel:mqttpane.querySelector('input[name=tls_verifylevel]:checked').value,
             ws:             mqttpane.querySelector('input[name=mqttws]:checked').value,
-            wsuri:          mqttpane.querySelector('input#wsuri').value
+            wsuri:          mqttpane.querySelector('input#wsuri').value,
+            mqttmsec:       parseInt(mqttpane.querySelector('form input#mqttsec').value) * 1000
         };
         if (mqttpane.querySelector('input[name=mqttauth]:checked').value == 'on') {
             postData.user = mqttpane.querySelector('input#mqttuser').value;
@@ -160,6 +161,7 @@ function yuboxLoadMqttConfig()
         }
         mqttpane.querySelector('form input#wsuri').value = data.wsuri;
         mqttpane.querySelector('input[name=mqttws]#'+(data.ws ? 'on' : 'off')).click();
+        mqttpane.querySelector('form input#mqttsec').value = (data.mqttmsec ?? 30000) / 1000;
 
         const div_mqtt_tls = mqttpane.querySelectorAll('div.mqtt-tls');
         // Nivel de soporte TLS deseado
