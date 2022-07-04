@@ -53,6 +53,7 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
   _yuboxMQTT_wsUri = "/";
 
   _mqtt_msec = YUBOX_MQTT_DEFAULT_INTERVAL_MSEC;
+  _mqtt_min = 50;
   _mqtt_msec_changed = false;
   _mqtt_msec_changed_cb = NULL;
 
@@ -490,9 +491,11 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
 #endif
 
   ASSIGN_FROM_POST(mqttmsec, "%u")
-  if (!clientError && n_mqttmsec <= 50) {
+  if (!clientError && n_mqttmsec <= _mqtt_min) {
     clientError = true;
-    responseMsg = "Intervalo MQTT demasiado corto. Mínimo es 0.05 segundos.";
+    responseMsg = "Intervalo MQTT demasiado corto. Mínimo es ";
+    responseMsg += (_mqtt_min / 1000.0);
+    responseMsg += " segundos.";
   }
 
   if (!clientError) {

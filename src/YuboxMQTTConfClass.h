@@ -36,6 +36,7 @@ private:
   // responsabilidad de la aplicación instalar un callback o de otra forma
   // recoger el valor, y actualizarse para respetar este intervalo de envío.
   uint32_t _mqtt_msec;
+  uint32_t _mqtt_min;
   bool _mqtt_msec_changed;
   YuboxMQTT_intervalchange_cb _mqtt_msec_changed_cb;
 
@@ -102,6 +103,9 @@ public:
 
   uint32_t getRequestedMQTTInterval(void) { return _mqtt_msec; }
   bool setRequestedMQTTInterval(uint32_t);
+
+  uint32_t getMinimumMQTTInterval(void) { return _mqtt_min; }
+  void setMinimumMQTTInterval(uint32_t v) { _mqtt_min = v; }
 
   friend void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t);
 };
