@@ -262,7 +262,19 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
             IPAddress apIp(192, 168, 4, 1);
             IPAddress apNetmask(255, 255, 255, 0);
 
-            WiFi.softAPConfig(apIp, apIp, apNetmask);
+            // NO DEBE DE DEPENDERSE DE PARÁMETRO default IPAddress dhcp_lease_start = INADDR_NONE
+            // en WiFiAPClass::softAPConfig() !
+            // https://github.com/espressif/arduino-esp32/issues/6760
+            IPAddress apLeaseStart(0, 0, 0, 0);
+
+            if (!WiFi.softAPConfig(apIp, apIp, apNetmask, apLeaseStart)) {
+                log_e("Falla al asignar interfaz SoftAP: %s | Gateway: %s | DHCP Start: %s | Netmask: %s",
+                    apIp.toString().c_str(),
+                    apIp.toString().c_str(),
+                    apLeaseStart.toString().c_str(),
+                    apNetmask.toString().c_str()
+                );
+            }
         }
         break;
 #if ESP_IDF_VERSION_MAJOR > 3
