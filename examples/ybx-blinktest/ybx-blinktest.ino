@@ -15,7 +15,11 @@ AsyncWebServer server(80);
 void notFound(AsyncWebServerRequest *);
 void setupAsyncServerHTTP(void);
 
+#if CONFIG_IDF_TARGET_ESP32S3
+#define   LED             LED_BUILTIN
+#else
 #define   LED             GPIO_NUM_4
+#endif
 
 void setup()
 {
