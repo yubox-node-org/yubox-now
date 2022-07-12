@@ -261,17 +261,36 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
             // explícitamente para recuperar control luego de cederlo a otra lib.
             IPAddress apIp(192, 168, 4, 1);
             IPAddress apNetmask(255, 255, 255, 0);
-
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
             // NO DEBE DE DEPENDERSE DE PARÁMETRO default IPAddress dhcp_lease_start = INADDR_NONE
             // en WiFiAPClass::softAPConfig() !
             // https://github.com/espressif/arduino-esp32/issues/6760
             IPAddress apLeaseStart(0, 0, 0, 0);
+#endif
+#endif
 
-            if (!WiFi.softAPConfig(apIp, apIp, apNetmask, apLeaseStart)) {
-                log_e("Falla al asignar interfaz SoftAP: %s | Gateway: %s | DHCP Start: %s | Netmask: %s",
+            if (!WiFi.softAPConfig(apIp, apIp, apNetmask
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
+              , apLeaseStart
+#endif
+#endif
+              )) {
+                log_e("Falla al asignar interfaz SoftAP: %s | Gateway: %s "
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
+                      "| DHCP Start: %s "
+#endif
+#endif
+                      "| Netmask: %s",
                     apIp.toString().c_str(),
                     apIp.toString().c_str(),
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
                     apLeaseStart.toString().c_str(),
+#endif
+#endif
                     apNetmask.toString().c_str()
                 );
             }
