@@ -257,7 +257,7 @@ codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--before default_reset \
 		--after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ESP32_BOOTLOADER_PATH) \
+		$(ESP32_BOOTLOADER_ADDR) $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin
