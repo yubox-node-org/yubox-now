@@ -89,6 +89,8 @@ else
 	XTENSA_S3_TOOLS=
 endif
 
+ESPTOOL_PATH=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py
+
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
@@ -250,7 +252,7 @@ clean:
 	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) $(ESP32_PARTCONF_CSVTABLE)
-	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
+	python $(ESPTOOL_PATH) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
@@ -271,7 +273,7 @@ build/$(YUBOX_PROJECT).spiffs: data/manifest.txt $(ESP32_PARTCONF_CSVTABLE)
 		build/$(YUBOX_PROJECT).spiffs
 
 dataupload: build/$(YUBOX_PROJECT).spiffs
-	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
+	python $(ESPTOOL_PATH) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
@@ -281,7 +283,7 @@ dataupload: build/$(YUBOX_PROJECT).spiffs
 		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
 fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) build/$(YUBOX_PROJECT).spiffs $(ESP32_PARTCONF_CSVTABLE)
-	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
+	python $(ESPTOOL_PATH) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
