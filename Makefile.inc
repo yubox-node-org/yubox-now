@@ -53,6 +53,10 @@ ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 
 ESP32_OFFSET_APP0=$(shell grep ota_0 $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
 ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
 ESP32_SIZE_SPIFFS_HEX=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 5 -d , )
+ifeq ($(ESP32_SIZE_SPIFFS_HEX),)
+	ESP32_OFFSET_SPIFFS=$(shell grep ffat $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
+	ESP32_SIZE_SPIFFS_HEX=$(shell grep ffat $(ESP32_PARTCONF_CSVTABLE) | cut -f 5 -d , )
+endif
 ESP32_SIZE_SPIFFS=$(shell printf "%d\n" $(ESP32_SIZE_SPIFFS_HEX))
 
 XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
@@ -195,6 +199,7 @@ YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *
 all: $(YUBOX_PROJECT).tar.gz
 
 testpartconf: $(ESP32_PARTCONF_CSVTABLE) $(ESP32_BOARD_PINS)
+	echo "ESP32_PARTCONF_CSVTABLE" $(ESP32_PARTCONF_CSVTABLE)
 	echo "ESP32_FQBN " $(ESP32_FQBN)
 	echo "ESP32_OFFSET_OTADATA " $(ESP32_OFFSET_OTADATA)
 	echo "ESP32_OFFSET_APP0 " $(ESP32_OFFSET_APP0)
