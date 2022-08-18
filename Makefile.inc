@@ -179,6 +179,12 @@ ifeq ($(ESP32_UPLOADCHIPTYPE),esp32s3)
 	ESP32_BOOTLOADER_ADDR:=0x0
 endif
 
+# Parámetros configurables para esptool.py
+UPLOAD_FLASH_MODE=dio
+UPLOAD_FLASH_FREQ=80m
+# 512KB, 256KB, 1MB, 2MB, 4MB, 2MB-c1, 4MB-c1, 8MB, 16MB, 32MB, 64MB, 128MB, detect, keep
+UPLOAD_FLASH_SIZE=detect
+
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
 ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=build.defines="$(ARDUINO_BUILD_EXTRA_FLAGS)"
@@ -258,7 +264,7 @@ codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
+		write_flash -z --flash_mode $(UPLOAD_FLASH_MODE) --flash_freq $(UPLOAD_FLASH_FREQ) --flash_size $(UPLOAD_FLASH_SIZE) \
 		$(ESP32_BOOTLOADER_ADDR) $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
@@ -279,7 +285,7 @@ dataupload: build/$(YUBOX_PROJECT).spiffs
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
+		write_flash -z --flash_mode $(UPLOAD_FLASH_MODE) --flash_freq $(UPLOAD_FLASH_FREQ) --flash_size $(UPLOAD_FLASH_SIZE) \
 		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
 fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) build/$(YUBOX_PROJECT).spiffs $(ESP32_PARTCONF_CSVTABLE)
@@ -289,7 +295,7 @@ fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
+		write_flash -z --flash_mode $(UPLOAD_FLASH_MODE) --flash_freq $(UPLOAD_FLASH_FREQ) --flash_size $(UPLOAD_FLASH_SIZE) \
 		$(ESP32_BOOTLOADER_ADDR) $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
