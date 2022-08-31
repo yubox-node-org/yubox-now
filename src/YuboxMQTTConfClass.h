@@ -2,7 +2,6 @@
 #define _YUBOX_MQTT_CONF_CLASS_H_
 
 #include <ESPAsyncWebServer.h>
-#include <Preferences.h>
 
 #include <AsyncMqttClient.h>
 
