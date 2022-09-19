@@ -72,6 +72,7 @@ Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
   lo cual impide completamente subir programas al ESP32. Se recomienda no instalar el Arduino IDE desde Flatpak, sino
   usando el zip o targz oficial, o el paquete ofrecido por los repositorios de la distro (si es lo suficientemente
   reciente).
+
   **ATENCIÓN**: la versión 2.0.0 de Arduino IDE recientemente lanzada **no está actualmente soportada** para el uso del
   Makefile provisto por YUBOX Framework, debido a que la herramienta interna `arduino-builder` ha sido reemplazada por
   la herramienta `arduino-cli` que usa un mecanismo completamente distinto para iniciar la compilación de programas.
