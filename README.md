@@ -149,9 +149,13 @@ Se requieren las siguientes bibliotecas de código como dependencias de YUBOX Fr
     `ESPAsyncWebServer`. El fork indicado más arriba contiene correcciones de fugas de memoria y otras condiciones
     de carrera que han sido corregidas por YUBOX al usar la biblioteca en nuestros proyectos.
 - `Async MQTT client for ESP8266 and ESP32` que es una biblioteca para un cliente MQTT, construida sobre `AsyncTCP`.
-  Para instalar esta biblioteca, visite https://github.com/marvinroger/async-mqtt-client y descargue un zip con el código
-  fuente desde https://github.com/marvinroger/async-mqtt-client/archive/master.zip . Debe existir eventualmente un
-  directorio con el código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo, `/home/fulano/Arduino/libraries/async-mqtt-client`.
+  Para proyectos nuevos usando YUBOX-Now, se recomienda usar el fork disponible en https://github.com/yubox-node-org/async-mqtt-client .
+  Visite el enlace indicado y descargue un zip con el código fuente desde https://github.com/yubox-node-org/async-mqtt-client/archive/refs/heads/master.zip .
+  Debe existir eventualmente un directorio con el código debajo de `$(HOME)/Arduino/libraries` . Por ejemplo,
+  `/home/fulano/Arduino/libraries/async-mqtt-client`.
+  - **NOTA**: en una versión anterior de este documento, se recomendaba la instalación de la versión base de
+    `async-mqtt-client`. El fork indicado más arriba contiene soporte actualizado para iniciar conexiones MQTT usando
+    encriptación SSL/TLS opcional, y además soporte para iniciar conexiones MQTT usando WebSockets (con o sin SSL/TLS).
 
 Además se recomienda instalar el siguiente addon de Arduino IDE:
 - [Arduino ESP32 filesystem uploader](https://github.com/me-no-dev/arduino-esp32fs-plugin), el cual es un addon al Arduino
