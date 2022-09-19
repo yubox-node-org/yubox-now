@@ -61,16 +61,26 @@ Además se asume que el usuario Linux tiene conocimiento de línea de comando b�
 instalar paquetes adicionales en caso necesario, tanto localmente como a nivel global del sistema.
 
 Se requieren los siguientes paquetes y componentes en la PC de desarrollo:
-- Arduino IDE, en su versión 1.8 o superior. No está soportado el desarrollo usando versiones anteriores de Arduino IDE.
-  En particular, las distros basadas en Ubuntu podrían tener un paquete arduino que es una versión muy vieja para
-  funcionar correctamente con el resto de paquetes. Si la versión instalada es muy vieja, debe actualizarse con una
-  versión más reciente instalada desde el zip o targz oficial de [Arduino](https://www.arduino.cc/en/Main/Software).
+- Arduino IDE, en su versión 1.8 o superior (pero NO 2.0.0, véase más abajo). No está soportado el desarrollo usando
+  versiones anteriores de Arduino IDE. En particular, las distros basadas en Ubuntu podrían tener un paquete arduino
+  que es una versión muy vieja para funcionar correctamente con el resto de paquetes. Si la versión instalada es muy
+  vieja, debe actualizarse con una versión más reciente instalada desde el zip o targz oficial de
+  [Arduino](https://www.arduino.cc/en/Main/Software).
 
-  *ATENCIÓN*: algunas distros ofrecen la instalación de Arduino a través de Flatpak. Sin embargo, el modelo de ejecución
+  **ATENCIÓN**: algunas distros ofrecen la instalación de Arduino a través de Flatpak. Sin embargo, el modelo de ejecución
   de Flatpak puede obstruir el acceso a los puertos seriales y también negar el acceso al intérprete Python del sistema
   lo cual impide completamente subir programas al ESP32. Se recomienda no instalar el Arduino IDE desde Flatpak, sino
   usando el zip o targz oficial, o el paquete ofrecido por los repositorios de la distro (si es lo suficientemente
   reciente).
+  **ATENCIÓN**: la versión 2.0.0 de Arduino IDE recientemente lanzada **no está actualmente soportada** para el uso del
+  Makefile provisto por YUBOX Framework, debido a que la herramienta interna `arduino-builder` ha sido reemplazada por
+  la herramienta `arduino-cli` que usa un mecanismo completamente distinto para iniciar la compilación de programas.
+  La herramienta `arduino-cli` no necesariamente está accesible como un programa independiente en algunas presentaciones
+  de Arduino IDE 2.0.0 (AppImage para Linux por ejemplo). En el momento en que se agregue soporte para `arduino-cli`,
+  será necesario instalar esta herramienta de forma independiente. Además, debido a que Arduino IDE 2.0.0 ha sido
+  reescrito en Nodejs/Electron en lugar de Java, ningún plugin escrito en Java para Arduino IDE 1.x puede ser usado para
+  Arduino IDE 2.0.0, incluyendo los recomendados más abajo. El soporte de plugins para Arduino IDE 2.0.0 está en
+  etapa de planeación; véase https://github.com/arduino/arduino-ide/issues/58 para detalles y avances.
 - Soporte de ESP32 para el Arduino IDE. Para instalar este soporte, ejecute el Arduino IDE, elija del menú la opción
   Archivo-->Preferencias, y en el cuadro de diálogo inserte o agregue en la caja de texto "Gestor de URLs Adicionales
   de Tarjetas" la siguiente URL: https://dl.espressif.com/dl/package_esp32_index.json .
