@@ -185,6 +185,49 @@ void YuboxNTPConfigClass::_configTime(void)
   }
 }
 
+void YuboxNTPConfigClass::setSystemTime(uint32_t t, bool markntpsync, bool forceBackwards)
+{
+  // Hora actualmente programada en el sistema
+  struct timeval tv; bool updatetime = false;
+  if (0 == gettimeofday(&tv, NULL)) {
+    log_d("gettimeofday() devuelve %ld", tv.tv_sec);
+    updatetime = false;
+
+    if (t > tv.tv_sec) {
+      log_d("input t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else if (forceBackwards) {
+      log_d("input t(%ld) <= tv_sec(%ld), FORZADO, se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else {
+      log_d("input t(%ld) <= tv_sec(%ld), NO se actualizará", t, tv.tv_sec);
+    }
+  } else {
+    log_e("gettimeofday() falla errno=%d, se actualizará", errno);
+    updatetime = true;
+    memset(&tv, 0, sizeof(struct timeval));
+    tv.tv_sec = t;
+  }
+
+  // Actualizar hora si se dispone de hora válida
+  if (updatetime && tv.tv_sec != 0) {
+    log_d("actualizando hora a tv_sec=%ld...", tv.tv_sec);
+    settimeofday(&tv, NULL);
+
+    if (markntpsync) {
+      if (!_ntpValid) {
+        log_d("Se fuerza estado sincronizado NTP...");
+        _ntpValid = true;
+      }
+      _ntpLastSync = millis();
+    }
+  }
+
+  log_d("time() devuelve ahora: %ld", time(NULL));
+}
+
 void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 {
   log_d("event: %d", event);

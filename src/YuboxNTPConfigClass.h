@@ -50,6 +50,12 @@ public:
   // Función a llamar regularmente para actualizar el cliente NTPClient
   bool update(uint32_t ms_timeout = 1000);
 
+  // Función para asignar la hora del sistema (UTC) directamente a partir del
+  // timestamp indicado como primer parámetro. Opcionalmente se obliga a asignar
+  // la hora incluso si como resultado la hora de sistema saltaría hacia atraś.
+  // Opcionalmente se fuerza la bandera de sincronizado vía NTP.
+  void setSystemTime(uint32_t t, bool markntpsync = false, bool forceBackwards = false);
+
   // Mantener separación entre hora local y hora UTC
   unsigned long getLocalTime(void);
   unsigned long getUTCTime(void);
