@@ -222,6 +222,11 @@ void YuboxNTPConfigClass::setSystemTime(uint32_t t, bool markntpsync, bool force
         _ntpValid = true;
       }
       _ntpLastSync = millis();
+
+      // Guardar respuesta NTP recién recibida
+      Preferences nvram;
+      nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
+      nvram.putLong("ntpsec", tv.tv_sec);
     }
   }
 
