@@ -137,6 +137,9 @@ uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
   const char *builddate = __DATE__;
   const char *buildtime = __TIME__;
 
+  // NOTA: esta cadena estática es una fecha y hora local de compilación pero
+  // no dispone de información de zona horaria. Por lo tanto se introduce errores
+  // de hasta +/- 12 horas según la zona horaria del lugar de instalación.
   log_d("sketch compilado en %s %s", builddate, buildtime);
 
   tm.tm_hour = atoi(buildtime);
@@ -172,6 +175,8 @@ uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
     break;
   }
 
+  // NOTA: la función mktime() espera una descomposición de fecha y hora en zona
+  // horaria LOCAL, no UTC. Pero no se dispone de zona horaria en este lugar.
   return mktime(&tm);
 }
 
@@ -187,6 +192,8 @@ void YuboxNTPConfigClass::_configTime(void)
 
 void YuboxNTPConfigClass::setSystemTime(uint32_t t, bool markntpsync, bool forceBackwards)
 {
+  log_d("Timestamp indicado para programar: %ld", t);
+
   // Hora actualmente programada en el sistema
   struct timeval tv; bool updatetime = false;
   if (0 == gettimeofday(&tv, NULL)) {
