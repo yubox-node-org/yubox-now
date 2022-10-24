@@ -47,6 +47,12 @@ public:
 
   bool isNTPValid(uint32_t ms_timeout = 1000);
 
+  // Reporte del offset de zona horaria configurado vía GUI, en segundos.
+  // Por ejemplo, configuración de GMT-5 se devuelve como -18000.
+  // Este offset debería ser casi siempre el programado como zona horaria
+  // en el sistema.
+  long getNTPOffsetConfig(void) { return _ntpOffset; }
+
   // Función a llamar regularmente para actualizar el cliente NTPClient
   bool update(uint32_t ms_timeout = 1000);
 
