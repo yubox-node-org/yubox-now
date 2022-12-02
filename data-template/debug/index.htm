@@ -1,0 +1,19 @@
+<div class="card mb-2">
+    <div class="card-header">Configuracion Debug</div>
+    <div class="card-body">
+        <form id="debugparam">
+          <div class="form-group">
+            <label for="debug_level">Debug Level:</label>
+            <select class="form-control" name="debug_level" id="debug_level" aria-describedby="debug_level_help">
+                <option value="0">Error</option>
+                <option value="1">Warn</option>
+                <option value="2">Info</option>
+                <option value="3">Debug</option>
+                <option value="4">Verbose</option>
+            </select>
+            <small id="debug_level_help" class="form-text text-muted"></small>
+          </div>
+          <button type="button" class="btn btn-primary" name="saveconfig">Guardar</button>
+        </form>
+    </div>
+</div>
