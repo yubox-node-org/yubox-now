@@ -20,14 +20,21 @@ int indiceBuffer = 0;
 
 void _taskLogger(void *pvParameters) // This is a task.
 {
-    char _levelLog = bufferLog[9];
-    const char *ptr = strchr(_debugLevelLetter, _levelLog);
+    int _indexLevelLog = String(bufferLog).indexOf("[", 4);
+    
+    // Valido si existe el log
+    if (_indexLevelLog != -1)
+    {
+        // Obtengo el levelLog
+        char _levelLog = bufferLog[_indexLevelLog + 1];
+        const char *ptr = strchr(_debugLevelLetter, _levelLog);
+        int index = 0;
+        if (ptr)
+            index = ptr - _debugLevelLetter;
 
-    int index;
-    if (ptr)
-        index = ptr - _debugLevelLetter;
-
-    esp_log_write(_levels[index], "%s", bufferLog);
+        // Envio el Log
+        esp_log_write(_levels[index], "%s", bufferLog);
+    }
 
     // Limpio el buffer
     indiceBuffer = 0;
@@ -68,7 +75,7 @@ int YuboxDebugClass::_debugEspressifHandler(const char *format, va_list args)
     AsyncEspNow &espNow = YuboxEspNowConfig.getEspNowClient();
     espNow.send(peerAddress, ((uint8_t *)&msg), sizeof(msg));
 
-    return Serial.print(buffer);
+    return Serial.println(buffer);
 }
 
 void YuboxDebugClass::begin(AsyncWebServer &srv)
