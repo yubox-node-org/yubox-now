@@ -1,10 +1,6 @@
 #include <Arduino.h>
 #include "YuboxSimple.h"
 
-#ifdef CUSTOM_LOG
-#include "YuboxDebugClass.h"
-#endif
-
 AsyncWebServer yubox_HTTPServer(80);
 
 static void yubox_json_notFound(AsyncWebServerRequest *request)
@@ -35,11 +31,6 @@ void yuboxSimpleSetup(void)
   yubox_HTTPServer.onNotFound(yubox_json_notFound);
 
   YuboxWiFi.beginServerOnWiFiReady(&yubox_HTTPServer);
-
-#ifdef CUSTOM_LOG
-  YuboxDebugConfig.begin(yubox_HTTPServer);
-  delay(2000);
-#endif
 }
 
 void yuboxAddManagedHandler(AsyncWebHandler* handler)
