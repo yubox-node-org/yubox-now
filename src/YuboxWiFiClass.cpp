@@ -895,6 +895,10 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
   bool pinNetwork = false;
   uint8_t authmode;
 
+  tempNetwork._dirty = false;
+  tempNetwork.numFails = 0;
+  tempNetwork.selectedNet = false;
+
   if (!clientError) {
     if (!request->hasParam("ssid", true)) {
       clientError = true;
@@ -902,6 +906,14 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
     } else {
       p = request->getParam("ssid", true);
       tempNetwork.cred.ssid = p->value();
+
+      // Si la red ya existía, asumir sus credenciales a menos que se indique otra cosa
+      for (auto i = 0; i < _savedNetworks.size(); i++) {
+        if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
+          tempNetwork.cred = _savedNetworks[i].cred;
+          break;
+        }
+      }
     }
   }
   if (!clientError) {
@@ -929,25 +941,29 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
 
   if (!clientError) {
     if (authmode == WIFI_AUTH_WPA2_ENTERPRISE) {
-      if (!clientError && !request->hasParam("identity", true)) {
-        clientError = true;
-        responseMsg = "Se requiere una identidad para esta red";
-      } else {
+      // Recoger las credenciales si han sido especificadas, o asumir anteriores (si hay)
+      if (request->hasParam("identity", true)) {
         p = request->getParam("identity", true);
         tempNetwork.cred.identity = p->value();
       }
-      if (!clientError && !request->hasParam("password", true)) {
-        clientError = true;
-        responseMsg = "Se requiere contraseña para esta red";
-      } else {
+      if (request->hasParam("password", true)) {
         p = request->getParam("password", true);
         tempNetwork.cred.password = p->value();
       }
-    } else if (authmode != WIFI_AUTH_OPEN) {
-      if (!request->hasParam("psk", true)) {
+
+      if (!clientError && tempNetwork.cred.identity.isEmpty()) {
+        clientError = true;
+        responseMsg = "Se requiere una identidad para esta red";
+      }
+      if (!clientError && tempNetwork.cred.password.isEmpty()) {
         clientError = true;
         responseMsg = "Se requiere contraseña para esta red";
-      } else {
+      }
+
+      tempNetwork.cred.psk.clear();
+    } else if (authmode != WIFI_AUTH_OPEN) {
+      // Recoger la clave si se ha especificado, o asumir anterior (si hay)
+      if (request->hasParam("psk", true)) {
         p = request->getParam("psk", true);
         if (p->value().length() < 8) {
           clientError = true;
@@ -956,6 +972,18 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
           tempNetwork.cred.psk = p->value();
         }
       }
+
+      if (!clientError && tempNetwork.cred.psk.isEmpty()) {
+        clientError = true;
+        responseMsg = "Se requiere contraseña para esta red";
+      }
+
+      tempNetwork.cred.identity.clear();
+      tempNetwork.cred.password.clear();
+    } else {
+        tempNetwork.cred.psk.clear();
+        tempNetwork.cred.identity.clear();
+        tempNetwork.cred.password.clear();
     }
   }
 
