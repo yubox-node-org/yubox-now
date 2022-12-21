@@ -960,7 +960,32 @@ bool YuboxMQTTConfClass::_isValidHostname(String & h)
 
 bool YuboxMQTTConfClass::_isValidMQTTTopic(String & topic)
 {
-  // TODO: implementar
+  // Tópico vacío está explícitamente validado porque indica resetear a default
+  if (topic.isEmpty()) return true;
+
+  // Los tópicos que inician con '$' son reservados
+  if (topic.charAt(0) == '$') return false;
+
+  // El tópico no puede empezar con barra inclinada
+  if (topic.charAt(0) == '/') return false;
+
+  int topicLevelStart = 0;
+  do {
+    int nextSlash = topic.indexOf('/', topicLevelStart);
+    String topicLevel = (nextSlash < 0) ? topic.substring(topicLevelStart) : topic.substring(topicLevelStart, nextSlash);
+
+    // El nivel de tópico debe ser no-vacío
+    if (topicLevel.isEmpty()) return false;
+
+    // El nivel de tópico no puede contener: +#
+    const char * blacklist = "+#";
+    for (const char * chr = blacklist; *chr != '\0'; chr++) {
+      if (-1 != topicLevel.indexOf(*chr)) return false;
+    }
+
+    topicLevelStart = (nextSlash < 0) ? -1 : nextSlash + 1;
+  } while (topicLevelStart >= 0);
+
   return true;
 }
 
