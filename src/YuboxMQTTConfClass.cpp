@@ -57,6 +57,8 @@ YuboxMQTTConfClass::YuboxMQTTConfClass(void)
   _mqtt_msec_changed = false;
   _mqtt_msec_changed_cb = NULL;
 
+  _appDefaultPrefix = NULL;
+
   _mqttReconnectTimer = xTimerCreate(
     "YuboxMQTTConfClass_mqttTimer",
     pdMS_TO_TICKS(2000),
@@ -83,6 +85,37 @@ void YuboxMQTTConfClass::begin(AsyncWebServer & srv)
   WiFi.onEvent(std::bind(&YuboxMQTTConfClass::_cbHandler_WiFiEvent, this, std::placeholders::_1, std::placeholders::_2));
   _loadSavedCredentialsFromNVRAM();
   _setupHTTPRoutes(srv);
+}
+
+void YuboxMQTTConfClass::setDefaultPublishPrefix(const char * p)
+{
+  _appDefaultPrefix = p;
+}
+
+String YuboxMQTTConfClass::buildPublishPrefix(void)
+{
+  return buildPublishPrefix(YuboxWiFi.getMDNSHostname());
+}
+
+String YuboxMQTTConfClass::buildPublishPrefix(String devId)
+{
+  String yuboxMQTT_topic_full;
+
+  if (_yuboxMQTT_customPrefixSet) {
+    yuboxMQTT_topic_full = _yuboxMQTT_customPrefix;
+    yuboxMQTT_topic_full.replace("{YBXID}", devId);
+
+    // Esto no debería pasar, pero si el prefijo personalizado está vacío,
+    // se asigna el ID de dispositivo para que el tópico MQTT no esté vacío.
+    if (yuboxMQTT_topic_full.isEmpty()) {
+      yuboxMQTT_topic_full = devId;
+    }
+  } else {
+    yuboxMQTT_topic_full = (_appDefaultPrefix == NULL) ? "" : _appDefaultPrefix;
+    yuboxMQTT_topic_full += devId;
+  }
+
+  return yuboxMQTT_topic_full;
 }
 
 void YuboxMQTTConfClass::onMQTTInterval(YuboxMQTT_intervalchange_cb cb)
@@ -124,6 +157,17 @@ void YuboxMQTTConfClass::_loadSavedCredentialsFromNVRAM(void)
   _mqttClient.setClientId(_yuboxMQTT_default_clientid.c_str());
   _mqttClient.setWsEnabled(_yuboxMQTT_ws);
   if (_yuboxMQTT_ws) _mqttClient.setWsUri(_yuboxMQTT_wsUri.c_str());
+
+  // Aquí se debe distinguir entre clave vacía y clave no asignada
+  if (nvram.isKey("topic")) {
+    _yuboxMQTT_customPrefix = nvram.getString("topic");
+    _yuboxMQTT_customPrefixSet = true;
+    log_d("Plantilla personalizada para tópico MQTT: [%s]", _yuboxMQTT_customPrefix.c_str());
+  } else {
+    log_d("No hay plantilla personalizada para tópico MQTT");
+    _yuboxMQTT_customPrefixSet = false;
+    _yuboxMQTT_customPrefix.clear();
+  }
 
 #if ASYNC_TCP_SSL_ENABLED
   _tls_verifylevel = nvram.getUChar("tlslevel", YUBOX_MQTT_SSL_NONE);
@@ -339,7 +383,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(15));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(17));
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["want2connect"] = _autoConnect;
@@ -372,6 +416,13 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
 
   json_doc["ws"] = _yuboxMQTT_ws;
   json_doc["wsuri"] = _yuboxMQTT_wsUri.c_str();
+
+  json_doc["topic_capable"] = (_appDefaultPrefix != NULL);
+  if (_yuboxMQTT_customPrefixSet) {
+    json_doc["topic"] = _yuboxMQTT_customPrefix.c_str();
+  } else {
+    json_doc["topic"] = (const char *)NULL;
+  }
 
   // Valores por omisión para cuando no hay TLS
   json_doc["tls_capable"] = false;
@@ -415,6 +466,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   bool n_ws;
   String n_wsUri;
   uint32_t n_mqttmsec;
+  String n_topic;
 
   n_host = _yuboxMQTT_host;
   n_user = _yuboxMQTT_user;
@@ -423,6 +475,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   n_ws = _yuboxMQTT_ws;
   n_wsUri = _yuboxMQTT_wsUri;
   n_mqttmsec = _mqtt_msec;
+  n_topic = _yuboxMQTT_customPrefix;
 
 #if ASYNC_TCP_SSL_ENABLED
   uint8_t n_tls_verifylevel = _tls_verifylevel;
@@ -514,6 +567,18 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     }
   }
 
+  // Sólo considerar tópico personalizado si proyecto ha sido actualizado para lidiar con él.
+  if (!clientError && _appDefaultPrefix != NULL) {
+    if (request->hasParam("topic", true)) {
+      p = request->getParam("topic", true);
+      n_topic = p->value();
+      if (!_isValidMQTTTopic(n_topic)) {
+        clientError = true;
+        responseMsg = "Plantilla para tópico MQTT no es válida";
+      }
+    }
+  }
+
   // Si todos los parámetros son válidos, se intenta guardar en NVRAM
   if (!clientError) {
     Preferences nvram;
@@ -546,6 +611,10 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     if (!serverError && !nvram.putString("wsuri", n_wsUri)) {
       serverError = true;
       responseMsg = "No se puede guardar valor para clave: wsuri";
+    }
+    if (!serverError && !NVRAM_PUTSTRING(nvram, "topic", n_topic)) {
+      serverError = true;
+      responseMsg = "No se puede guardar valor para clave: topic";
     }
 #if ASYNC_TCP_SSL_ENABLED
     if (!serverError && !nvram.putUChar("tlslevel", n_tls_verifylevel)) {
@@ -886,6 +955,12 @@ bool YuboxMQTTConfClass::_isValidHostname(String & h)
       if (!isalnum(hc[i]) && hc[i] != '-') return false;
     }
   }
+  return true;
+}
+
+bool YuboxMQTTConfClass::_isValidMQTTTopic(String & topic)
+{
+  // TODO: implementar
   return true;
 }
 

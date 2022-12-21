@@ -39,6 +39,10 @@ private:
   bool _mqtt_msec_changed;
   YuboxMQTT_intervalchange_cb _mqtt_msec_changed_cb;
 
+  const char * _appDefaultPrefix;
+  bool _yuboxMQTT_customPrefixSet;
+  String _yuboxMQTT_customPrefix;
+
 #if ASYNC_TCP_SSL_ENABLED
   uint32_t _rootCA_len; uint8_t * _rootCA;
   uint32_t _clientCert_len; uint8_t * _clientCert;
@@ -76,6 +80,7 @@ private:
   void _routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServerRequest *);
 
   bool _isValidHostname(String & h);
+  bool _isValidMQTTTopic(String & topic);
 
   void _cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t);
   void _cbHandler_onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
@@ -105,6 +110,10 @@ public:
 
   uint32_t getMinimumMQTTInterval(void) { return _mqtt_min; }
   void setMinimumMQTTInterval(uint32_t v) { _mqtt_min = v; }
+
+  void setDefaultPublishPrefix(const char *);
+  String buildPublishPrefix(void);
+  String buildPublishPrefix(String);
 
   friend void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t);
 };

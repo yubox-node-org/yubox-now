@@ -57,6 +57,17 @@
             <small id="mqttportAyuda" class="form-text text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
         </div>
     </div>
+    <div class="form-row topic-capable" style="display: none;">
+        <div class="form-group col">
+            <label for="topic">Plantilla tópico MQTT:</label>
+            <input type="text" id="topic" name="topic" class="form-control" placeholder="topic/para/org/{YBXID}"
+                aria-describedby="topicAyuda" value="" />
+            <small id="topicAyuda" class="form-text text-muted">Plantilla para construir el tópico o prefijo base en lugar del usado
+                normalmente por este firmware. Toda ocurrencia de <code>{YBXID}</code> será reemplazada por el identificador de
+                dispositivo (normalmente de la forma YUBOX-{MAC}).
+            </small>
+        </div>
+    </div>
     <div class="form-group mqtt-tls" style="display: none;">
         <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">Nivel TLS:</legend>
