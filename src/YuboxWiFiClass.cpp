@@ -761,9 +761,9 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
     // Asignar clave conocida desde NVRAM si está disponible
     json_doc["saved"] = false;
-    json_doc["psk"] = (char *)NULL;
-    json_doc["identity"] = (char *)NULL;
-    json_doc["password"] = (char *)NULL;
+    json_doc["psk"] = false;
+    json_doc["identity"] = false;
+    json_doc["password"] = false;
 
     unsigned int j;
     for (j = 0; j < _savedNetworks.size(); j++) {
@@ -773,13 +773,13 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
       json_doc["saved"] = true;       // Se tiene disponible información sobre la red
 
       temp_psk = _savedNetworks[j].cred.psk;
-      if (!temp_psk.isEmpty()) json_doc["psk"] = temp_psk.c_str();
+      if (!temp_psk.isEmpty()) json_doc["psk"] = true;
 
       temp_identity = _savedNetworks[j].cred.identity;
-      if (!temp_identity.isEmpty()) json_doc["identity"] = temp_identity.c_str();
+      if (!temp_identity.isEmpty()) json_doc["identity"] = true;
 
       temp_password = _savedNetworks[j].cred.password;
-      if (!temp_password.isEmpty()) json_doc["password"] = temp_password.c_str();
+      if (!temp_password.isEmpty()) json_doc["password"] = true;
     }
 
     serializeJson(json_doc, json_output);
@@ -1223,12 +1223,12 @@ void YuboxWiFiClass::_serializeOneSavedNetwork(AsyncResponseStream *response, ui
   StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_doc;
 
   json_doc["ssid"] = _savedNetworks[i].cred.ssid.c_str();
-  json_doc["psk"] = (const char *)NULL;
-  json_doc["identity"] = (const char *)NULL;
-  json_doc["password"] = (const char *)NULL;
-  if (_savedNetworks[i].cred.psk.length() > 0) json_doc["psk"] = _savedNetworks[i].cred.psk.c_str();
-  if (_savedNetworks[i].cred.identity.length() > 0) json_doc["identity"] = _savedNetworks[i].cred.identity.c_str();
-  if (_savedNetworks[i].cred.password.length() > 0) json_doc["password"] = _savedNetworks[i].cred.password.c_str();
+  json_doc["psk"] = false;
+  json_doc["identity"] = false;
+  json_doc["password"] = false;
+  if (_savedNetworks[i].cred.psk.length() > 0) json_doc["psk"] = true;
+  if (_savedNetworks[i].cred.identity.length() > 0) json_doc["identity"] = true;
+  if (_savedNetworks[i].cred.password.length() > 0) json_doc["password"] = true;
 
   serializeJson(json_doc, *response);
 }

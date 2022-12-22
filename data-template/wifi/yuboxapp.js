@@ -134,11 +134,11 @@ function setupWiFiTab()
                 let tr_wifinet = wifipane.data['wifinetworks-template'].cloneNode(true);
                 tr_wifinet.data = {'ssid': net.ssid};
                 tr_wifinet.querySelector('td#ssid').textContent = (net.ssid);
-                if (net.identity != null) {
+                if (net.identity) {
                     // Autenticación WPA-ENTERPRISE
                     tr_wifinet.querySelector('td#auth').title = 'Seguridad: ' + wifiauth_desc(5);
                     tr_wifinet.querySelector('td#auth > svg.wifiauth > path.locked').style.display = '';
-                } else if (net.psk != null) {
+                } else if (net.psk) {
                     // Autenticación PSK
                     tr_wifinet.querySelector('td#auth').title = 'Seguridad: ' + wifiauth_desc(4);
                     tr_wifinet.querySelector('td#auth > svg.wifiauth > path.locked').style.display = '';
@@ -165,7 +165,7 @@ function setupWiFiTab()
             // Diálogo modal Bootstrap 4 requiere jQuery
             $(dlg_wifinetworks).modal('hide');
         }
-        yuboxWiFi_displayNetworkDialog('manual', { authmode : 4, psk: null});
+        yuboxWiFi_displayNetworkDialog('manual', { authmode : 4, psk: false});
     };
     wifipane.querySelectorAll('button[name=addnet]')
         .forEach((el) => { el.addEventListener('click', addnet_cb); });
@@ -226,8 +226,13 @@ function setupWiFiTab()
             authmode:   parseInt(dlg_wificred.querySelector((netclass == 'scanned') ? 'input#authmode' : 'select#authmode').value),
         };
         if (netclass == 'scanned') postData['pin'] = dlg_wificred.querySelector('input[name="pin"]:checked').value;
-        ((postData.authmode == 5) ? ['identity', 'password'] : (postData.authmode > 0) ? ['psk'] : [])
-            .forEach((k) => { postData[k] = dlg_wificred.querySelector('div.wifi-auth input#'+k).value; });
+        ((postData.authmode == 5) ? ['identity', 'password'] : (postData.authmode > 0) ? ['psk'] : []).forEach((k) => {
+            // Si la red indicada ya ha sido ingresada con credenciales previas, NO se dispone
+            // de ellas aquí. Se confía en que al omitir el valor en cuestión, se usarán los
+            // valores ya guardados en base al ssid.
+            let val = dlg_wificred.querySelector('div.wifi-auth input#'+k).value;
+            if (val.length > 0) postData[k] = val;
+        });
 
         if (netclass == 'scanned') {
             // Puede ocurrir que la red ya no exista según el escaneo más reciente
@@ -306,18 +311,21 @@ function yuboxWiFi_displayNetworkDialog(netclass, net)
     }
     dlg_wificred.querySelector('input[name="pin"]#N').click();
 
+    // Quitar clase de presencia de credenciales y valores previos
+    dlg_wificred.querySelectorAll('div.wifi-auth input').forEach(el => {
+        el.classList.remove('havecred');
+        el.value = '';
+    });
+
     const sel_authmode = dlg_wificred.querySelector('select#authmode');
     if (net.authmode == 5) {
         // Autenticación WPA-ENTERPRISE
-        dlg_wificred.querySelector('div.wifi-auth-eap input#identity')
-            .value = ((net.identity != null) ? net.identity : '');
-        dlg_wificred.querySelector('div.wifi-auth-eap input#password')
-            .value = ((net.password != null) ? net.password : '');
+        if (net.identity) dlg_wificred.querySelector('div.wifi-auth-eap input#identity').classList.add('havecred');
+        if (net.password) dlg_wificred.querySelector('div.wifi-auth-eap input#password').classList.add('havecred');
         sel_authmode.value = (5);
     } else if (net.authmode > 0) {
         // Autenticación con contraseña
-        dlg_wificred.querySelector('div.wifi-auth-psk input#psk')
-            .value = ((net.psk != null) ? net.psk : '');
+        if (net.psk) dlg_wificred.querySelector('div.wifi-auth-psk input#psk').classList.add('havecred');
         sel_authmode.value = (4);
     } else {
         // Red sin autenticación
@@ -337,7 +345,7 @@ function checkValidWifiCred_EAP()
     const wifipane = getYuboxPane('wifi', true);
     const dlg_wificred = wifipane.querySelector('div#wifi-credentials');
     var numLlenos = Array.from(dlg_wificred.querySelectorAll('div.wifi-auth-eap input'))
-        .filter(function(inp) { return (inp.value != ''); })
+        .filter(function(inp) { return (inp.classList.contains('havecred') || inp.value != ''); })
         .length;
     dlg_wificred.querySelector('button[name=connect]').disabled = !(numLlenos >= 2);
 }
@@ -347,8 +355,10 @@ function checkValidWifiCred_PSK()
     // Activar el botón de enviar credenciales si la clave es de al menos 8 caracteres
     const wifipane = getYuboxPane('wifi', true);
     const dlg_wificred = wifipane.querySelector('div#wifi-credentials');
-    var psk = dlg_wificred.querySelector('div.wifi-auth-psk input#psk').value;
-    dlg_wificred.querySelector('button[name=connect]').disabled = !(psk.length >= 8);
+    let inp = dlg_wificred.querySelector('div.wifi-auth-psk input#psk');
+    var psk = inp.value;
+    dlg_wificred.querySelector('button[name=connect]').disabled =
+        !((inp.classList.contains('havecred') && psk.length <= 0) || psk.length >= 8);
 }
 
 function yuboxWiFi_isTabActive()
