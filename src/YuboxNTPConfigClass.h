@@ -6,6 +6,14 @@
 
 #include "time.h"
 
+typedef enum {
+  TIMECHANGE_NONE = 0,  // No hay cambio de hora
+  TIMECHANGE_INIT,  // Asignación de hora al arranque del dispositivo
+  TIMECHANGE_NTP,   // Asignación de hora como resultado de NTP
+  TIMECHANGE_APP,   // Asignación como resultado de método setSystemTime()
+  TIMECHANGE_POST   // Asignación como resultado de POST desde navegador
+} YuboxNTPConfig_TimeChangeReason;
+
 class YuboxNTPConfigClass
 {
 private:
@@ -22,6 +30,8 @@ private:
   // Si el proyecto dispone de RTC, aquí se almacena el valor de unixtime
   // generado a partir del RTC hasta hacer funcionar el NTP.
   uint32_t _rtcHint;
+
+  YuboxNTPConfig_TimeChangeReason _timeChangeReason;
 
   uint32_t _getSketchCompileTimestamp(void);
 
@@ -65,6 +75,10 @@ public:
   // Mantener separación entre hora local y hora UTC
   unsigned long getLocalTime(void);
   unsigned long getUTCTime(void);
+
+  // Preguntar y luego limpiar notificación de cambio de hora
+  YuboxNTPConfig_TimeChangeReason getLastTimeChangeReason(void) { return _timeChangeReason; }
+  void clearLastTimeChangeReason(void) { _timeChangeReason = TIMECHANGE_NONE; }
 
   // NO LLAMAR DESDE APLICACIÓN
   void _sntp_sync_time_cb(struct timeval *);

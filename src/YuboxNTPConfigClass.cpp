@@ -33,6 +33,7 @@ YuboxNTPConfigClass::YuboxNTPConfigClass(void)
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
     _rtcHint = 0;
+    _timeChangeReason = TIMECHANGE_NONE;
 
     sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
 }
@@ -49,6 +50,7 @@ void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
     Preferences nvram;
     nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
     nvram.putLong("ntpsec", tv->tv_sec);
+    _timeChangeReason = TIMECHANGE_NTP;
   }
 }
 
@@ -128,6 +130,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   log_d("time() devuelve ahora: %ld", time(NULL));
 
   _configTime();
+  _timeChangeReason = TIMECHANGE_INIT;
 }
 
 uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
@@ -235,6 +238,8 @@ void YuboxNTPConfigClass::setSystemTime(uint32_t t, bool markntpsync, bool force
       nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
       nvram.putLong("ntpsec", tv.tv_sec);
     }
+
+    _timeChangeReason = TIMECHANGE_APP;
   }
 
   log_d("time() devuelve ahora: %ld", time(NULL));
@@ -420,6 +425,8 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerR
         serverError = true;
         responseMsg = "No se puede asignar nueva hora de sistema (fallo de NVRAM)";
       }
+
+      _timeChangeReason = TIMECHANGE_POST;
     }
   }
 
