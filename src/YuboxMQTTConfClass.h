@@ -85,6 +85,9 @@ public:
   // Obtener referencia al cliente MQTT que se maneja, para agregar callbacks
   AsyncMqttClient & getMQTTClient(void) { return _mqttClient; }
 
+  // Función que devuelve VERDADERO si hay un host broker MQTT configurado
+  bool isBrokerConfigured(void) { return (_yuboxMQTT_host.length() > 0); }
+
   friend void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t);
 };
 
