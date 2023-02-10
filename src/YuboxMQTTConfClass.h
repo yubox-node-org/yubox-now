@@ -1,6 +1,8 @@
 #ifndef _YUBOX_MQTT_CONF_CLASS_H_
 #define _YUBOX_MQTT_CONF_CLASS_H_
 
+#ifndef YUBOX_DISABLE_INTERNAL_MQTT
+
 #include <ESPAsyncWebServer.h>
 
 #include <AsyncMqttClient.h>
@@ -120,4 +122,5 @@ public:
 
 extern YuboxMQTTConfClass YuboxMQTTConf;
 
+#endif
 #endif

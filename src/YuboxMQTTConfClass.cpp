@@ -1,3 +1,5 @@
+#ifndef YUBOX_DISABLE_INTERNAL_MQTT
+
 #include "YuboxWiFiClass.h"
 #include "YuboxMQTTConfClass.h"
 #include "YuboxWebAuthClass.h"
@@ -990,3 +992,4 @@ bool YuboxMQTTConfClass::_isValidMQTTTopic(String & topic)
 }
 
 YuboxMQTTConfClass YuboxMQTTConf;
+#endif
