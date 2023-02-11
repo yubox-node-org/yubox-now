@@ -1,5 +1,4 @@
 #include <YuboxSimple.h>
-#include <YuboxMQTTConfClass.h>
 
 /*
 Si se dispone de una placa con el sensor BMP280 conectado en el bus I2C, como
@@ -29,8 +28,6 @@ void setup()
   Serial.begin(115200);
 
   yuboxAddManagedHandler(&eventosLector);
-
-  YuboxMQTTConf.begin(yubox_HTTPServer);
 
   yuboxSimpleSetup();
 

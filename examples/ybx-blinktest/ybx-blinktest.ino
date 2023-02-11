@@ -15,10 +15,19 @@ AsyncWebServer server(80);
 void notFound(AsyncWebServerRequest *);
 void setupAsyncServerHTTP(void);
 
+#if CONFIG_IDF_TARGET_ESP32S3
+#define   LED             LED_BUILTIN
+#else
 #define   LED             GPIO_NUM_4
+#endif
 
 void setup()
 {
+  // La siguiente demora es sólo para comodidad de desarrollo para enchufar el USB
+  // y verlo en gtkterm. No es en lo absoluto necesaria como algoritmo requerido.
+  delay(3000);
+  Serial.begin(115200);
+
   if (!SPIFFS.begin(true)) {
     Serial.println("ERR: ha ocurrido un error al montar SPIFFS");
     while (true) delay(1000);

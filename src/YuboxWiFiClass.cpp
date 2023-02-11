@@ -28,6 +28,7 @@ YuboxWiFiClass::YuboxWiFiClass(void)
   _assumeControlOfWiFi = true;
   _enableSoftAP = true;
   _softAPConfigured = false;
+  _softAPHide = false;
 
   _pWebSrvBootstrap = NULL;
   _eventId_cbHandler_WiFiEvent = 0;
@@ -260,8 +261,39 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
             // explícitamente para recuperar control luego de cederlo a otra lib.
             IPAddress apIp(192, 168, 4, 1);
             IPAddress apNetmask(255, 255, 255, 0);
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
+            // NO DEBE DE DEPENDERSE DE PARÁMETRO default IPAddress dhcp_lease_start = INADDR_NONE
+            // en WiFiAPClass::softAPConfig() !
+            // https://github.com/espressif/arduino-esp32/issues/6760
+            IPAddress apLeaseStart(0, 0, 0, 0);
+#endif
+#endif
 
-            WiFi.softAPConfig(apIp, apIp, apNetmask);
+            if (!WiFi.softAPConfig(apIp, apIp, apNetmask
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
+              , apLeaseStart
+#endif
+#endif
+              )) {
+                log_e("Falla al asignar interfaz SoftAP: %s | Gateway: %s "
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
+                      "| DHCP Start: %s "
+#endif
+#endif
+                      "| Netmask: %s",
+                    apIp.toString().c_str(),
+                    apIp.toString().c_str(),
+#ifdef ESP_ARDUINO_VERSION
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 4)
+                    apLeaseStart.toString().c_str(),
+#endif
+#endif
+                    apNetmask.toString().c_str()
+                );
+            }
         }
         break;
 #if ESP_IDF_VERSION_MAJOR > 3
@@ -287,10 +319,17 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 void YuboxWiFiClass::_enableWiFiMode(void)
 {
   if (_enableSoftAP) {
-    log_i("Iniciando modo dual WiFi (AP+STA)...");
+    log_i("Iniciando modo dual WiFi (AP+STA), softAP SSID=%s (%s)...",
+      _apName.c_str(),
+      _softAPHide ? "ESCONDIDO" : "VISIBLE");
     WiFi.mode(WIFI_AP_STA);
     if (!_softAPConfigured) {
-      WiFi.softAP(_apName.c_str());
+      WiFi.softAP(
+        _apName.c_str(),
+        NULL,               // passphrase
+        1,                  // channel
+        _softAPHide ? 1 : 0 // ssid_hidden
+        );
       _softAPConfigured = true;
     }
   } else {
@@ -481,6 +520,9 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
 
   // Activación expresa de interfaz softAP
   _enableSoftAP = nvram.getBool("net/softAP", true);
+
+  // Esconder red softAP de los escaneos
+  _softAPHide = nvram.getBool("net/softAPHide", false);
 }
 
 void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
@@ -671,6 +713,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
     "/yubox-api/wificonfig/networks/{SSID}",
     "/yubox-api/wificonfig/networks?ssid={SSID}"
   ));
+  srv.on("/yubox-api/wificonfig/softap", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
@@ -718,9 +761,9 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
     // Asignar clave conocida desde NVRAM si está disponible
     json_doc["saved"] = false;
-    json_doc["psk"] = (char *)NULL;
-    json_doc["identity"] = (char *)NULL;
-    json_doc["password"] = (char *)NULL;
+    json_doc["psk"] = false;
+    json_doc["identity"] = false;
+    json_doc["password"] = false;
 
     unsigned int j;
     for (j = 0; j < _savedNetworks.size(); j++) {
@@ -730,13 +773,13 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
       json_doc["saved"] = true;       // Se tiene disponible información sobre la red
 
       temp_psk = _savedNetworks[j].cred.psk;
-      if (!temp_psk.isEmpty()) json_doc["psk"] = temp_psk.c_str();
+      if (!temp_psk.isEmpty()) json_doc["psk"] = true;
 
       temp_identity = _savedNetworks[j].cred.identity;
-      if (!temp_identity.isEmpty()) json_doc["identity"] = temp_identity.c_str();
+      if (!temp_identity.isEmpty()) json_doc["identity"] = true;
 
       temp_password = _savedNetworks[j].cred.password;
-      if (!temp_password.isEmpty()) json_doc["password"] = temp_password.c_str();
+      if (!temp_password.isEmpty()) json_doc["password"] = true;
     }
 
     serializeJson(json_doc, json_output);
@@ -750,7 +793,7 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
 {
   if (_pEvents->count() <= 0) return;
 
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
   json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
 
   if (_selNetwork >= 0 && _selNetwork < _savedNetworks.size()) {
@@ -758,6 +801,10 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
   } else {
     json_doc["pinned_ssid"] = (const char *)NULL;
   }
+
+  json_doc["enable_softap"] = _enableSoftAP;
+  json_doc["softap_ssid"] = _apName.c_str();
+  json_doc["softap_hide"] = _softAPHide;
 
   String json_str;
   serializeJson(json_doc, json_str);
@@ -848,6 +895,10 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
   bool pinNetwork = false;
   uint8_t authmode;
 
+  tempNetwork._dirty = false;
+  tempNetwork.numFails = 0;
+  tempNetwork.selectedNet = false;
+
   if (!clientError) {
     if (!request->hasParam("ssid", true)) {
       clientError = true;
@@ -855,6 +906,14 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
     } else {
       p = request->getParam("ssid", true);
       tempNetwork.cred.ssid = p->value();
+
+      // Si la red ya existía, asumir sus credenciales a menos que se indique otra cosa
+      for (auto i = 0; i < _savedNetworks.size(); i++) {
+        if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
+          tempNetwork.cred = _savedNetworks[i].cred;
+          break;
+        }
+      }
     }
   }
   if (!clientError) {
@@ -882,25 +941,29 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
 
   if (!clientError) {
     if (authmode == WIFI_AUTH_WPA2_ENTERPRISE) {
-      if (!clientError && !request->hasParam("identity", true)) {
-        clientError = true;
-        responseMsg = "Se requiere una identidad para esta red";
-      } else {
+      // Recoger las credenciales si han sido especificadas, o asumir anteriores (si hay)
+      if (request->hasParam("identity", true)) {
         p = request->getParam("identity", true);
         tempNetwork.cred.identity = p->value();
       }
-      if (!clientError && !request->hasParam("password", true)) {
-        clientError = true;
-        responseMsg = "Se requiere contraseña para esta red";
-      } else {
+      if (request->hasParam("password", true)) {
         p = request->getParam("password", true);
         tempNetwork.cred.password = p->value();
       }
-    } else if (authmode != WIFI_AUTH_OPEN) {
-      if (!request->hasParam("psk", true)) {
+
+      if (!clientError && tempNetwork.cred.identity.isEmpty()) {
+        clientError = true;
+        responseMsg = "Se requiere una identidad para esta red";
+      }
+      if (!clientError && tempNetwork.cred.password.isEmpty()) {
         clientError = true;
         responseMsg = "Se requiere contraseña para esta red";
-      } else {
+      }
+
+      tempNetwork.cred.psk.clear();
+    } else if (authmode != WIFI_AUTH_OPEN) {
+      // Recoger la clave si se ha especificado, o asumir anterior (si hay)
+      if (request->hasParam("psk", true)) {
         p = request->getParam("psk", true);
         if (p->value().length() < 8) {
           clientError = true;
@@ -909,6 +972,18 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
           tempNetwork.cred.psk = p->value();
         }
       }
+
+      if (!clientError && tempNetwork.cred.psk.isEmpty()) {
+        clientError = true;
+        responseMsg = "Se requiere contraseña para esta red";
+      }
+
+      tempNetwork.cred.identity.clear();
+      tempNetwork.cred.password.clear();
+    } else {
+        tempNetwork.cred.psk.clear();
+        tempNetwork.cred.identity.clear();
+        tempNetwork.cred.password.clear();
     }
   }
 
@@ -1148,12 +1223,12 @@ void YuboxWiFiClass::_serializeOneSavedNetwork(AsyncResponseStream *response, ui
   StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_doc;
 
   json_doc["ssid"] = _savedNetworks[i].cred.ssid.c_str();
-  json_doc["psk"] = (const char *)NULL;
-  json_doc["identity"] = (const char *)NULL;
-  json_doc["password"] = (const char *)NULL;
-  if (_savedNetworks[i].cred.psk.length() > 0) json_doc["psk"] = _savedNetworks[i].cred.psk.c_str();
-  if (_savedNetworks[i].cred.identity.length() > 0) json_doc["identity"] = _savedNetworks[i].cred.identity.c_str();
-  if (_savedNetworks[i].cred.password.length() > 0) json_doc["password"] = _savedNetworks[i].cred.password.c_str();
+  json_doc["psk"] = false;
+  json_doc["identity"] = false;
+  json_doc["password"] = false;
+  if (_savedNetworks[i].cred.psk.length() > 0) json_doc["psk"] = true;
+  if (_savedNetworks[i].cred.identity.length() > 0) json_doc["identity"] = true;
+  if (_savedNetworks[i].cred.password.length() > 0) json_doc["password"] = true;
 
   serializeJson(json_doc, *response);
 }
@@ -1178,6 +1253,71 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebS
   bool deleteconnected = (WiFi.status() == WL_CONNECTED && ssid == WiFi.SSID());
 
   _delOneSavedNetwork(request, ssid, deleteconnected);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+  AsyncWebParameter * p;
+
+  bool n_enable_softap = _enableSoftAP;
+  bool n_softap_hide = _softAPHide;
+
+  if (!clientError) {
+    if (request->hasParam("enable_softap", true)) {
+      p = request->getParam("enable_softap", true);
+      n_enable_softap = (p->value() != "0");
+    }
+    if (request->hasParam("softap_hide", true)) {
+      p = request->getParam("softap_hide", true);
+      n_softap_hide = (p->value() != "0");
+    }
+  }
+
+  if (!clientError) {
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+    if (!serverError) {
+      if (!nvram.putBool("net/softAP", n_enable_softap)) {
+        serverError = true;
+        responseMsg = "No se puede guardar nuevo estado softAP";
+      }
+    }
+    if (!serverError) {
+      if (!nvram.putBool("net/softAPHide", n_softap_hide)) {
+        serverError = true;
+        responseMsg = "No se puede guardar estado de softAP escondido";
+      }
+    }
+  }
+
+  if (!clientError && !serverError) {
+    toggleStateAP(false);
+    _softAPHide = n_softap_hide;
+    toggleStateAP(n_enable_softap);
+    _publishWiFiStatus();
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+  unsigned int httpCode = 202;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
 }
 
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)

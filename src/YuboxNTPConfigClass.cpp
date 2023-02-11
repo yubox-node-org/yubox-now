@@ -33,6 +33,7 @@ YuboxNTPConfigClass::YuboxNTPConfigClass(void)
     _ntpServerName = yubox_default_ntpserver;
     _ntpOffset = 0;
     _rtcHint = 0;
+    _timeChangeReason = TIMECHANGE_NONE;
 
     sntp_set_time_sync_notification_cb(YuboxNTPConfigClass_sntp_sync_time_cb);
 }
@@ -49,6 +50,7 @@ void YuboxNTPConfigClass::_sntp_sync_time_cb(struct timeval * tv)
     Preferences nvram;
     nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
     nvram.putLong("ntpsec", tv->tv_sec);
+    _timeChangeReason = TIMECHANGE_NTP;
   }
 }
 
@@ -128,6 +130,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   log_d("time() devuelve ahora: %ld", time(NULL));
 
   _configTime();
+  _timeChangeReason = TIMECHANGE_INIT;
 }
 
 uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
@@ -137,6 +140,9 @@ uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
   const char *builddate = __DATE__;
   const char *buildtime = __TIME__;
 
+  // NOTA: esta cadena estática es una fecha y hora local de compilación pero
+  // no dispone de información de zona horaria. Por lo tanto se introduce errores
+  // de hasta +/- 12 horas según la zona horaria del lugar de instalación.
   log_d("sketch compilado en %s %s", builddate, buildtime);
 
   tm.tm_hour = atoi(buildtime);
@@ -172,6 +178,8 @@ uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
     break;
   }
 
+  // NOTA: la función mktime() espera una descomposición de fecha y hora en zona
+  // horaria LOCAL, no UTC. Pero no se dispone de zona horaria en este lugar.
   return mktime(&tm);
 }
 
@@ -183,6 +191,58 @@ void YuboxNTPConfigClass::_configTime(void)
   } else {
     configTime(_ntpOffset, 0, _ntpServerName.c_str(), yubox_default_ntpserver);
   }
+}
+
+void YuboxNTPConfigClass::setSystemTime(uint32_t t, bool markntpsync, bool forceBackwards)
+{
+  log_d("Timestamp indicado para programar: %ld", t);
+
+  // Hora actualmente programada en el sistema
+  struct timeval tv; bool updatetime = false;
+  if (0 == gettimeofday(&tv, NULL)) {
+    log_d("gettimeofday() devuelve %ld", tv.tv_sec);
+    updatetime = false;
+
+    if (t > tv.tv_sec) {
+      log_d("input t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else if (forceBackwards) {
+      log_d("input t(%ld) <= tv_sec(%ld), FORZADO, se actualizará", t, tv.tv_sec);
+      updatetime = true;
+      tv.tv_sec = t;
+    } else {
+      log_d("input t(%ld) <= tv_sec(%ld), NO se actualizará", t, tv.tv_sec);
+    }
+  } else {
+    log_e("gettimeofday() falla errno=%d, se actualizará", errno);
+    updatetime = true;
+    memset(&tv, 0, sizeof(struct timeval));
+    tv.tv_sec = t;
+  }
+
+  // Actualizar hora si se dispone de hora válida
+  if (updatetime && tv.tv_sec != 0) {
+    log_d("actualizando hora a tv_sec=%ld...", tv.tv_sec);
+    settimeofday(&tv, NULL);
+
+    if (markntpsync) {
+      if (!_ntpValid) {
+        log_d("Se fuerza estado sincronizado NTP...");
+        _ntpValid = true;
+      }
+      _ntpLastSync = millis();
+
+      // Guardar respuesta NTP recién recibida
+      Preferences nvram;
+      nvram.begin(_ns_nvram_yuboxframework_ntpclient, false);
+      nvram.putLong("ntpsec", tv.tv_sec);
+    }
+
+    _timeChangeReason = TIMECHANGE_APP;
+  }
+
+  log_d("time() devuelve ahora: %ld", time(NULL));
 }
 
 void YuboxNTPConfigClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
@@ -365,6 +425,8 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerR
         serverError = true;
         responseMsg = "No se puede asignar nueva hora de sistema (fallo de NVRAM)";
       }
+
+      _timeChangeReason = TIMECHANGE_POST;
     }
   }
 

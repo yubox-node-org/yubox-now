@@ -1,10 +1,13 @@
 #ifndef _YUBOX_MQTT_CONF_CLASS_H_
 #define _YUBOX_MQTT_CONF_CLASS_H_
 
+#ifndef YUBOX_DISABLE_INTERNAL_MQTT
+
 #include <ESPAsyncWebServer.h>
-#include <Preferences.h>
 
 #include <AsyncMqttClient.h>
+
+typedef void (*YuboxMQTT_intervalchange_cb)(void);
 
 class YuboxMQTTConfClass
 {
@@ -29,6 +32,18 @@ private:
   String _yuboxMQTT_wsUri;
 
   String _yuboxMQTT_default_clientid;
+
+  // Intervalo en MILISEGUNDOS de envío MQTT configurado para aplicación. Es
+  // responsabilidad de la aplicación instalar un callback o de otra forma
+  // recoger el valor, y actualizarse para respetar este intervalo de envío.
+  uint32_t _mqtt_msec;
+  uint32_t _mqtt_min;
+  bool _mqtt_msec_changed;
+  YuboxMQTT_intervalchange_cb _mqtt_msec_changed_cb;
+
+  const char * _appDefaultPrefix;
+  bool _yuboxMQTT_customPrefixSet;
+  String _yuboxMQTT_customPrefix;
 
 #if ASYNC_TCP_SSL_ENABLED
   uint32_t _rootCA_len; uint8_t * _rootCA;
@@ -67,6 +82,7 @@ private:
   void _routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServerRequest *);
 
   bool _isValidHostname(String & h);
+  bool _isValidMQTTTopic(String & topic);
 
   void _cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t);
   void _cbHandler_onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
@@ -88,9 +104,23 @@ public:
   // Función que devuelve VERDADERO si hay un host broker MQTT configurado
   bool isBrokerConfigured(void) { return (_yuboxMQTT_host.length() > 0); }
 
+  // Instalar callback para cambio de duración de envío MQTT
+  void onMQTTInterval(YuboxMQTT_intervalchange_cb cb);
+
+  uint32_t getRequestedMQTTInterval(void) { return _mqtt_msec; }
+  bool setRequestedMQTTInterval(uint32_t);
+
+  uint32_t getMinimumMQTTInterval(void) { return _mqtt_min; }
+  void setMinimumMQTTInterval(uint32_t v) { _mqtt_min = v; }
+
+  void setDefaultPublishPrefix(const char *);
+  String buildPublishPrefix(void);
+  String buildPublishPrefix(String);
+
   friend void _cb_YuboxMQTTConfClass_connectMQTT(TimerHandle_t);
 };
 
 extern YuboxMQTTConfClass YuboxMQTTConf;
 
+#endif
 #endif

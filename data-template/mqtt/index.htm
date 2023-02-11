@@ -57,6 +57,17 @@
             <small id="mqttportAyuda" class="form-text d-block text-muted">Puerto TCP/IP de broker MQTT que recibe la telemetría</small>
         </div>
     </div>
+    <div class="row topic-capable" style="display: none;">
+        <div class="mb-4 col">
+            <label for="topic">Plantilla tópico MQTT:</label>
+            <input type="text" id="topic" name="topic" class="form-control" placeholder="topic/para/org/{YBXID}"
+                aria-describedby="topicAyuda" value="" />
+            <small id="topicAyuda" class="form-text text-muted">Plantilla para construir el tópico o prefijo base en lugar del usado
+                normalmente por este firmware. Toda ocurrencia de <code>{YBXID}</code> será reemplazada por el identificador de
+                dispositivo (normalmente de la forma YUBOX-{MAC}).
+            </small>
+        </div>
+    </div>
     <div class="mb-4 mqtt-tls" style="display: none;">
         <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">Nivel TLS:</legend>
@@ -79,17 +90,16 @@
     <div class="mb-4">
         <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">Transporte MQTT:</legend>
-            <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
-                <label class="btn btn-secondary">
-                    <input type="radio" name="mqttws" id="off" value="0" autocomplete="off">TCP/IP
-                </label>
-                <label class="btn btn-secondary">
-                    <input type="radio" name="mqttws" id="on" value="1" autocomplete="off">Websockets
-                </label>
+            <div class="btn-group col-sm-8" role="group">
+                <input type="radio" class="btn-check" name="mqttws" id="off" value="0" autocomplete="off">
+                <label class="btn btn-secondary" for="off">TCP/IP</label>
+
+                <input type="radio" class="btn-check" name="mqttws" id="on" value="1" autocomplete="off">
+                <label class="btn btn-secondary" for="on">Websockets</label>
             </div>
         </div>
     </div>
-    <div class="form-group mqtt-ws" style="display: none;">
+    <div class="mb-4 mqtt-ws" style="display: none;">
         <div class="row">
             <legend class="col-form-label col-sm-4 pt-0">URI Websocket en servidor:</legend>
             <div class="col-sm-8">
@@ -97,7 +107,7 @@
             </div>
         </div>
     </div>
-    <div class="form-group">
+    <div class="mb-4">
         <div class="row">
         <legend class="col-form-label col-sm-4 pt-0">Autenticación MQTT:</legend>
         <div class="btn-group col-sm-8" role="group">
@@ -123,6 +133,23 @@
             <small id="mqttpassAyuda" class="form-text d-block text-muted">Contraseña para autenticación MQTT</small>
         </div>
     </div>
+    <div class="mb-4">
+        <label for="mqttsec">Intervalo de transmisión de payload:</label>
+        <input type="number" id="mqttsec" name="mqttsec" class="form-control" list="mqttsec_common"
+            placeholder="30" aria-describedby="mqttsec_help" value="" />
+        <small id="mqttsec_help" class="form-text text-muted">Intervalo de transmisión deseada de datos
+            de aplicación, en segundos.</small>
+        <datalist id="mqttsec_common">
+            <option value="10" />
+            <option value="30" />
+            <option value="60" />
+            <option value="300" />
+            <option value="600" />
+            <option value="1200" />
+            <option value="3600" />
+        </datalist>
+    </div>
+
     <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
 
     <button type="button" class="btn btn-danger" name="forget">Olvidar</button>

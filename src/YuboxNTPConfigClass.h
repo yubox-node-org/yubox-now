@@ -6,6 +6,14 @@
 
 #include "time.h"
 
+typedef enum {
+  TIMECHANGE_NONE = 0,  // No hay cambio de hora
+  TIMECHANGE_INIT,  // Asignación de hora al arranque del dispositivo
+  TIMECHANGE_NTP,   // Asignación de hora como resultado de NTP
+  TIMECHANGE_APP,   // Asignación como resultado de método setSystemTime()
+  TIMECHANGE_POST   // Asignación como resultado de POST desde navegador
+} YuboxNTPConfig_TimeChangeReason;
+
 class YuboxNTPConfigClass
 {
 private:
@@ -22,6 +30,8 @@ private:
   // Si el proyecto dispone de RTC, aquí se almacena el valor de unixtime
   // generado a partir del RTC hasta hacer funcionar el NTP.
   uint32_t _rtcHint;
+
+  YuboxNTPConfig_TimeChangeReason _timeChangeReason;
 
   uint32_t _getSketchCompileTimestamp(void);
 
@@ -47,12 +57,28 @@ public:
 
   bool isNTPValid(uint32_t ms_timeout = 1000);
 
+  // Reporte del offset de zona horaria configurado vía GUI, en segundos.
+  // Por ejemplo, configuración de GMT-5 se devuelve como -18000.
+  // Este offset debería ser casi siempre el programado como zona horaria
+  // en el sistema.
+  long getNTPOffsetConfig(void) { return _ntpOffset; }
+
   // Función a llamar regularmente para actualizar el cliente NTPClient
   bool update(uint32_t ms_timeout = 1000);
+
+  // Función para asignar la hora del sistema (UTC) directamente a partir del
+  // timestamp indicado como primer parámetro. Opcionalmente se obliga a asignar
+  // la hora incluso si como resultado la hora de sistema saltaría hacia atraś.
+  // Opcionalmente se fuerza la bandera de sincronizado vía NTP.
+  void setSystemTime(uint32_t t, bool markntpsync = false, bool forceBackwards = false);
 
   // Mantener separación entre hora local y hora UTC
   unsigned long getLocalTime(void);
   unsigned long getUTCTime(void);
+
+  // Preguntar y luego limpiar notificación de cambio de hora
+  YuboxNTPConfig_TimeChangeReason getLastTimeChangeReason(void) { return _timeChangeReason; }
+  void clearLastTimeChangeReason(void) { _timeChangeReason = TIMECHANGE_NONE; }
 
   // NO LLAMAR DESDE APLICACIÓN
   void _sntp_sync_time_cb(struct timeval *);

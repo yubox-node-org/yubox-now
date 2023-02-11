@@ -53,6 +53,10 @@ ESP32_OFFSET_OTADATA=$(shell grep otadata $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 
 ESP32_OFFSET_APP0=$(shell grep ota_0 $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
 ESP32_OFFSET_SPIFFS=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
 ESP32_SIZE_SPIFFS_HEX=$(shell grep spiffs $(ESP32_PARTCONF_CSVTABLE) | cut -f 5 -d , )
+ifeq ($(ESP32_SIZE_SPIFFS_HEX),)
+	ESP32_OFFSET_SPIFFS=$(shell grep ffat $(ESP32_PARTCONF_CSVTABLE) | cut -f 4 -d , )
+	ESP32_SIZE_SPIFFS_HEX=$(shell grep ffat $(ESP32_PARTCONF_CSVTABLE) | cut -f 5 -d , )
+endif
 ESP32_SIZE_SPIFFS=$(shell printf "%d\n" $(ESP32_SIZE_SPIFFS_HEX))
 
 XTENSA_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/*)
@@ -81,15 +85,26 @@ ifneq ($(wildcard $(ARDUINO_ESP32)/tools/xtensa-esp32s2-elf-gcc),)
 else
 	XTENSA_S2_TOOLS=
 endif
+ifneq ($(wildcard $(ARDUINO_ESP32)/tools/xtensa-esp32s3-elf-gcc),)
+	XTENSA_S3_GCCVER=$(shell basename $(ARDUINO_ESP32)/tools/xtensa-esp32s3-elf-gcc/*)
+	XTENSA_S3_TOOLS=-prefs=runtime.tools.xtensa-esp32s3-elf-gcc.path=$(ARDUINO_ESP32)/tools/xtensa-esp32s3-elf-gcc/$(XTENSA_S3_GCCVER) \
+		-prefs=runtime.tools.xtensa-esp32s3-elf-gcc-$(XTENSA_S3_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32s3-elf-gcc/$(XTENSA_S3_GCCVER)
+else
+	XTENSA_S3_TOOLS=
+endif
+
+ESPTOOL_PATH=$(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py
 
 # ESP32_DEBUGLEVEL should be one of: none error warn info debug verbose
 ESP32_DEBUGLEVEL=none
 ESP32_PSRAM=disabled
 ESP32_FLASHMODE=qio
+ESP32_FLASHSIZE=4M
 ESP32_CDC=default
 ESP32_MSC=default
 ESP32_DFU=default
 ESP32_UPLOADMODE=default
+ESP32_USBMODE=hwcdc
 # Para cada directiva conocida en el FQBN, se debe verificar si la definición
 # del board acepta tal directiva. De lo contrario, arduino-builder falla con
 # error si encuentra una directiva desconocida.
@@ -126,7 +141,7 @@ ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashFreq.' $(ESP32_BOARDS) | wc -l),
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)FlashFreq=80
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.FlashSize.' $(ESP32_BOARDS) | wc -l),0)
-	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)FlashSize=4M
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)FlashSize=$(ESP32_FLASHSIZE)
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.UploadSpeed.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)UploadSpeed=921600
@@ -136,6 +151,9 @@ ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LoopCore.' $(ESP32_BOARDS) | wc -l),0
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.EventsCore.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)EventsCore=1
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.USBMode.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)USBMode=hwcdc
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.DebugLevel.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)DebugLevel=$(ESP32_DEBUGLEVEL)
@@ -159,6 +177,18 @@ ifeq ($(wildcard $(ESP32_BOOTLOADER_PATH)),)
 	ESP32_BOOTLOADER_PATH:=build/$(YUBOX_PROJECT).ino.bootloader.bin
 endif
 
+# ESP32S3 requiere bootloader en 0x0 a diferencia del resto que lo requiere en 0x1000
+ESP32_BOOTLOADER_ADDR:=0x1000
+ifeq ($(ESP32_UPLOADCHIPTYPE),esp32s3)
+	ESP32_BOOTLOADER_ADDR:=0x0
+endif
+
+# Parámetros configurables para esptool.py
+UPLOAD_FLASH_MODE=dio
+UPLOAD_FLASH_FREQ=80m
+# 512KB, 256KB, 1MB, 2MB, 4MB, 2MB-c1, 4MB-c1, 8MB, 16MB, 32MB, 64MB, 128MB, detect, keep
+UPLOAD_FLASH_SIZE=detect
+
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
 ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=build.defines="$(ARDUINO_BUILD_EXTRA_FLAGS)"
@@ -169,6 +199,7 @@ YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *
 all: $(YUBOX_PROJECT).tar.gz
 
 testpartconf: $(ESP32_PARTCONF_CSVTABLE) $(ESP32_BOARD_PINS)
+	echo "ESP32_PARTCONF_CSVTABLE" $(ESP32_PARTCONF_CSVTABLE)
 	echo "ESP32_FQBN " $(ESP32_FQBN)
 	echo "ESP32_OFFSET_OTADATA " $(ESP32_OFFSET_OTADATA)
 	echo "ESP32_OFFSET_APP0 " $(ESP32_OFFSET_APP0)
@@ -215,6 +246,7 @@ build/$(YUBOX_PROJECT).ino.bin: $(YUBOXFILES) $(ESP32_BOARD_PINS)
 		-prefs=runtime.tools.xtensa-esp32-elf-gcc-$(XTENSA_GCCVER).path=$(ARDUINO_ESP32)/tools/xtensa-esp32-elf-gcc/$(XTENSA_GCCVER) \
 		$(RISCV32_TOOLS) \
 		$(XTENSA_S2_TOOLS) \
+		$(XTENSA_S3_TOOLS) \
 		$(MKLITTLEFS_TOOLS) \
 		-prefs=runtime.tools.mkspiffs.path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
 		-prefs=runtime.tools.mkspiffs-$(MKSPIFFS_VER).path=$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER) \
@@ -231,20 +263,21 @@ clean:
 	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) $(ESP32_PARTCONF_CSVTABLE)
-	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
+	python $(ESPTOOL_PATH) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ESP32_BOOTLOADER_PATH) \
+		write_flash -z --flash_mode $(UPLOAD_FLASH_MODE) --flash_freq $(UPLOAD_FLASH_FREQ) --flash_size $(UPLOAD_FLASH_SIZE) \
+		$(ESP32_BOOTLOADER_ADDR) $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin
 
 # -s SPISIZE corresponde a la configuración default de ~/.arduino15/packages/esp32/hardware/esp32/$(ESP32_ARDUINOVER)/tools/partitions/default.csv
 build/$(YUBOX_PROJECT).spiffs: data/manifest.txt $(ESP32_PARTCONF_CSVTABLE)
+	mkdir -p build
 	$(ARDUINO_ESP32)/tools/mkspiffs/$(MKSPIFFS_VER)/mkspiffs \
 		-c data \
 		-p 256 -b 4096 \
@@ -252,24 +285,24 @@ build/$(YUBOX_PROJECT).spiffs: data/manifest.txt $(ESP32_PARTCONF_CSVTABLE)
 		build/$(YUBOX_PROJECT).spiffs
 
 dataupload: build/$(YUBOX_PROJECT).spiffs
-	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
+	python $(ESPTOOL_PATH) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
+		write_flash -z --flash_mode $(UPLOAD_FLASH_MODE) --flash_freq $(UPLOAD_FLASH_FREQ) --flash_size $(UPLOAD_FLASH_SIZE) \
 		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
 fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) build/$(YUBOX_PROJECT).spiffs $(ESP32_PARTCONF_CSVTABLE)
-	python $(ARDUINO_ESP32)/tools/esptool_py/$(ESPTOOL_PYVER)/esptool.py \
+	python $(ESPTOOL_PATH) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
 		--port $(SERIALPORT) \
 		--baud 921600 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect \
-		0x1000 $(ESP32_BOOTLOADER_PATH) \
+		write_flash -z --flash_mode $(UPLOAD_FLASH_MODE) --flash_freq $(UPLOAD_FLASH_FREQ) --flash_size $(UPLOAD_FLASH_SIZE) \
+		$(ESP32_BOOTLOADER_ADDR) $(ESP32_BOOTLOADER_PATH) \
 		0x8000 build/$(YUBOX_PROJECT).ino.partitions.bin \
 		$(ESP32_OFFSET_OTADATA) $(ESP32_PARTDIR)/boot_app0.bin \
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin \
