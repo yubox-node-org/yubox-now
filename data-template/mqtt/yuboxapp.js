@@ -154,14 +154,14 @@ function yuboxLoadMqttConfig()
         if (data.user != null) {
             mqttpane.querySelector('form input#mqttuser').value = data.user;
             mqttpane.querySelector('form input#mqttpass').value = data.pass;
-            mqttpane.querySelector('input[name=mqttauth]#on').click();
+            mqttpane.querySelector('input[name=mqttauth]#mqttauth_on').click();
         } else {
             mqttpane.querySelector('form input#mqttuser').value = '';
             mqttpane.querySelector('form input#mqttpass').value = '';
-            mqttpane.querySelector('input[name=mqttauth]#off').click();
+            mqttpane.querySelector('input[name=mqttauth]#mqttauth_off').click();
         }
         mqttpane.querySelector('form input#wsuri').value = data.wsuri;
-        mqttpane.querySelector('input[name=mqttws]#'+(data.ws ? 'on' : 'off')).click();
+        mqttpane.querySelector('input[name=mqttws]#mqttws_'+(data.ws ? 'on' : 'off')).click();
         mqttpane.querySelector('form input#mqttsec').value = (data.mqttmsec ?? 30000) / 1000;
 
         // Soporte para tópico personalizado
