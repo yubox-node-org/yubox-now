@@ -557,7 +557,11 @@ function mostrarReintentoScanWifi(msg)
 
     btn.addEventListener('click', function () {
         if (al.parentNode !== null) al.parentNode.removeChild(al);
-        yuboxWiFi_setupWiFiScanListener();
+
+        const wifipane = getYuboxPane('wifi', true);
+        if (wifipane.data['sse'] == null || wifipane.data['sse'].readyState != EventSource.OPEN) {
+            yuboxWiFi_setupWiFiScanListener();
+        }
     });
 }
 
