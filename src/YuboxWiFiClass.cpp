@@ -318,12 +318,17 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 
 void YuboxWiFiClass::_enableWiFiMode(void)
 {
+  auto curr_wifimode = WiFi.getMode();
+
   if (_enableSoftAP) {
-    log_i("Iniciando modo dual WiFi (AP+STA), softAP SSID=%s (%s)...",
-      _apName.c_str(),
-      _softAPHide ? "ESCONDIDO" : "VISIBLE");
-    WiFi.mode(WIFI_AP_STA);
+    if (curr_wifimode != WIFI_AP_STA) {
+      log_i("Iniciando modo dual WiFi (AP+STA)...");
+      WiFi.mode(WIFI_AP_STA);
+    }
     if (!_softAPConfigured) {
+      log_i("- activando softAP SSID=%s (%s)...",
+        _apName.c_str(),
+        _softAPHide ? "ESCONDIDO" : "VISIBLE");
       WiFi.softAP(
         _apName.c_str(),
         NULL,               // passphrase
@@ -333,10 +338,12 @@ void YuboxWiFiClass::_enableWiFiMode(void)
       _softAPConfigured = true;
     }
   } else {
-    log_i("Iniciando modo cliente WiFi (STA)...");
     _softAPConfigured = false;
-    WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_STA);
+    if (curr_wifimode != WIFI_STA) {
+      log_i("Iniciando modo cliente WiFi (STA)...");
+      WiFi.softAPdisconnect(true);
+      WiFi.mode(WIFI_STA);
+    }
   }
 }
 

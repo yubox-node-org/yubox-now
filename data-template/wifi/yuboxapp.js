@@ -108,15 +108,15 @@ function setupWiFiTab()
 
     // Qué hay que hacer al hacer clic en el radiobutton de modo softAP
     let softap_cb = function(ev) {
-        if (wifipane.data.softap_status == ev.currentTarget.id) return;
+        if (wifipane.data.softap_status == ev.currentTarget.value) return;
 
         let postData = {
-            enable_softap:  (ev.currentTarget.id == 'off') ? 0 : 1,
-            softap_hide:    (ev.currentTarget.id == 'hidden') ? 1 : 0
+            enable_softap:  (ev.currentTarget.value == 'off') ? 0 : 1,
+            softap_hide:    (ev.currentTarget.value == 'hidden') ? 1 : 0
         };
         yuboxFetch('wificonfig', 'softap', postData)
         .then((data) => {
-            console.log(data);
+            //console.log(data);
         }, e => yuboxStdAjaxFailHandler(e, 2000));
     };
     wifipane.querySelectorAll('input[name=softap]')
@@ -407,7 +407,7 @@ function yuboxWiFi_setupWiFiScanListener()
                 wifipane.data.softap_status = 'hidden';
             else
                 wifipane.data.softap_status = 'visible';
-            wifipane.querySelector('input[name=softap]#'+wifipane.data.softap_status).click();
+            wifipane.querySelector('input[name=softap]#softap_'+wifipane.data.softap_status).click();
         });
         sse.addEventListener('error', function (e) {
           mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');
@@ -557,7 +557,11 @@ function mostrarReintentoScanWifi(msg)
 
     btn.addEventListener('click', function () {
         if (al.parentNode !== null) al.parentNode.removeChild(al);
-        yuboxWiFi_setupWiFiScanListener();
+
+        const wifipane = getYuboxPane('wifi', true);
+        if (wifipane.data['sse'] == null || wifipane.data['sse'].readyState != EventSource.OPEN) {
+            yuboxWiFi_setupWiFiScanListener();
+        }
     });
 }
 
