@@ -1,5 +1,6 @@
 #include "YuboxWebAuthClass.h"
 #include <Preferences.h>
+#include "YuboxParamPOST.h"
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
@@ -141,31 +142,11 @@ void YuboxWebAuthClass::_routeHandler_yuboxAPI_authconfig_POST(AsyncWebServerReq
 
   String password[2];
 
-  if (!clientError) {
-    if (!request->hasParam("password1", true)) {
-      clientError = true;
-      responseMsg = "No se encuentra contraseña";
-    } else {
-      p = request->getParam("password1", true);
-      password[0] = p->value();
-    }
-  }
-  if (!clientError) {
-    if (!request->hasParam("password2", true)) {
-      clientError = true;
-      responseMsg = "No se encuentra confirmación de contraseña";
-    } else {
-      p = request->getParam("password2", true);
-      password[1] = p->value();
-    }
-  }
+  YBX_ASSIGN_STR_FROM_POST(password1, "contraseña", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), password[0])
+  YBX_ASSIGN_STR_FROM_POST(password2, "confirmación de contraseña", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), password[1])
   if (!clientError && password[0] != password[1]) {
     clientError = true;
     responseMsg = "Contraseña y confirmación no coinciden.";
-  }
-  if (!clientError && password[0].isEmpty()) {
-    clientError = true;
-    responseMsg = "Contraseña no puede estar vacía.";
   }
 
   // Guardar la contraseña validada
