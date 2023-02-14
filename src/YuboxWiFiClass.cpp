@@ -3,6 +3,7 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <SPIFFS.h>
+#include "YuboxParamPOST.h"
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
@@ -906,20 +907,13 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
   tempNetwork.numFails = 0;
   tempNetwork.selectedNet = false;
 
+  YBX_ASSIGN_STR_FROM_POST(ssid, "SSID", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.ssid)
   if (!clientError) {
-    if (!request->hasParam("ssid", true)) {
-      clientError = true;
-      responseMsg = "Se requiere SSID para conectarse";
-    } else {
-      p = request->getParam("ssid", true);
-      tempNetwork.cred.ssid = p->value();
-
-      // Si la red ya existía, asumir sus credenciales a menos que se indique otra cosa
-      for (auto i = 0; i < _savedNetworks.size(); i++) {
-        if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
-          tempNetwork.cred = _savedNetworks[i].cred;
-          break;
-        }
+    // Si la red ya existía, asumir sus credenciales a menos que se indique otra cosa
+    for (auto i = 0; i < _savedNetworks.size(); i++) {
+      if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
+        tempNetwork.cred = _savedNetworks[i].cred;
+        break;
       }
     }
   }
@@ -928,61 +922,29 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
       p = request->getParam("pin", true);
       pinNetwork = (p->value() != "0");
     }
+  }
 
-    if (!request->hasParam("authmode", true)) {
+  YBX_ASSIGN_NUM_FROM_POST("authmode", "modo de autenticación a usar", "%hhu", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY), authmode)
+  if (!clientError) {
+    if (!(authmode >= 0 && authmode <= 5)) {
       clientError = true;
-      responseMsg = "Se requiere modo de autenticación a usar";
-    } else {
-      p = request->getParam("authmode", true);
-      if (p->value().length() != 1) {
-        clientError = true;
-        responseMsg = "Modo de autenticación inválido";
-      } else if (!(p->value()[0] >= '0' && p->value()[0] <= '5')) {
-        clientError = true;
-        responseMsg = "Modo de autenticación inválido";
-      } else {
-        authmode = p->value().toInt();
-      }
+      responseMsg = "Modo de autenticación inválido";
     }
   }
 
   if (!clientError) {
     if (authmode == WIFI_AUTH_WPA2_ENTERPRISE) {
       // Recoger las credenciales si han sido especificadas, o asumir anteriores (si hay)
-      if (request->hasParam("identity", true)) {
-        p = request->getParam("identity", true);
-        tempNetwork.cred.identity = p->value();
-      }
-      if (request->hasParam("password", true)) {
-        p = request->getParam("password", true);
-        tempNetwork.cred.password = p->value();
-      }
-
-      if (!clientError && tempNetwork.cred.identity.isEmpty()) {
-        clientError = true;
-        responseMsg = "Se requiere una identidad para esta red";
-      }
-      if (!clientError && tempNetwork.cred.password.isEmpty()) {
-        clientError = true;
-        responseMsg = "Se requiere contraseña para esta red";
-      }
+      YBX_ASSIGN_STR_FROM_POST(identity, "identidad WPA", (YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.identity)
+      YBX_ASSIGN_STR_FROM_POST(password, "contraseña WPA", (YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.password)
 
       tempNetwork.cred.psk.clear();
     } else if (authmode != WIFI_AUTH_OPEN) {
       // Recoger la clave si se ha especificado, o asumir anterior (si hay)
-      if (request->hasParam("psk", true)) {
-        p = request->getParam("psk", true);
-        if (p->value().length() < 8) {
-          clientError = true;
-          responseMsg = "Contraseña para esta red debe ser como mínimo de 8 caracteres";
-        } else {
-          tempNetwork.cred.psk = p->value();
-        }
-      }
-
-      if (!clientError && tempNetwork.cred.psk.isEmpty()) {
+      YBX_ASSIGN_STR_FROM_POST(psk, "contraseña PSK", (YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.psk)
+      if (!clientError && tempNetwork.cred.psk.length() < 8) {
         clientError = true;
-        responseMsg = "Se requiere contraseña para esta red";
+        responseMsg = "Contraseña para esta red debe ser como mínimo de 8 caracteres";
       }
 
       tempNetwork.cred.identity.clear();
