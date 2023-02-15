@@ -924,7 +924,7 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
     }
   }
 
-  YBX_ASSIGN_NUM_FROM_POST("authmode", "modo de autenticación a usar", "%hhu", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY), authmode)
+  YBX_ASSIGN_NUM_FROM_POST(authmode, "modo de autenticación a usar", "%hhu", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY), authmode)
   if (!clientError) {
     if (!(authmode >= 0 && authmode <= 5)) {
       clientError = true;
