@@ -30,6 +30,8 @@ bool parseParamPOST(bool prevErr, String & responseMsg, AsyncWebServerRequest * 
         responseMsg = "Parámetro no encontrado: ";
         responseMsg += (paramDesc != NULL) ? paramDesc : paramName;
         return true;
+    } else if (flags & YBX_POST_VAR_BLANK) {
+        aStr.clear();
     }
 
     if (flags & YBX_POST_VAR_TRIM) aStr.trim();
