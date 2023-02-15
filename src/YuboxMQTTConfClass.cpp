@@ -498,8 +498,11 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     }
   }
 
-  YBX_ASSIGN_STR_FROM_POST(user, "usuario autenticación", YBX_POST_VAR_TRIM, n_user)
-  YBX_ASSIGN_STR_FROM_POST(pass, "clave autenticación", (YBX_POST_VAR_TRIM | ((n_user.length() > 0) ? (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY) : 0 )), n_pass)
+  YBX_ASSIGN_STR_FROM_POST(user, "usuario autenticación", (YBX_POST_VAR_TRIM|YBX_POST_VAR_BLANK), n_user)
+  YBX_ASSIGN_STR_FROM_POST(pass, "clave autenticación", (YBX_POST_VAR_TRIM | ((n_user.length() > 0) ? (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY) : YBX_POST_VAR_BLANK )), n_pass)
+  if (!clientError && n_user.length() <= 0) {
+    n_pass.clear();
+  }
 
 #define ASSIGN_FROM_POST(TAG, FMT) YBX_ASSIGN_NUM_FROM_POST(TAG, NULL, FMT, 0, (n_##TAG))
 
