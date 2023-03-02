@@ -31,6 +31,8 @@ YuboxWiFiClass::YuboxWiFiClass(void)
   _softAPConfigured = false;
   _softAPHide = false;
 
+  _selNetwork = -1;
+
   _pWebSrvBootstrap = NULL;
   _eventId_cbHandler_WiFiEvent = 0;
   _eventId_cbHandler_WiFiEvent_ready = 0;
@@ -353,8 +355,17 @@ void YuboxWiFiClass::_startWiFi(void)
   _enableWiFiMode();
   WiFi.setSleep(true);  // <--- NO PONER A FALSE, o de lo contrario BlueTooth se crashea si se inicia simultáneamente
 
-  log_d("Iniciando escaneo de redes WiFi (1)...");
   WiFi.setAutoReconnect(false);
+
+  _activeNetwork = getLastActiveNetwork();
+  if (!_activeNetwork.ssid.isEmpty()) {
+    // Se anula última red válida. Debería volverse a asignar cuando se obtenga IP.
+    log_d("Reconectando a última red válida: %s ...", _activeNetwork.ssid.c_str());
+    wl_status_t r = _connectToActiveNetwork();
+    if (r != WL_CONNECT_FAILED) return;
+  }
+
+  log_d("Iniciando escaneo de redes WiFi (1)...");
   WiFi.scanNetworks(true);
 }
 
@@ -477,9 +488,13 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
   }
 }
 
-void YuboxWiFiClass::_connectToActiveNetwork(void)
+wl_status_t YuboxWiFiClass::_connectToActiveNetwork(void)
 {
+  wl_status_t r = WL_DISCONNECTED;
+
   // Iniciar conexión a red elegida según credenciales
+  log_d("Iniciando conexión a red: %s ...", _activeNetwork.ssid.c_str());
+  uint32_t t1 = millis();
   if (!_activeNetwork.identity.isEmpty()) {
     // Autenticación WPA-Enterprise
     esp_wifi_sta_wpa2_ent_set_identity((const unsigned char *)_activeNetwork.identity.c_str(), _activeNetwork.identity.length());
@@ -493,14 +508,26 @@ void YuboxWiFiClass::_connectToActiveNetwork(void)
     esp_wpa2_config_t wpa2_config = WPA2_CONFIG_INIT_DEFAULT();
     esp_wifi_sta_wpa2_ent_enable(&wpa2_config);
 #endif
-    WiFi.begin(_activeNetwork.ssid.c_str());
+    r = WiFi.begin(_activeNetwork.ssid.c_str());
   } else if (!_activeNetwork.psk.isEmpty()) {
     // Autenticación con clave
-    WiFi.begin(_activeNetwork.ssid.c_str(), _activeNetwork.psk.c_str());
+    r = WiFi.begin(_activeNetwork.ssid.c_str(), _activeNetwork.psk.c_str());
   } else {
     // Red abierta
-    WiFi.begin(_activeNetwork.ssid.c_str());
+    r = WiFi.begin(_activeNetwork.ssid.c_str());
   }
+  uint32_t t2 = millis();
+
+  log_d("WiFi.begin() devuelte status %d luego de %u msec", r, (t2 - t1));
+  if (r == WL_CONNECT_FAILED) {
+    for (auto it = _savedNetworks.begin(); it != _savedNetworks.end(); it++) {
+      if (it->cred.ssid == _activeNetwork.ssid) {
+        it->numFails++;
+      }
+    }
+  }
+
+  return r;
 }
 
 void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
@@ -514,6 +541,11 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
   _selNetwork = (_selNetwork <= 0) ? -1 : _selNetwork - 1;
   uint32_t numNets = nvram.getUInt("net/n", 0);     // <-- número de redes guardadas
   log_d("net/n = %u", numNets);
+
+  if (_selNetwork >= 0 && _selNetwork >= numNets) {
+    _selNetwork = -1;
+  }
+
   for (auto i = 0; i < numNets; i++) {
     YuboxWiFi_nvramrec r;
 

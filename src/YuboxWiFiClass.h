@@ -104,7 +104,7 @@ private:
   void _startWiFi(void);
   void _collectScannedNetworks(void);
   void _chooseKnownScannedNetwork(void);
-  void _connectToActiveNetwork(void);
+  wl_status_t _connectToActiveNetwork(void);
   void _startCondRescanTimer(bool);
 
   void _loadBootstrapNetworkFromFS(void);
