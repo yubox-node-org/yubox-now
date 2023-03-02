@@ -314,7 +314,11 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
     case SYSTEM_EVENT_STA_DISCONNECTED:
 #endif
         log_d("Se perdió conexión WiFi.");
-        _startCondRescanTimer(false);
+        if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+          _startCondRescanTimer(false);
+        } else {
+          log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+        }
         break;
     }
 }
@@ -365,8 +369,12 @@ void YuboxWiFiClass::_startWiFi(void)
     if (r != WL_CONNECT_FAILED) return;
   }
 
-  log_d("Iniciando escaneo de redes WiFi (1)...");
-  WiFi.scanNetworks(true);
+  if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+    log_d("Iniciando escaneo de redes WiFi (1)...");
+    WiFi.scanNetworks(true);
+  } else {
+    log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+  }
 }
 
 void YuboxWiFiClass::_collectScannedNetworks(void)
@@ -469,7 +477,11 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
     if (netIdx == -1) {
       // Ninguna de las redes guardadas aparece en el escaneo
       log_v("ninguna de las redes guardadas aparece en escaneo.");
-      _startCondRescanTimer(false);
+      if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+        _startCondRescanTimer(false);
+      } else {
+        log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+      }
     } else {
       WiFi.disconnect(true);
 
@@ -1100,7 +1112,11 @@ void YuboxWiFiClass::_delOneSavedNetwork(AsyncWebServerRequest *request, String 
   request->send(204);
 
   if (deleteconnected && _assumeControlOfWiFi) {
-    _startCondRescanTimer(true);
+    if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+      _startCondRescanTimer(true);
+    } else {
+      log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+    }
   }
 }
 
