@@ -8,7 +8,11 @@ function yuboxSetupAllTabs()
 {
 {{#modules}}
     {{#module_setupjs}}
-    {{{module_setupjs}}}();
+    try {
+        {{{module_setupjs}}}();
+    } catch (err) {
+        console.error('ERROR AL INICIAR MÓDULO YUBOX {{{module_setupjs}}}()', err);
+    }
     {{/module_setupjs}}
 {{/modules}}
 
