@@ -17,3 +17,8 @@ bool parseParamPOST(bool, String &, AsyncWebServerRequest *, uint8_t, const char
 
 #define YBX_ASSIGN_STR_FROM_POST(TAG, DESC, REQ, VAR)          \
     clientError = parseParamPOST(clientError, responseMsg, request, (REQ), #TAG, DESC, VAR);
+
+void sendStandardWebResponse(AsyncWebServerRequest *, String &, bool, bool);
+
+#define YBX_STD_RESPONSE    \
+    sendStandardWebResponse(request, responseMsg, clientError, serverError);
