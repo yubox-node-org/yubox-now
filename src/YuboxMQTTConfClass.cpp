@@ -612,18 +612,8 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   if (!clientError && !serverError) {
     responseMsg = "Parámetros actualizados correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServerRequest * request)
@@ -654,18 +644,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServ
   if (!clientError && !serverError) {
     request->send(204);
   } else {
-    unsigned int httpCode = 200;
-    if (clientError) httpCode = 400;
-    if (serverError) httpCode = 500;
-
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    response->setCode(httpCode);
-    StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-    json_doc["success"] = !(clientError || serverError);
-    json_doc["msg"] = responseMsg.c_str();
-
-    serializeJson(json_doc, *response);
-    request->send(response);
+    YBX_STD_RESPONSE
   }
 }
 
@@ -858,18 +837,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_POST(AsyncWebSer
   _cert_serverError = false;
   _cert_responseMsg = "";
 
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
-
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxMQTTConfClass::_rejectUpload(const String & s, bool serverError)

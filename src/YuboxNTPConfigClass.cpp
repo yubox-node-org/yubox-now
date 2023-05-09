@@ -353,18 +353,8 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
   if (!clientError && !serverError) {
     responseMsg = "Parámetros actualizados correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerRequest * request)
@@ -404,18 +394,8 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerR
   if (!clientError && !serverError) {
     responseMsg = "Hora de sistema actualizada correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 bool YuboxNTPConfigClass::update(uint32_t ms_timeout)
