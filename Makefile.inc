@@ -110,6 +110,9 @@ ESP32_USBMODE=hwcdc
 # error si encuentra una directiva desconocida.
 ESP32_FQBN=
 comma:=,
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.JTAGAdapter.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)JTAGAdapter=default
+endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.CDCOnBoot.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)CDCOnBoot=$(ESP32_CDC)
 endif
@@ -163,6 +166,9 @@ ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LORAWAN_REGION.' $(ESP32_BOARDS) | wc
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LoRaWanDebugLevel.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)LoRaWanDebugLevel=0
+endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.EraseFlash.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)EraseFlash=none
 endif
 ESP32_FQBN:=esp32:esp32:$(ESP32_BOARD):$(ESP32_FQBN)
 
