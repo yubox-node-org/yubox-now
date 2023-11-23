@@ -33,8 +33,6 @@ private:
 
   YuboxNTPConfig_TimeChangeReason _timeChangeReason;
 
-  uint32_t _getSketchCompileTimestamp(void);
-
   void _loadSavedCredentialsFromNVRAM(void);
   void _configTime(void);
 
@@ -56,6 +54,8 @@ public:
   void begin(AsyncWebServer & srv);
 
   bool isNTPValid(uint32_t ms_timeout = 1000);
+
+  uint32_t getSketchCompileTimestamp(void);
 
   // Reporte del offset de zona horaria configurado vía GUI, en segundos.
   // Por ejemplo, configuración de GMT-5 se devuelve como -18000.

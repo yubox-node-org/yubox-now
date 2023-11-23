@@ -88,7 +88,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   }
 
   // Hora de compilación del sketch
-  t = _getSketchCompileTimestamp();
+  t = getSketchCompileTimestamp();
   if (t > tv.tv_sec) {
     log_d("sketch t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
     updatetime = true;
@@ -134,7 +134,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   _timeChangeReason = TIMECHANGE_INIT;
 }
 
-uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
+uint32_t YuboxNTPConfigClass::getSketchCompileTimestamp(void)
 {
   struct tm tm = {0};
 
