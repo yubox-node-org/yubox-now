@@ -1,6 +1,7 @@
 #include "YuboxWiFiClass.h"
 #include "YuboxNTPConfigClass.h"
 #include "YuboxWebAuthClass.h"
+#include "YuboxParamPOST.h"
 
 #include <functional>
 
@@ -87,7 +88,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   }
 
   // Hora de compilación del sketch
-  t = _getSketchCompileTimestamp();
+  t = getSketchCompileTimestamp();
   if (t > tv.tv_sec) {
     log_d("sketch t(%ld) > tv_sec(%ld), se actualizará", t, tv.tv_sec);
     updatetime = true;
@@ -133,7 +134,7 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
   _timeChangeReason = TIMECHANGE_INIT;
 }
 
-uint32_t YuboxNTPConfigClass::_getSketchCompileTimestamp(void)
+uint32_t YuboxNTPConfigClass::getSketchCompileTimestamp(void)
 {
   struct tm tm = {0};
 
@@ -315,35 +316,16 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
   bool clientError = false;
   bool serverError = false;
   String responseMsg = "";
-  AsyncWebParameter * p;
 
-  if (!clientError && !request->hasParam("ntphost", true)) {
-    clientError = true;
-    responseMsg = "Se requiere host de servidor NTP";
-  }
+  YBX_ASSIGN_STR_FROM_POST(ntphost, "host de servidor NTP", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), n_host)
   if (!clientError) {
-    p = request->getParam("ntphost", true);
-    n_host = p->value();
     n_host.toLowerCase();
-    n_host.trim();
-    if (n_host.length() <= 0) {
-      clientError = true;
-      responseMsg = "Se requiere host de servidor NTP";
-    } else if (!_isValidHostname(n_host)) {
+    if (!_isValidHostname(n_host)) {
       clientError = true;
       responseMsg = "Nombre de host de servidor NTP no es válido";
     }
   }
-  if (!clientError) {
-    if (request->hasParam("ntptz", true)) {
-      p = request->getParam("ntptz", true);
-
-      if (0 >= sscanf(p->value().c_str(), "%ld", &n_tz)) {
-        clientError = true;
-        responseMsg = "Formato de zona horaria no es válido";
-      }
-    }
-  }
+  YBX_ASSIGN_NUM_FROM_POST(ntptz, "zona horaria", "%ld", 0, n_tz)
 
   // Si todos los parámetros son válidos, se intenta guardar en NVRAM
   if (!clientError) {
@@ -371,18 +353,8 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_POST(AsyncWebServer
   if (!clientError && !serverError) {
     responseMsg = "Parámetros actualizados correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerRequest * request)
@@ -392,21 +364,10 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerR
   bool clientError = false;
   bool serverError = false;
   String responseMsg = "";
-  AsyncWebParameter * p;
 
   unsigned long long n_utctime_ms = 0xFFFFFFFFFFFFFFFFULL;
 
-  if (!clientError && !request->hasParam("utctime_ms", true)) {
-    clientError = true;
-    responseMsg = "Se requiere timestamp de hora de navegador";
-  }
-  if (!clientError) {
-    p = request->getParam("utctime_ms", true);
-    if (0 >= sscanf(p->value().c_str(), "%Lu", &n_utctime_ms)) {
-      clientError = true;
-      responseMsg = "Valor de timestamp de hora no es válido";
-    }
-  }
+  YBX_ASSIGN_NUM_FROM_POST(utctime_ms, "timestamp de hora de navegador", "%Lu", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY), n_utctime_ms)
 
   // Si todos los parámetros son válidos, se intenta guardar
   if (!clientError) {
@@ -433,18 +394,8 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntprtcjson_POST(AsyncWebServerR
   if (!clientError && !serverError) {
     responseMsg = "Hora de sistema actualizada correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 bool YuboxNTPConfigClass::update(uint32_t ms_timeout)

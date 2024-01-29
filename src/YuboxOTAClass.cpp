@@ -323,21 +323,22 @@ void YuboxOTAClass::_handle_tgzOTAchunk(size_t index, uint8_t *data, size_t len,
     _shouldReboot = false;
     _uploadFinished = false;
 
-    if (!_streamerImpl->begin()) {
-      _rejectUpload(_streamerImpl->getErrorMessage(), true);
-    }
-
-    // Inicialización de parseo tar
-    _tar_emptyChunk = 0;
-    _tar_eof = false;
-    tar_setup(&_tarCB, this);
-
     // Inicialización de estado de actualización
     _tgzupload_clientError = false;
     _tgzupload_serverError = false;
 
-    if (!_uploadRejected && !_flasherImpl->startUpdate()) {
-      _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
+    // Inicialización de parseo tar
+    _tar_emptyChunk = 0;
+    _tar_eof = false;
+
+    if (!_streamerImpl->begin()) {
+      _rejectUpload(_streamerImpl->getErrorMessage(), true);
+    } else {
+      tar_setup(&_tarCB, this);
+
+      if (!_uploadRejected && !_flasherImpl->startUpdate()) {
+        _rejectUpload(_flasherImpl->getLastErrorMessage(), true);
+      }
     }
   }
 

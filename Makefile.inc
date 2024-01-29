@@ -110,6 +110,9 @@ ESP32_USBMODE=hwcdc
 # error si encuentra una directiva desconocida.
 ESP32_FQBN=
 comma:=,
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.JTAGAdapter.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)JTAGAdapter=default
+endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.CDCOnBoot.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)CDCOnBoot=$(ESP32_CDC)
 endif
@@ -164,6 +167,9 @@ endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.LoRaWanDebugLevel.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)LoRaWanDebugLevel=0
 endif
+ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.EraseFlash.' $(ESP32_BOARDS) | wc -l),0)
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)EraseFlash=none
+endif
 ESP32_FQBN:=esp32:esp32:$(ESP32_BOARD):$(ESP32_FQBN)
 
 ifeq ($(ARDUINO_STDHARDWARE),)
@@ -189,9 +195,11 @@ UPLOAD_FLASH_FREQ=80m
 # 512KB, 256KB, 1MB, 2MB, 4MB, 2MB-c1, 4MB-c1, 8MB, 16MB, 32MB, 64MB, 128MB, detect, keep
 UPLOAD_FLASH_SIZE=detect
 
+# No debe tocarse build.defines porque se usa para activar PSRAM en ESP32S2
+# Se usa compiler.cpp.extra_flags en su lugar.
 ARDUINO_BUILD_EXTRA_FLAGS_PARAM=
 ifneq ($(ARDUINO_BUILD_EXTRA_FLAGS),)
-ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=build.defines="$(ARDUINO_BUILD_EXTRA_FLAGS)"
+ARDUINO_BUILD_EXTRA_FLAGS_PARAM=-prefs=compiler.cpp.extra_flags="$(ARDUINO_BUILD_EXTRA_FLAGS)"
 endif
 
 YUBOXFILES=$(YUBOX_PROJECT).ino $(if $(wildcard *.cpp),*.cpp,) $(if $(wildcard *.h),*.h,) $(if $(wildcard *.c),*.c,)
@@ -260,6 +268,7 @@ clean:
 	rm -f dist/*
 	rm -f data/*
 	rm -rf build/
+	rm -f debug.cfg debug_custom.json *.svd
 	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
 
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) $(ESP32_PARTCONF_CSVTABLE)

@@ -3,6 +3,7 @@
 #include "YuboxWiFiClass.h"
 #include "YuboxMQTTConfClass.h"
 #include "YuboxWebAuthClass.h"
+#include "YuboxParamPOST.h"
 
 #include <functional>
 
@@ -488,54 +489,22 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   String responseMsg = "";
   AsyncWebParameter * p;
 
-  if (!clientError && !request->hasParam("host", true)) {
-    clientError = true;
-    responseMsg = "Se requiere host de broker MQTT";
-  }
+  YBX_ASSIGN_STR_FROM_POST(host, "host de broker MQTT", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), n_host)
   if (!clientError) {
-    p = request->getParam("host", true);
-    n_host = p->value();
     n_host.toLowerCase();
-    n_host.trim();
-    if (n_host.length() <= 0) {
-      clientError = true;
-      responseMsg = "Se requiere host de broker MQTT";
-    } else if (!_isValidHostname(n_host)) {
+    if (!_isValidHostname(n_host)) {
       clientError = true;
       responseMsg = "Nombre de host de broker MQTT no es válido";
     }
   }
-  if (!clientError) {
-    if (!request->hasParam("user", true)) {
-      n_user = "";
-    } else {
-      p = request->getParam("user", true);
-      n_user = p->value();
-    }
-    if (!request->hasParam("pass", true)) {
-      n_pass = "";
-    } else {
-      p = request->getParam("pass", true);
-      n_pass = p->value();
-    }
 
-    if (n_user.length() <= 0) {
-      n_pass = "";
-    } else if (n_pass.length() <= 0) {
-      clientError = true;
-      responseMsg = "Credenciales requieren contraseña no vacía";
-    }
+  YBX_ASSIGN_STR_FROM_POST(user, "usuario autenticación", (YBX_POST_VAR_TRIM|YBX_POST_VAR_BLANK), n_user)
+  YBX_ASSIGN_STR_FROM_POST(pass, "clave autenticación", (YBX_POST_VAR_TRIM | ((n_user.length() > 0) ? (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY) : YBX_POST_VAR_BLANK )), n_pass)
+  if (!clientError && n_user.length() <= 0) {
+    n_pass.clear();
   }
-#define ASSIGN_FROM_POST(TAG, FMT) \
-  if (!clientError && request->hasParam( #TAG , true)) {\
-    p = request->getParam( #TAG , true);\
-    int n = sscanf(p->value().c_str(), FMT, &(n_##TAG));\
-    if (n <= 0) {\
-      clientError = true;\
-      responseMsg = "Formato numérico incorrecto para ";\
-      responseMsg += #TAG ;\
-    }\
-  }
+
+#define ASSIGN_FROM_POST(TAG, FMT) YBX_ASSIGN_NUM_FROM_POST(TAG, NULL, FMT, 0, (n_##TAG))
 
   ASSIGN_FROM_POST(port, "%hu")
 #if ASYNC_TCP_SSL_ENABLED
@@ -558,10 +527,8 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
       p = request->getParam("ws", true);
       n_ws = (p->value() != "0");
     }
-
-    if (n_ws && request->hasParam("wsuri", true)) {
-      p = request->getParam("wsuri", true);
-      n_wsUri = p->value();
+    if (n_ws) {
+      YBX_ASSIGN_STR_FROM_POST(wsuri, "URI WebSocket", YBX_POST_VAR_TRIM, n_wsUri)
       if (!n_wsUri.startsWith("/")) {
         clientError = true;
         responseMsg = "URI Websocket inválido (no inicia con \"/\")";
@@ -569,15 +536,13 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
     }
   }
 
+
   // Sólo considerar tópico personalizado si proyecto ha sido actualizado para lidiar con él.
   if (!clientError && _appDefaultPrefix != NULL) {
-    if (request->hasParam("topic", true)) {
-      p = request->getParam("topic", true);
-      n_topic = p->value();
-      if (!_isValidMQTTTopic(n_topic)) {
-        clientError = true;
-        responseMsg = "Plantilla para tópico MQTT no es válida";
-      }
+    YBX_ASSIGN_STR_FROM_POST(topic, "plantilla tópico MQTT", YBX_POST_VAR_TRIM, n_topic)
+    if (n_topic.length() > 0 && !_isValidMQTTTopic(n_topic)) {
+      clientError = true;
+      responseMsg = "Plantilla para tópico MQTT no es válida";
     }
   }
 
@@ -647,18 +612,8 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_POST(AsyncWebServer
   if (!clientError && !serverError) {
     responseMsg = "Parámetros actualizados correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServerRequest * request)
@@ -689,18 +644,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_DELETE(AsyncWebServ
   if (!clientError && !serverError) {
     request->send(204);
   } else {
-    unsigned int httpCode = 200;
-    if (clientError) httpCode = 400;
-    if (serverError) httpCode = 500;
-
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    response->setCode(httpCode);
-    StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-    json_doc["success"] = !(clientError || serverError);
-    json_doc["msg"] = responseMsg.c_str();
-
-    serializeJson(json_doc, *response);
-    request->send(response);
+    YBX_STD_RESPONSE
   }
 }
 
@@ -893,18 +837,7 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqtt_certupload_POST(AsyncWebSer
   _cert_serverError = false;
   _cert_responseMsg = "";
 
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
-
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxMQTTConfClass::_rejectUpload(const String & s, bool serverError)

@@ -3,6 +3,7 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <SPIFFS.h>
+#include "YuboxParamPOST.h"
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
@@ -29,6 +30,8 @@ YuboxWiFiClass::YuboxWiFiClass(void)
   _enableSoftAP = true;
   _softAPConfigured = false;
   _softAPHide = false;
+
+  _selNetwork = -1;
 
   _pWebSrvBootstrap = NULL;
   _eventId_cbHandler_WiFiEvent = 0;
@@ -311,7 +314,11 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
     case SYSTEM_EVENT_STA_DISCONNECTED:
 #endif
         log_d("Se perdió conexión WiFi.");
-        _startCondRescanTimer(false);
+        if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+          _startCondRescanTimer(false);
+        } else {
+          log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+        }
         break;
     }
 }
@@ -352,9 +359,22 @@ void YuboxWiFiClass::_startWiFi(void)
   _enableWiFiMode();
   WiFi.setSleep(true);  // <--- NO PONER A FALSE, o de lo contrario BlueTooth se crashea si se inicia simultáneamente
 
-  log_d("Iniciando escaneo de redes WiFi (1)...");
   WiFi.setAutoReconnect(false);
-  WiFi.scanNetworks(true);
+
+  _activeNetwork = getLastActiveNetwork();
+  if (!_activeNetwork.ssid.isEmpty()) {
+    // Se anula última red válida. Debería volverse a asignar cuando se obtenga IP.
+    log_d("Reconectando a última red válida: %s ...", _activeNetwork.ssid.c_str());
+    wl_status_t r = _connectToActiveNetwork();
+    if (r != WL_CONNECT_FAILED) return;
+  }
+
+  if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+    log_d("Iniciando escaneo de redes WiFi (1)...");
+    WiFi.scanNetworks(true);
+  } else {
+    log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+  }
 }
 
 void YuboxWiFiClass::_collectScannedNetworks(void)
@@ -457,7 +477,11 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
     if (netIdx == -1) {
       // Ninguna de las redes guardadas aparece en el escaneo
       log_v("ninguna de las redes guardadas aparece en escaneo.");
-      _startCondRescanTimer(false);
+      if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+        _startCondRescanTimer(false);
+      } else {
+        log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+      }
     } else {
       WiFi.disconnect(true);
 
@@ -476,9 +500,13 @@ void YuboxWiFiClass::_chooseKnownScannedNetwork(void)
   }
 }
 
-void YuboxWiFiClass::_connectToActiveNetwork(void)
+wl_status_t YuboxWiFiClass::_connectToActiveNetwork(void)
 {
+  wl_status_t r = WL_DISCONNECTED;
+
   // Iniciar conexión a red elegida según credenciales
+  log_d("Iniciando conexión a red: %s ...", _activeNetwork.ssid.c_str());
+  uint32_t t1 = millis();
   if (!_activeNetwork.identity.isEmpty()) {
     // Autenticación WPA-Enterprise
     esp_wifi_sta_wpa2_ent_set_identity((const unsigned char *)_activeNetwork.identity.c_str(), _activeNetwork.identity.length());
@@ -492,14 +520,26 @@ void YuboxWiFiClass::_connectToActiveNetwork(void)
     esp_wpa2_config_t wpa2_config = WPA2_CONFIG_INIT_DEFAULT();
     esp_wifi_sta_wpa2_ent_enable(&wpa2_config);
 #endif
-    WiFi.begin(_activeNetwork.ssid.c_str());
+    r = WiFi.begin(_activeNetwork.ssid.c_str());
   } else if (!_activeNetwork.psk.isEmpty()) {
     // Autenticación con clave
-    WiFi.begin(_activeNetwork.ssid.c_str(), _activeNetwork.psk.c_str());
+    r = WiFi.begin(_activeNetwork.ssid.c_str(), _activeNetwork.psk.c_str());
   } else {
     // Red abierta
-    WiFi.begin(_activeNetwork.ssid.c_str());
+    r = WiFi.begin(_activeNetwork.ssid.c_str());
   }
+  uint32_t t2 = millis();
+
+  log_d("WiFi.begin() devuelte status %d luego de %u msec", r, (t2 - t1));
+  if (r == WL_CONNECT_FAILED) {
+    for (auto it = _savedNetworks.begin(); it != _savedNetworks.end(); it++) {
+      if (it->cred.ssid == _activeNetwork.ssid) {
+        it->numFails++;
+      }
+    }
+  }
+
+  return r;
 }
 
 void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
@@ -513,6 +553,11 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
   _selNetwork = (_selNetwork <= 0) ? -1 : _selNetwork - 1;
   uint32_t numNets = nvram.getUInt("net/n", 0);     // <-- número de redes guardadas
   log_d("net/n = %u", numNets);
+
+  if (_selNetwork >= 0 && _selNetwork >= numNets) {
+    _selNetwork = -1;
+  }
+
   for (auto i = 0; i < numNets; i++) {
     YuboxWiFi_nvramrec r;
 
@@ -906,20 +951,13 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
   tempNetwork.numFails = 0;
   tempNetwork.selectedNet = false;
 
+  YBX_ASSIGN_STR_FROM_POST(ssid, "SSID", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.ssid)
   if (!clientError) {
-    if (!request->hasParam("ssid", true)) {
-      clientError = true;
-      responseMsg = "Se requiere SSID para conectarse";
-    } else {
-      p = request->getParam("ssid", true);
-      tempNetwork.cred.ssid = p->value();
-
-      // Si la red ya existía, asumir sus credenciales a menos que se indique otra cosa
-      for (auto i = 0; i < _savedNetworks.size(); i++) {
-        if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
-          tempNetwork.cred = _savedNetworks[i].cred;
-          break;
-        }
+    // Si la red ya existía, asumir sus credenciales a menos que se indique otra cosa
+    for (auto i = 0; i < _savedNetworks.size(); i++) {
+      if (_savedNetworks[i].cred.ssid == tempNetwork.cred.ssid) {
+        tempNetwork.cred = _savedNetworks[i].cred;
+        break;
       }
     }
   }
@@ -928,61 +966,29 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
       p = request->getParam("pin", true);
       pinNetwork = (p->value() != "0");
     }
+  }
 
-    if (!request->hasParam("authmode", true)) {
+  YBX_ASSIGN_NUM_FROM_POST(authmode, "modo de autenticación a usar", "%hhu", (YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY), authmode)
+  if (!clientError) {
+    if (!(authmode >= 0 && authmode <= 5)) {
       clientError = true;
-      responseMsg = "Se requiere modo de autenticación a usar";
-    } else {
-      p = request->getParam("authmode", true);
-      if (p->value().length() != 1) {
-        clientError = true;
-        responseMsg = "Modo de autenticación inválido";
-      } else if (!(p->value()[0] >= '0' && p->value()[0] <= '5')) {
-        clientError = true;
-        responseMsg = "Modo de autenticación inválido";
-      } else {
-        authmode = p->value().toInt();
-      }
+      responseMsg = "Modo de autenticación inválido";
     }
   }
 
   if (!clientError) {
     if (authmode == WIFI_AUTH_WPA2_ENTERPRISE) {
       // Recoger las credenciales si han sido especificadas, o asumir anteriores (si hay)
-      if (request->hasParam("identity", true)) {
-        p = request->getParam("identity", true);
-        tempNetwork.cred.identity = p->value();
-      }
-      if (request->hasParam("password", true)) {
-        p = request->getParam("password", true);
-        tempNetwork.cred.password = p->value();
-      }
-
-      if (!clientError && tempNetwork.cred.identity.isEmpty()) {
-        clientError = true;
-        responseMsg = "Se requiere una identidad para esta red";
-      }
-      if (!clientError && tempNetwork.cred.password.isEmpty()) {
-        clientError = true;
-        responseMsg = "Se requiere contraseña para esta red";
-      }
+      YBX_ASSIGN_STR_FROM_POST(identity, "identidad WPA", (YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.identity)
+      YBX_ASSIGN_STR_FROM_POST(password, "contraseña WPA", (YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.password)
 
       tempNetwork.cred.psk.clear();
     } else if (authmode != WIFI_AUTH_OPEN) {
       // Recoger la clave si se ha especificado, o asumir anterior (si hay)
-      if (request->hasParam("psk", true)) {
-        p = request->getParam("psk", true);
-        if (p->value().length() < 8) {
-          clientError = true;
-          responseMsg = "Contraseña para esta red debe ser como mínimo de 8 caracteres";
-        } else {
-          tempNetwork.cred.psk = p->value();
-        }
-      }
-
-      if (!clientError && tempNetwork.cred.psk.isEmpty()) {
+      YBX_ASSIGN_STR_FROM_POST(psk, "contraseña PSK", (YBX_POST_VAR_NONEMPTY|YBX_POST_VAR_TRIM), tempNetwork.cred.psk)
+      if (!clientError && tempNetwork.cred.psk.length() < 8) {
         clientError = true;
-        responseMsg = "Se requiere contraseña para esta red";
+        responseMsg = "Contraseña para esta red debe ser como mínimo de 8 caracteres";
       }
 
       tempNetwork.cred.identity.clear();
@@ -1106,7 +1112,11 @@ void YuboxWiFiClass::_delOneSavedNetwork(AsyncWebServerRequest *request, String 
   request->send(204);
 
   if (deleteconnected && _assumeControlOfWiFi) {
-    _startCondRescanTimer(true);
+    if (_savedNetworks.size() > 0 || (_pEvents != NULL && _pEvents->count() > 0)) {
+      _startCondRescanTimer(true);
+    } else {
+      log_d("- no hay redes guardadas y no hay conexiones SSE, se evita escaneo.");
+    }
   }
 }
 
@@ -1172,18 +1182,8 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_pin_POST(Async
   if (!clientError && !serverError) {
     responseMsg = "Parámetros actualizados correctamente";
   }
-  unsigned int httpCode = 200;
-  if (clientError) httpCode = 400;
-  if (serverError) httpCode = 500;
 
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  response->setCode(httpCode);
-  StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
-  json_doc["success"] = !(clientError || serverError);
-  json_doc["msg"] = responseMsg.c_str();
-
-  serializeJson(json_doc, *response);
-  request->send(response);
+  YBX_STD_RESPONSE
 }
 
 void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServerRequest *request)
