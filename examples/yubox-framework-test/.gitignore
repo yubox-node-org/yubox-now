@@ -1,4 +1,4 @@
 build/
 data/
-*.ino.nodemcu-32s.bin
+*.ino.*.bin
 *.tar.gz
