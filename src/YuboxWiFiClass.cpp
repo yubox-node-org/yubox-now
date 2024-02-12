@@ -834,7 +834,9 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
       if (!temp_password.isEmpty()) json_doc["password"] = true;
     }
 
-    serializeJson(json_doc, json_output);
+    String s;
+    serializeJson(json_doc, s);
+    json_output += s;
   }
 
   json_output += "]";

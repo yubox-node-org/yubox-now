@@ -181,23 +181,25 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
 {
     YUBOX_RUN_AUTH(request);
 
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    bool rowOutput = false;
+
     // Construir tabla de flasheadores disponibles
-    String json_tableOutput = "[";
+    response->print("[");
     StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_tablerow;
     for (auto it = flasherFactoryList.begin(); it != flasherFactoryList.end(); it++) {
-      if (json_tableOutput.length() > 1) json_tableOutput += ",";
+      if (rowOutput) response->print(",");
 
       json_tablerow["tag"] = it->_tag.c_str();
       json_tablerow["desc"] = it->_desc.c_str();
       json_tablerow["tgzupload"] = it->_route_tgzupload.c_str();
       json_tablerow["rollback"] = it->_route_rollback.c_str();
 
-      serializeJson(json_tablerow, json_tableOutput);
+      serializeJson(json_tablerow, *response);
+      rowOutput = true;
     }
-    json_tableOutput += "]";
+    response->print("]");
 
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    response->print(json_tableOutput);
     request->send(response);
 }
 
