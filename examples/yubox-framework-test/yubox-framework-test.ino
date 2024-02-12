@@ -51,7 +51,11 @@ void loop()
     float last_pressure = 101325.0f;
 #endif
 
+#if ARDUINOJSON_VERSION_MAJOR <= 6
     DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+#else
+    JsonDocument json_doc;
+#endif
     json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
 #ifdef YUBOX_SENSOR_INTEGRADO
     temperature = sensor_bmp280.readTemperature();

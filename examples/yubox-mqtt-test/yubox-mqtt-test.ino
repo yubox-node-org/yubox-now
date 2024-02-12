@@ -109,7 +109,11 @@ void yuboxUpdateLector(void)
     float temperature, pressure;
     leerTempPress(temperature, pressure);
 
+#if ARDUINOJSON_VERSION_MAJOR <= 6
     DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+#else
+    JsonDocument json_doc;
+#endif
     json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
     json_doc["temperature"] = temperature;
     json_doc["pressure"] = pressure;
@@ -130,7 +134,11 @@ void yuboxEnviarMuestraMQTT(void)
   leerTempPress(temperature, pressure);
 
   // Creamos el JSON para publicar
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
   json_doc["temperature"] = temperature;
   json_doc["pressure"] = pressure;

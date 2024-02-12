@@ -386,7 +386,11 @@ void YuboxMQTTConfClass::_routeHandler_yuboxAPI_mqttconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(17));
+#else
+  JsonDocument json_doc;
+#endif
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["want2connect"] = _autoConnect;

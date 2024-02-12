@@ -56,7 +56,11 @@ void sendStandardWebResponse(AsyncWebServerRequest * request, String & responseM
 
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->setCode(httpCode);
+#if ARDUINOJSON_VERSION_MAJOR <= 6
     StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+#else
+    JsonDocument json_doc;
+#endif
     json_doc["success"] = !(clientError || serverError);
     json_doc["msg"] = responseMsg.c_str();
 

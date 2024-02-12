@@ -186,7 +186,11 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_firmwarelistjson_GET(AsyncWe
 
     // Construir tabla de flasheadores disponibles
     response->print("[");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
     StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_tablerow;
+#else
+    JsonDocument json_tablerow;
+#endif
     for (auto it = flasherFactoryList.begin(); it != flasherFactoryList.end(); it++) {
       if (rowOutput) response->print(",");
 
@@ -559,7 +563,11 @@ void YuboxOTAClass::_emitUploadEvent_FileStart(const char * filename, bool isfir
 
   _tgzupload_lastEventSent = millis();
   String s;
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["event"] = "uploadFileStart";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -577,7 +585,11 @@ void YuboxOTAClass::_emitUploadEvent_FileProgress(const char * filename, bool is
 
   _tgzupload_lastEventSent = millis();
   String s;
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(6)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["event"] = "uploadFileProgress";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -595,7 +607,11 @@ void YuboxOTAClass::_emitUploadEvent_FileEnd(const char * filename, bool isfirmw
 
   _tgzupload_lastEventSent = millis();
   String s;
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["event"] = "uploadFileEnd";
   json_doc["filename"] = filename;
   json_doc["firmware"] = isfirmware;
@@ -641,7 +657,11 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_tgzupload_POST(AsyncWebServe
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
   json_doc["reboot"] = (_shouldReboot && !clientError && !serverError);
@@ -684,7 +704,11 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_GET(AsyncWebServerR
   delete fi;
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   response->setCode(200);
   json_doc["canrollback"] = canRollBack;
 
@@ -697,7 +721,11 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_rollback_POST(AsyncWebServer
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(false); // Rollback cuenta como flasheo
@@ -747,7 +775,11 @@ void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST(AsyncWebServerRe
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
 
   // Revisar lista de vetos
   String vetoMsg = _checkOTA_Veto(true);
@@ -823,7 +855,11 @@ void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *reque
   YUBOX_RUN_AUTH(request);
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(18));
+#else
+  JsonDocument json_doc;
+#endif
 
   json_doc["ARDUINO_ESP32_GIT_VER"] = ARDUINO_ESP32_GIT_VER;
   json_doc["ARDUINO_ESP32_RELEASE"] = ARDUINO_ESP32_RELEASE;

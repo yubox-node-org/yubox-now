@@ -774,7 +774,11 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
 
 String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 {
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(11));
+#else
+  JsonDocument json_doc;
+#endif
   String json_output;
 
   json_output = "[";
@@ -847,7 +851,11 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
 {
   if (_pEvents->count() <= 0) return;
 
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["yubox_control_wifi"] = _assumeControlOfWiFi;
 
   if (_selNetwork >= 0 && _selNetwork < _savedNetworks.size()) {
@@ -904,7 +912,11 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
   }
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(10) + JSON_ARRAY_SIZE(3));
+#else
+  JsonDocument json_doc;
+#endif
 
   String temp_ssid = WiFi.SSID();
   String temp_bssid = WiFi.BSSIDstr();
@@ -922,7 +934,12 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_connection_GET(AsyncWebSe
   json_doc["ipv4"] = temp_ipv4.c_str();
   json_doc["gateway"] = temp_gw.c_str();
   json_doc["netmask"] = temp_netmask.c_str();
-  JsonArray json_dns = json_doc.createNestedArray("dns");
+  JsonArray json_dns =
+#if ARDUINOJSON_VERSION_MAJOR <= 6
+    json_doc.createNestedArray("dns");
+#else
+    json_doc["dns"].to<JsonArray>();
+#endif
   for (auto i = 0; i < 3; i++) {
     temp_dns[i] = WiFi.dnsIP(i).toString();
     if (temp_dns[i] != "0.0.0.0") json_dns.add(temp_dns[i].c_str());
@@ -1056,7 +1073,11 @@ void YuboxWiFiClass::_addOneSavedNetwork(AsyncWebServerRequest *request, bool sw
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 
@@ -1229,7 +1250,11 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_networks_GET(AsyncWebServ
 
 void YuboxWiFiClass::_serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i)
 {
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(4)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
 
   json_doc["ssid"] = _savedNetworks[i].cred.ssid.c_str();
   json_doc["psk"] = false;
@@ -1321,7 +1346,11 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServe
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   response->setCode(httpCode);
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(2)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 

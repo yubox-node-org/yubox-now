@@ -276,7 +276,11 @@ void YuboxNTPConfigClass::_routeHandler_yuboxAPI_ntpconfjson_GET(AsyncWebServerR
   YUBOX_RUN_AUTH(request);
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
   StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
 
   // Valores informativos, no pueden cambiarse vía web
   json_doc["ntpsync"] = isNTPValid();
