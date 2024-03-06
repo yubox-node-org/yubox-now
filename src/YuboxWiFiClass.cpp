@@ -873,8 +873,11 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
    _pEvents->send(json_str.c_str(), "WiFiStatus");
 }
 
-void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient *)
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_netscan_onConnect(AsyncEventSourceClient * sseclient)
 {
+  // Sólo se toleran hasta 10 segundos de encolamiento
+  sseclient->client()->setAckTimeout(10 * 1000);
+
   // Emitir estado actual de control de WiFi
   _publishWiFiStatus();
 
