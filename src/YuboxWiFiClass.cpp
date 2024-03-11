@@ -30,6 +30,7 @@ YuboxWiFiClass::YuboxWiFiClass(void)
   _enableSoftAP = true;
   _softAPConfigured = false;
   _softAPHide = false;
+  _skipWiFiOnWakeupDeepSleep = false;
 
   _selNetwork = -1;
 
@@ -103,7 +104,11 @@ void YuboxWiFiClass::begin(AsyncWebServer & srv)
     );
 
   if (_assumeControlOfWiFi) {
-    takeControlOfWiFi();
+    if (_skipWiFiOnWakeupDeepSleep && esp_reset_reason() == ESP_RST_DEEPSLEEP) {
+      log_i("Dispositivo despierta de deep-sleep, se omite inicialización de WiFi...");
+    } else {
+      takeControlOfWiFi();
+    }
   }
 }
 
@@ -575,6 +580,8 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
 
   // Esconder red softAP de los escaneos
   _softAPHide = nvram.getBool("net/softAPHide", false);
+
+  _skipWiFiOnWakeupDeepSleep = nvram.getBool("net/skipOnDS");
 }
 
 void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
@@ -766,6 +773,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
     "/yubox-api/wificonfig/networks?ssid={SSID}"
   ));
   srv.on("/yubox-api/wificonfig/softap", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/skip_wifi_after_deepsleep", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
@@ -852,7 +860,7 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
   if (_pEvents->count() <= 0) return;
 
 #if ARDUINOJSON_VERSION_MAJOR <= 6
-  StaticJsonDocument<JSON_OBJECT_SIZE(5)> json_doc;
+  StaticJsonDocument<JSON_OBJECT_SIZE(6)> json_doc;
 #else
   JsonDocument json_doc;
 #endif
@@ -867,6 +875,7 @@ void YuboxWiFiClass::_publishWiFiStatus(void)
   json_doc["enable_softap"] = _enableSoftAP;
   json_doc["softap_ssid"] = _apName.c_str();
   json_doc["softap_hide"] = _softAPHide;
+  json_doc["skip_on_wakeup_deepsleep"] = _skipWiFiOnWakeupDeepSleep;
 
   String json_str;
   serializeJson(json_doc, json_str);
@@ -1359,6 +1368,39 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServe
 
   serializeJson(json_doc, *response);
   request->send(response);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_POST(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+
+  uint8_t n_skipWiFiOnWakeupDeepSleep = _skipWiFiOnWakeupDeepSleep ? 1 : 0;
+
+  YBX_ASSIGN_NUM_FROM_POST(skip_on_wakeup_deepsleep, "Omitir WiFi al despertar de deep-sleep", "%hhu", YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY, n_skipWiFiOnWakeupDeepSleep)
+
+  if (!clientError) {
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+    if (!serverError) {
+      if (!nvram.putBool("net/skipOnDS", (n_skipWiFiOnWakeupDeepSleep != 0))) {
+        serverError = true;
+        responseMsg = "No se puede guardar bandera de WiFi luego de deep-sleep";
+      } else {
+        _skipWiFiOnWakeupDeepSleep = (n_skipWiFiOnWakeupDeepSleep != 0);
+      }
+    }
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+
+  YBX_STD_RESPONSE
 }
 
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)

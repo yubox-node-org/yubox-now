@@ -66,6 +66,9 @@ private:
   // Bandera de asumir control del WiFi o no.
   bool _assumeControlOfWiFi;
 
+  // Bandera de omitir WiFi si se despierta de deep-sleep
+  bool _skipWiFiOnWakeupDeepSleep;
+
   // Bandera de activar la interfaz softAP o no
   bool _enableSoftAP;
   bool _softAPConfigured;
@@ -131,6 +134,7 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_pin_POST(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_POST(AsyncWebServerRequest *request);
 
   // Funciones de ayuda para responder a peticiones web
   void _serializeOneSavedNetwork(AsyncResponseStream *response, uint32_t i);
