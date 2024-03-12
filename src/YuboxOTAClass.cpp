@@ -18,6 +18,8 @@ extern "C" {
 #include "YuboxOTA_Streamer_GZ.h"
 #include "YuboxOTA_Streamer_Identity.h"
 
+#include "YuboxParamPOST.h"
+
 typedef struct YuboxOTAVetoList
 {
   static yuboxota_event_id_t current_id;
@@ -71,6 +73,8 @@ YuboxOTAClass::YuboxOTAClass(void)
     &YuboxOTAClass::_cbHandler_restartYUBOX);
 }
 
+#include <Preferences.h>
+
 void YuboxOTAClass::begin(AsyncWebServer & srv)
 {
   srv.on("/yubox-api/yuboxOTA/hwreport.json", HTTP_GET,
@@ -84,9 +88,22 @@ void YuboxOTAClass::begin(AsyncWebServer & srv)
     std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_reboot_POST, this, std::placeholders::_1));
   addFirmwareFlasher(srv, "esp32", "YUBOX ESP32 Firmware", std::bind(&YuboxOTAClass::_getESP32FlasherImpl, this));
 
+  srv.on("/yubox-api/yuboxOTA/cpufreq", HTTP_GET,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_cpufreq_GET, this, std::placeholders::_1));
+  srv.on("/yubox-api/yuboxOTA/cpufreq", HTTP_POST,
+    std::bind(&YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_cpufreq_POST, this, std::placeholders::_1));
+
   _pEvents = new AsyncEventSource("/yubox-api/yuboxOTA/events");
   YuboxWebAuth.addManagedHandler(_pEvents);
   srv.addHandler(_pEvents);
+
+  Preferences nvram;
+  nvram.begin("YUBOX/PwrSave", true);
+  auto targetMHz = nvram.getUShort("targetMHz", 0);
+  if (targetMHz != 0) {
+    log_i("Cambio de frecuencia reloj CPU a: %u MHz ...", targetMHz);
+    setCpuFrequencyMhz(targetMHz);
+  }
 }
 
 void YuboxOTAClass::addFirmwareFlasher(AsyncWebServer & srv, const char * tag, const char * desc, YuboxOTA_Flasher_Factory_func_cb factory_cb)
@@ -804,6 +821,51 @@ void YuboxOTAClass::_cbHandler_restartYUBOX(TimerHandle_t)
 {
   log_w("YUBOX OTA: reiniciando luego de cambio de firmware...");
   ESP.restart();
+}
+
+void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_cpufreq_GET(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+#if ARDUINOJSON_VERSION_MAJOR <= 6
+  StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
+  response->setCode(200);
+  json_doc["cpufrequency"] = getCpuFrequencyMhz();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxOTAClass::_routeHandler_yuboxAPI_yuboxOTA_cpufreq_POST(AsyncWebServerRequest * request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+
+  uint32_t n_cpufrequency = getCpuFrequencyMhz();
+
+  YBX_ASSIGN_NUM_FROM_POST(cpufrequency, "Frecuencia de reloj de CPU", "%u", YBX_POST_VAR_REQUIRED|YBX_POST_VAR_NONEMPTY, n_cpufrequency)
+
+  if (!clientError) {
+    Preferences nvram;
+    nvram.begin("YUBOX/PwrSave", false);
+    if (!nvram.putUShort("targetMHz", n_cpufrequency)) {
+      serverError = true;
+      responseMsg = "No se puede guardar la nueva frecuencia de CPU";
+    }
+  }
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+
+  YBX_STD_RESPONSE
 }
 
 #include "SPIFFS.h"
