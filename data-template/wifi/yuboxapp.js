@@ -122,25 +122,6 @@ function setupWiFiTab()
     wifipane.querySelectorAll('input[name=softap]')
         .forEach(el => el.addEventListener('change', softap_cb));
 
-    // Qué hay que hacer al hacer clic en el checkbox de política WiFi luego de deep-sleep
-    wifipane.querySelector('input[name=skip_on_wakeup_deepsleep]').addEventListener('change', function(ev) {
-        if (this.checked) {
-            if (!confirm('Al activar esta opción, si el firmware entra en deep-sleep, al despertar se OMITIRÁ el arranque de WiFi con propósito de ahorrar energía. Para volver a tener acceso a este GUI se requerirá un reset u otro arranque distinto a deep-sleep.')) {
-                this.checked = false;
-                this.parentNode.classList.remove('active');
-                return;
-            }
-        }
-
-        let postData = {
-            skip_on_wakeup_deepsleep:  (this.checked) ? 1 : 0,
-        };
-        yuboxFetch('wificonfig', 'skip_wifi_after_deepsleep', postData)
-        .then((data) => {
-            //console.log(data);
-        }, e => yuboxStdAjaxFailHandler(e, 2000));
-    });
-
     // Qué hay que hacer al hacer clic en el botón de Redes Guardadas
     wifipane.querySelector('button[name=networks]').addEventListener('click', function () {
         yuboxFetch('wificonfig', 'networks')
@@ -427,13 +408,6 @@ function yuboxWiFi_setupWiFiScanListener()
             else
                 wifipane.data.softap_status = 'visible';
             wifipane.querySelector('input[name=softap]#softap_'+wifipane.data.softap_status).click();
-
-            // Actualizar estado de política WiFi luego de deep-sleep
-            const wifi_after_ds = wifipane.querySelector('input[name=skip_on_wakeup_deepsleep]');
-            wifi_after_ds.checked = data.skip_on_wakeup_deepsleep;
-            const lbl_wifi_after_ds = wifi_after_ds.parentNode;
-            lbl_wifi_after_ds.classList.remove('active');
-            if (data.skip_on_wakeup_deepsleep) lbl_wifi_after_ds.classList.add('active');
         });
         sse.addEventListener('error', function (e) {
           mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');

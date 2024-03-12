@@ -773,6 +773,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
     "/yubox-api/wificonfig/networks?ssid={SSID}"
   ));
   srv.on("/yubox-api/wificonfig/softap", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/skip_wifi_after_deepsleep", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/skip_wifi_after_deepsleep", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
   YuboxWebAuth.addManagedHandler(_pEvents);
@@ -1366,6 +1367,23 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServe
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
 
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_GET(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+#if ARDUINOJSON_VERSION_MAJOR <= 6
+  StaticJsonDocument<JSON_OBJECT_SIZE(1)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
+
+  json_doc["skip_on_wakeup_deepsleep"] = _skipWiFiOnWakeupDeepSleep;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
   serializeJson(json_doc, *response);
   request->send(response);
 }

@@ -1,0 +1,52 @@
+<div class="row row-cols-1">
+    <div class="col mb-4">
+        <div class="card">
+            <div class="card-header">Activación de WiFi luego de salir de deep-sleep</div>
+            <div class="card-body">
+                <form>
+                    <div class="form-group">
+                        <div class="row">
+                            <legend class="col-form-label col-sm-4 pt-0">Omitir WiFi luego de deep-sleep:</legend>
+                            <div class="btn-group btn-group-toggle col-sm-8" data-toggle="buttons">
+                                <label class="btn btn-outline-info">
+                                    <input type="radio" name="skip_wifi_after_ds" id="skip_wifi_after_ds_0" value="0" autocomplete="off">Desactivado
+                                </label>
+                                <label class="btn btn-outline-info">
+                                    <input type="radio" name="skip_wifi_after_ds" id="skip_wifi_after_ds_1" value="1" autocomplete="off">Activado
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-4">
+        <div class="card">
+            <div class="card-header">Frecuencia de CPU</div>
+            <div class="card-body">
+                <form>
+                    <div class="form-group">
+                        <div class="row">
+                            <legend class="col-form-label col-sm-4 pt-0">Frecuencia:</legend>
+                            <div class="col-sm-8">
+                                <select name="cpufrequency" id="cpufrequency" class="form-control" aria-describedby="cpufrequencyAyuda">
+                                    <option value="240">240 MHz (por omisión)</option>
+                                    <option value="160">160 MHz</option>
+                                    <option value="80">80 MHz</option>
+                                </select>
+                            </div>
+                            <small id="cpufrequencyAyuda" class="form-text text-muted">
+                                Una frecuencia de reloj más baja permitirá mayor ahorro de energía.
+                                Esta opción tomará efecto en el siguiente arranque del dispositivo.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-danger yubox-guardar">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
