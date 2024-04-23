@@ -858,6 +858,7 @@ String YuboxWiFiClass::_buildAvailableNetworksJSONReport(void)
 
 void YuboxWiFiClass::_publishWiFiStatus(void)
 {
+  if (_pEvents == NULL) return;
   if (_pEvents->count() <= 0) return;
 
 #if ARDUINOJSON_VERSION_MAJOR <= 6
