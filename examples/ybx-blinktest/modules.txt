@@ -1,1 +1,1 @@
-+blinktest wifi webauth yuboxOTA
++blinktest wifi webauth powersave yuboxOTA
