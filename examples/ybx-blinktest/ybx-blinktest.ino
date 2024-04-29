@@ -1,18 +1,10 @@
-#include <WiFi.h>
-#include "SPIFFS.h"
-#include <ESPAsyncWebServer.h>
+#include <YuboxSimple.h>
 
 #define ARDUINOJSON_USE_LONG_LONG 1
 
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
-#include "YuboxWiFiClass.h"
-#include "YuboxOTAClass.h"
-
-AsyncWebServer server(80);
-
-void notFound(AsyncWebServerRequest *);
 void setupAsyncServerHTTP(void);
 
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -28,17 +20,7 @@ void setup()
   delay(3000);
   Serial.begin(115200);
 
-  if (!SPIFFS.begin(true)) {
-    Serial.println("ERR: ha ocurrido un error al montar SPIFFS");
-    while (true) delay(1000);
-  }
-
-  // Limpiar archivos que queden de actualización fallida
-  YuboxOTA.cleanupFailedUpdateFiles();
-
   setupAsyncServerHTTP();
-
-  YuboxWiFi.beginServerOnWiFiReady(&server);
 
   pinMode(LED, OUTPUT);
   digitalWrite(LED, false);
@@ -111,21 +93,6 @@ void routeHandler_configjson_POST(AsyncWebServerRequest *request)
 
 void setupAsyncServerHTTP(void)
 {
-  // Activar y agregar todas las rutas que requieren autenticación
-  YuboxWebAuth.setEnabled(true);	// <-- activar explícitamente la autenticación
-
-  YuboxWiFi.begin(server);
-  YuboxWebAuth.begin(server);
-  YuboxOTA.begin(server);
-  server.onNotFound(notFound);
-
-  server.on("/yubox-api/blinktest/conf.json", HTTP_POST, routeHandler_configjson_POST);
-
-  AsyncWebHandler &h = server.serveStatic("/", SPIFFS, "/");
-  YuboxWebAuth.addManagedHandler(&h);
-}
-
-void notFound(AsyncWebServerRequest *request)
-{
-  request->send(404, "application/json", "{\"success\":false,\"msg\":\"El recurso indicado no existe o no ha sido implementado\"}");
+  yubox_HTTPServer.on("/yubox-api/blinktest/conf.json", HTTP_POST, routeHandler_configjson_POST);
+  yuboxSimpleSetup();
 }
