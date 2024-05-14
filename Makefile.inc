@@ -111,7 +111,7 @@ ESP32_USBMODE=hwcdc
 ESP32_FQBN=
 comma:=,
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.JTAGAdapter.' $(ESP32_BOARDS) | wc -l),0)
-	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)JTAGAdapter=default
+	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)JTAGAdapter=external
 endif
 ifneq ($(shell grep '^$(ESP32_BOARD)\.menu.CDCOnBoot.' $(ESP32_BOARDS) | wc -l),0)
 	ESP32_FQBN:=$(if $(ESP32_FQBN),$(ESP32_FQBN)$(comma),)CDCOnBoot=$(ESP32_CDC)
