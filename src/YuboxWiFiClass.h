@@ -94,6 +94,7 @@ private:
 
   // Timers asociados a llamadas de métodos
   TimerHandle_t _timer_wifiRescan;
+  TimerHandle_t _timer_wifiNoIpTimeout;
   bool _disconnectBeforeRescan;
   uint32_t _interval_wifiRescan;
 
@@ -122,6 +123,7 @@ private:
   void _cbHandler_WiFiEvent_ready(WiFiEvent_t event, WiFiEventInfo_t);
   void _cbHandler_WiFiEvent_scandone(WiFiEvent_t event, WiFiEventInfo_t);
   void _cbHandler_WiFiRescan(TimerHandle_t);
+  void _cbHandler_wifiNoIpTimeout(TimerHandle_t);
 
   void _setupHTTPRoutes(AsyncWebServer &);
 
@@ -169,6 +171,7 @@ public:
   void saveStateAP(void);
 
   friend void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
+  friend void _cb_YuboxWiFiClass_wifiNoIpTimeout(TimerHandle_t);
 };
 
 extern YuboxWiFiClass YuboxWiFi;

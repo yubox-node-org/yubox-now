@@ -15,12 +15,16 @@
 
 const char * YuboxWiFiClass::_ns_nvram_yuboxframework_wifi = "YUBOX/WiFi";
 void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t);
+void _cb_YuboxWiFiClass_wifiNoIpTimeout(TimerHandle_t);
 
 // En ciertos escenarios, el re-escaneo de WiFi cada 2 segundos puede interferir
 // con tareas de la aplicación. Para mitigar esto, se escanea cada 30 segundos,
 // a menos que haya al menos un cliente SSE que requiere configurar la red WiFi.
 #define WIFI_RESCAN_FAST  8000
 #define WIFI_RESCAN_SLOW  30000
+
+// Timeout desde STA_CONNECTED hasta que, si no se tiene wifi, se reintenta conexión
+#define WIFI_STA_NOIP_TIMEOUT 5000
 
 YuboxWiFiClass::YuboxWiFiClass(void)
 {
@@ -47,6 +51,14 @@ YuboxWiFiClass::YuboxWiFiClass(void)
     pdFALSE,
     (void*)this,
     &_cb_YuboxWiFiClass_wifiRescan);
+
+  _timer_wifiNoIpTimeout = xTimerCreate(
+    "YuboxWiFiClass_wifiNoIpTimeout",
+    pdMS_TO_TICKS(WIFI_STA_NOIP_TIMEOUT),
+    pdFALSE,
+    (void*)this,
+    &_cb_YuboxWiFiClass_wifiNoIpTimeout
+  );
 
   WiFi.persistent(false);
 
@@ -317,6 +329,8 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
                 }
                 log_d("Conectado a nivel STA, se espera una IP...");
                 WiFi.setAutoReconnect(true);
+
+                xTimerStart(_timer_wifiNoIpTimeout, 0);
             }
         }
         break;
@@ -325,6 +339,9 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
 #else
     case SYSTEM_EVENT_STA_GOT_IP:
 #endif
+        if (xTimerIsTimerActive(_timer_wifiNoIpTimeout)) {
+            xTimerStop(_timer_wifiNoIpTimeout, 0);
+        }
         log_d("Conectado al WiFi. Dirección IP: %s", WiFi.localIP().toString().c_str());
         WiFi.setAutoReconnect(true);
         _updateActiveNetworkNVRAM();
@@ -1444,6 +1461,12 @@ void _cb_YuboxWiFiClass_wifiRescan(TimerHandle_t timer)
   return self->_cbHandler_WiFiRescan(timer);
 }
 
+void _cb_YuboxWiFiClass_wifiNoIpTimeout(TimerHandle_t timer)
+{
+  YuboxWiFiClass *self = (YuboxWiFiClass *)pvTimerGetTimerID(timer);
+  return self->_cbHandler_wifiNoIpTimeout(timer);
+}
+
 void YuboxWiFiClass::_cbHandler_WiFiRescan(TimerHandle_t timer)
 {
   log_v("YuboxWiFiClass::_cbHandler_WiFiRescan");
@@ -1457,6 +1480,15 @@ void YuboxWiFiClass::_cbHandler_WiFiRescan(TimerHandle_t timer)
     log_d("DEBUG: Iniciando escaneo de redes WiFi (3)...");
     WiFi.setAutoReconnect(false);
     WiFi.scanNetworks(true);
+  }
+}
+
+void YuboxWiFiClass::_cbHandler_wifiNoIpTimeout(TimerHandle_t timer)
+{
+  log_v("YuboxWiFiClass::_cbHandler_wifiNoIpTimeout");
+  if (WiFi.status() != WL_CONNECTED) {
+    log_d("Todavía no se consigue IP, se vuelve a intentar conexión...");
+    _connectToActiveNetwork();
   }
 }
 
