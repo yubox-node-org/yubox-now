@@ -305,6 +305,22 @@ void YuboxWiFiClass::_cbHandler_WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t)
         }
         break;
 #if ESP_IDF_VERSION_MAJOR > 3
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+#else
+    case SYSTEM_EVENT_STA_CONNECTED:
+#endif
+        if (_assumeControlOfWiFi) {
+            if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+                auto wifistatus = WiFi.status();
+                if (wifistatus != WL_CONNECTED) {
+                    log_d("En este momento el estatus wifi es %u != WL_CONNECTED", wifistatus);
+                }
+                log_d("Conectado a nivel STA, se espera una IP...");
+                WiFi.setAutoReconnect(true);
+            }
+        }
+        break;
+#if ESP_IDF_VERSION_MAJOR > 3
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
 #else
     case SYSTEM_EVENT_STA_GOT_IP:
