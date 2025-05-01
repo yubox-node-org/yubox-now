@@ -1,5 +1,6 @@
 #include "YuboxWiFiClass.h"
 #include "esp_wpa2.h"
+#include "esp_mac.h"
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <SPIFFS.h>
@@ -81,9 +82,12 @@ void YuboxWiFiClass::setAPName(String & tpl)
 
 String YuboxWiFiClass::_getWiFiMAC(void)
 {
-  String mac = WiFi.macAddress();
-  mac.replace(":", "");
-  return mac;
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+
+  char macStr[18] = { 0 };
+  sprintf(macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  return String(macStr);
 }
 
 void YuboxWiFiClass::begin(AsyncWebServer & srv)
