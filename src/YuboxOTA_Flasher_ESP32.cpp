@@ -7,6 +7,12 @@
 
 #include "esp_task_wdt.h"
 
+// Para la definición de SPI_FLASH_SEC_SIZE
+#if ESP_IDF_VERSION_MAJOR >= 5
+#include "spi_flash_mmap.h"
+#else
+#include "esp_spi_flash.h"
+#endif
 #define YUBOX_BUFSIZ SPI_FLASH_SEC_SIZE
 
 YuboxOTA_Flasher_ESP32::YuboxOTA_Flasher_ESP32(void)
