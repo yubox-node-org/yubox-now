@@ -149,12 +149,14 @@ function setupYuboxOTATab()
         .then((data) => {
             const dlg_hwinfo = otapane.querySelector('div#hwreport');
             const hwtable = dlg_hwinfo.querySelector('table#hwinfo > tbody');
+            const dt_now = new Date();
 
             // Formatos especiales para algunos campos
             data.ARDUINO_ESP32_GIT_VER = data.ARDUINO_ESP32_GIT_VER.toString(16);
             data.EFUSE_MAC = data.EFUSE_MAC.toString(16);
             data.CPU_MHZ = data.CPU_MHZ + ' MHz';
             data.FLASH_SPEED = (data.FLASH_SPEED / 1000000) + ' MHz';
+            data.boot_elapsed_msec = (new Date(dt_now.valueOf() - data.boot_elapsed_msec)).toLocaleString();
 
             for (const key in data) {
                 hwtable.querySelector('tr#'+key+' > td.text-muted').textContent = data[key];

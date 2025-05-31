@@ -918,7 +918,7 @@ void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *reque
 
   AsyncResponseStream *response = request->beginResponseStream("application/json");
 #if ARDUINOJSON_VERSION_MAJOR <= 6
-  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(18));
+  DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(19));
 #else
   JsonDocument json_doc;
 #endif
@@ -941,6 +941,7 @@ void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *reque
   json_doc["psramsize"] = ESP.getPsramSize();
   json_doc["psramfree"] = ESP.getFreePsram();
   json_doc["psrammaxalloc"] = ESP.getMaxAllocPsram();
+  json_doc["boot_elapsed_msec"] = (esp_timer_get_time() / 1000ULL);
 
   // MALLOC_CAP_DEFAULT es la memoria directamente provista vía malloc() y operator new
   multi_heap_info_t info = {0};
