@@ -916,6 +916,22 @@ void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *reque
 {
   YUBOX_RUN_AUTH(request);
 
+  static const char * reset_reasons[11] = {
+    "(desconocido)",
+    "encendido inicial",
+    "reset vía pin",
+    "reset por software",
+    "reset por caída/excepción",
+    "reset por watchdog de interrupción",
+    "reset por watchdog de tarea",
+    "reset por watchdog (otros)",
+    "salida de deep-sleep",
+    "evento de brownout",
+    "reset vía SDIO",
+  };
+  auto razon_reset = esp_reset_reason();
+  if (razon_reset >= 11) razon_reset = ESP_RST_UNKNOWN;
+
   AsyncResponseStream *response = request->beginResponseStream("application/json");
 #if ARDUINOJSON_VERSION_MAJOR <= 6
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(19));
@@ -942,6 +958,7 @@ void YuboxOTAClass::_routeHandler_yuboxhwreport_GET(AsyncWebServerRequest *reque
   json_doc["psramfree"] = ESP.getFreePsram();
   json_doc["psrammaxalloc"] = ESP.getMaxAllocPsram();
   json_doc["boot_elapsed_msec"] = (esp_timer_get_time() / 1000ULL);
+  json_doc["RESET_REASON"] = reset_reasons[razon_reset];
 
   // MALLOC_CAP_DEFAULT es la memoria directamente provista vía malloc() y operator new
   multi_heap_info_t info = {0};
