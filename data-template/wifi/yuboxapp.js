@@ -375,12 +375,16 @@ function yuboxWiFi_setupWiFiScanListener()
 
     const wifipane = getYuboxPane('wifi', true);
     if (!!window.EventSource) {
-        var sse = new EventSource(yuboxAPI('wificonfig')+'/netscan');
+        const div_reconnect = wifipane.querySelector('div#netscan_disconnected');
+        const sse = new EventSource(yuboxAPI('wificonfig')+'/netscan');
+        div_reconnect.style.display = '';
         sse.addEventListener('WiFiScanResult', function (e) {
-          var data = JSON.parse(e.data);
-          yuboxWiFi_actualizarRedes(data);
+            div_reconnect.style.display = 'none';
+            var data = JSON.parse(e.data);
+            yuboxWiFi_actualizarRedes(data);
         });
         sse.addEventListener('WiFiStatus', function (e) {
+            div_reconnect.style.display = 'none';
             var data = JSON.parse(e.data);
             if (!data.yubox_control_wifi) {
               yuboxMostrarAlertText('warning',
@@ -410,7 +414,8 @@ function yuboxWiFi_setupWiFiScanListener()
             wifipane.querySelector('input[name=softap]#softap_'+wifipane.data.softap_status).click();
         });
         sse.addEventListener('error', function (e) {
-          mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');
+          //mostrarReintentoScanWifi('Se ha perdido conexión con dispositivo para siguiente escaneo');
+          div_reconnect.style.display = '';
         });
         wifipane.data['sse'] = sse;
     } else {
