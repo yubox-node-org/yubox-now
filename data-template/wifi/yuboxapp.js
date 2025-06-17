@@ -122,6 +122,40 @@ function setupWiFiTab()
     wifipane.querySelectorAll('input[name=softap]')
         .forEach(el => el.addEventListener('change', softap_cb));
 
+    // Qué hay que hacer al hacer clic en el botón de actualizar nombre de softAP
+    wifipane.querySelector('button[name=softap_update]').addEventListener('click', async () => {
+        const softap_name = wifipane.querySelector('input[name=softap_ssid]').value;
+        if (!confirm(`Confirme que desea cambiar el nombre del punto WiFi softAP a ${softap_name}. Esto requiere reiniciar el dispositivo.`))
+            return;
+
+        try {
+            const data = await yuboxFetch('wificonfig', 'softap_name', { softap_name, });
+            if (data.reboot) {
+                await yuboxFetch('yuboxOTA', 'reboot', {});
+            }
+        } catch (e) {
+            yuboxStdAjaxFailHandler(e, 2000);
+        }
+    });
+
+    // Qué hay que hacer al hacer clic en el botón de restaurar nombre de softAP
+    wifipane.querySelector('button[name=softap_reset]').addEventListener('click', async () => {
+        if (!confirm(`Confirme que desea restaurar el nombre del punto WiFi softAP a su valor por omisión. Esto requiere reiniciar el dispositivo.`))
+            return;
+
+        try {
+            const data = await yuboxFetch('wificonfig', 'softap_name', { softap_name: '', });
+            if (data.reboot) {
+                await yuboxFetch('yuboxOTA', 'reboot', {});
+                setTimeout(function () {
+                    window.location.reload();
+                }, 10 * 1000);
+            }
+        } catch (e) {
+            yuboxStdAjaxFailHandler(e, 2000);
+        }
+    });
+
     // Qué hay que hacer al hacer clic en el botón de Redes Guardadas
     wifipane.querySelector('button[name=networks]').addEventListener('click', function () {
         yuboxFetch('wificonfig', 'networks')

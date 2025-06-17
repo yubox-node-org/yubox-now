@@ -619,6 +619,10 @@ void YuboxWiFiClass::_loadSavedNetworksFromNVRAM(void)
   _softAPHide = nvram.getBool("net/softAPHide", false);
 
   _skipWiFiOnWakeupDeepSleep = nvram.getBool("net/skipOnDS");
+
+  // Personlización del nombre del softAP
+  String tpl = nvram.getString("net/apname", "YUBOX-{MAC}");
+  setAPName(tpl);
 }
 
 void YuboxWiFiClass::_loadOneNetworkFromNVRAM(Preferences & nvram, uint32_t idx, YuboxWiFi_nvramrec & r)
@@ -810,6 +814,7 @@ void YuboxWiFiClass::_setupHTTPRoutes(AsyncWebServer & srv)
     "/yubox-api/wificonfig/networks?ssid={SSID}"
   ));
   srv.on("/yubox-api/wificonfig/softap", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST, this, std::placeholders::_1));
+  srv.on("/yubox-api/wificonfig/softap_name", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softapname_POST, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/skip_wifi_after_deepsleep", HTTP_GET, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_GET, this, std::placeholders::_1));
   srv.on("/yubox-api/wificonfig/skip_wifi_after_deepsleep", HTTP_POST, std::bind(&YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_POST, this, std::placeholders::_1));
   _pEvents = new AsyncEventSource("/yubox-api/wificonfig/netscan");
@@ -1404,6 +1409,91 @@ void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServe
 #endif
   json_doc["success"] = !(clientError || serverError);
   json_doc["msg"] = responseMsg.c_str();
+
+  serializeJson(json_doc, *response);
+  request->send(response);
+}
+
+void YuboxWiFiClass::_routeHandler_yuboxAPI_wificonfig_softapname_POST(AsyncWebServerRequest *request)
+{
+  YUBOX_RUN_AUTH(request);
+
+  bool clientError = false;
+  bool serverError = false;
+  String responseMsg = "";
+  AsyncWebParameter * p;
+
+  bool reboot = false;
+  String n_softap_name = _apName;
+
+  if (!clientError) {
+    if (request->hasParam("softap_name", true)) {
+      p = request->getParam("softap_name", true);
+      n_softap_name = p->value();
+
+      if (n_softap_name.length() > 0) {
+        String mymac = _getWiFiMAC();
+
+        String uc = n_softap_name;
+        uc.toUpperCase();
+
+        auto idx = uc.indexOf(mymac);
+        if (idx != -1) {
+          n_softap_name =
+            n_softap_name.substring(0, idx) +
+            "{MAC}" +
+            n_softap_name.substring(idx + mymac.length());
+        }
+        log_d("Plantilla para softAP es ahora: %s", n_softap_name.c_str());
+      } else {
+        // Escenario de resetear valor en nvram, no se hace nada
+      }
+    }
+  }
+
+  if (!clientError) {
+    Preferences nvram;
+    nvram.begin(_ns_nvram_yuboxframework_wifi, false);
+
+    if (!serverError) {
+      if (n_softap_name.length() > 0) {
+        if (!nvram.putString("net/apname", n_softap_name)) {
+          serverError = true;
+          responseMsg = "No se puede guardar nueva plantilla de nombre softAP";
+        } else {
+          reboot = true;
+        }
+      } else {
+        if (nvram.isKey("net/apname") && !nvram.remove("net/apname")) {
+          serverError = true;
+          responseMsg = "No se puede resetear plantilla de nombre softAP";
+        } else {
+          reboot = true;
+        }
+      }
+    }
+  }
+
+
+
+
+  if (!clientError && !serverError) {
+    responseMsg = "Parámetros actualizados correctamente";
+  }
+  unsigned int httpCode = 202;
+  if (clientError) httpCode = 400;
+  if (serverError) httpCode = 500;
+
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  response->setCode(httpCode);
+#if ARDUINOJSON_VERSION_MAJOR <= 6
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> json_doc;
+#else
+  JsonDocument json_doc;
+#endif
+  json_doc["success"] = !(clientError || serverError);
+  json_doc["msg"] = responseMsg.c_str();
+  json_doc["reboot"] = reboot;
 
   serializeJson(json_doc, *response);
   request->send(response);

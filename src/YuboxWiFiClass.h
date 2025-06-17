@@ -136,6 +136,7 @@ private:
   void _routeHandler_yuboxAPI_wificonfig_networks_DELETE(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_connection_pin_POST(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_softap_POST(AsyncWebServerRequest *request);
+  void _routeHandler_yuboxAPI_wificonfig_softapname_POST(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_GET(AsyncWebServerRequest *request);
   void _routeHandler_yuboxAPI_wificonfig_skipwifiafterdeepsleep_POST(AsyncWebServerRequest *request);
 
