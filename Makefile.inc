@@ -275,7 +275,7 @@ clean:
 	rm -f data/*
 	rm -rf build/
 	rm -f debug.cfg debug_custom.json *.svd
-	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
+	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz $(YUBOX_PROJECT).$(ESP32_BOARD).webflash.zip
 
 spiffs: build/$(YUBOX_PROJECT).spiffs
 
@@ -325,3 +325,10 @@ fullupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions
 		$(ESP32_OFFSET_APP0) build/$(YUBOX_PROJECT).ino.bin \
 		$(ESP32_OFFSET_SPIFFS) build/$(YUBOX_PROJECT).spiffs
 
+webflashzip: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin build/$(YUBOX_PROJECT).spiffs $(ESP32_PARTCONF_CSVTABLE)
+	zip -j -9 $(YUBOX_PROJECT).$(ESP32_BOARD).webflash.zip \
+		$(ESP32_BOOTLOADER_PATH) \
+		build/$(YUBOX_PROJECT).ino.partitions.bin \
+		build/$(YUBOX_PROJECT).ino.bin \
+		build/$(YUBOX_PROJECT).spiffs \
+		$(ESP32_PARTCONF_CSVTABLE)
