@@ -277,6 +277,8 @@ clean:
 	rm -f debug.cfg debug_custom.json *.svd
 	rm -f $(YUBOX_PROJECT).ino.*.bin $(YUBOX_PROJECT).tar.gz
 
+spiffs: build/$(YUBOX_PROJECT).spiffs
+
 codeupload: build/$(YUBOX_PROJECT).ino.bin build/$(YUBOX_PROJECT).ino.partitions.bin $(ESP32_BOOTLOADER_PATH) $(ESP32_PARTCONF_CSVTABLE)
 	$(ESPTOOL_CMD) \
 		--chip $(ESP32_UPLOADCHIPTYPE) \
