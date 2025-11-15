@@ -1,0 +1,65 @@
+Claves NVM usadas para preferencias no-volátiles
+Actualizado al 2025/11/15
+
+Se lista en primer nivel el key del grupo para uso en Preferences.begin()
+y en segundo nivel el key del item, su tipo de dato y su propósito.
+
+El tipo bool se representa internamente como 1 byte, valores 1 o 0 para ACTIVO
+o INACTIVO, respectivamente.
+
+YUBOX/WiFi
+    net/ctrl        bool        Tomar control de WiFi a menos que bandera sea INACTIVA
+    net/n           uint32_t    Número de redes guardadas. Este número se usa para listar
+                                las redes guardadas según la plantilla de claves a continuación.
+                                El parámetro %u varía desde 1 hasta número de redes guardadas.
+    net/%u/ssid     string      Nombre de la red (SSID)
+    net/%u/psk      string      Si presente, red usa autenticación PSK ordinario y el password está aquí.
+    net/%u/identity string      Si presente, red usa autenticación WPA y se indica identidad aquí.
+    net/%u/password string      Sólo presente para autenticación WPA, clave para identidad WPA.
+    net/%u/lastsel  bool        ACTIVO si esta fue la red seleccionada.
+    net/sel         int32_t     Índice (desde 0) de red guardada seleccionada
+    net/softAP      bool        Activar red softAP a menos que bandera sea INACTIVA
+    net/softAPHide  bool        Si ACTIVA, la red softAP se ocultará y no aparecerá en
+                                escaneos hechos por otros dispositivos.
+    net/skipOnDS    bool        Si ACTIVA, el WiFi no se levantará si se detecta que la
+                                YUBOX ha arrancado por motivo de despertar de deep sleep.
+    net/apname      string      Si presente, este nombre se usará como plantilla para el
+                                nombre de la red softAP. Por omisión se usa la plantilla
+                                YUBOX-{MAC} donde {MAC} se reemplaza por la MAC de la YUBOX.
+
+YUBOX/Auth
+    usr/1/usr       string      Si presente, se usa como usuario autenticación de GUI en lugar de "admin".
+    usr/1/pwd       string      Si presente, se usa como contraseña autenticación de GUI en lugar de "yubox".
+
+YUBOX/NTP
+    ntphost         string      Si presente, se usa como servidor NTP en lugar de "pool.ntp.org"
+    ntptz           int32_t     Offset de zona horaria en segundos, p.ej. -18000 para GMT-5 en Ecuador.
+    ntpsec          int32_t     Si presente, último valor de timestamp UNIX que se verificó es hora actual.
+
+YUBOX/PwrSave
+    targetMHz       uint16_t    Si es distinto de 0, meta de MHz de reloj de CPU a usar. Parámetro de setCpuFrequencyMhz().
+
+YUBOX/MQTT
+    host            string      Si presente, se iniciará conexión MQTT hacia este host de red
+    port            uint16_t    Si presente, se usará este puerto en lugar de 1883 para MQTT.
+    user            string      Usuario de autenticación MQTT
+    pass            string      Contraseña de autenticación MQTT
+    ws              bool        Si ACTIVO, se debe iniciar conexión websocket para MQTT
+    wsuri           string      Si websocket activo, URI donde se expone websocket en host MQTT, por omisión "/"
+    mqttmsec        uint32_t    Intervalo (milisegundos) de envío regular de muestras a host, por omisión 30000 (30 segundos)
+    topic           string      Tópico/prefijo tópico a usar para suscripción y publicación.
+                                Si este valor está presente, se usará como tópico recomendado en lugar
+                                del prefijo recomendado por el firmware. Este valor es una plantilla
+                                de la forma NIVEL1/NIVEL2/{YBXID} donde {YBXID} se reemplaza por la cadena
+                                que se esté usando como nombre de host MDNS (usualmente de la forma YUBOX-{MAC}).
+    tlslevel        uint8_t     Sólo si firmware se compila con soporte SSL para MQTT:
+                                Nivel de conexión SSL:
+                                0 - conexión sin encriptar
+                                1 - encriptada, sin verificar certificado servidor
+                                2 - encriptada, verificar sólamente certificado servidor
+                                3 - encriptada, verificar certificado servidor, y presentar certificado cliente
+                                Para usar los niveles 2 o 3, se requiere además un archivo /mqtt-server.crt
+                                en el sistema de archivo spiffs.
+                                Para usar el nivel 3, se requiere además los archivos /mqtt-client.crt y
+                                /mqtt-client.key en el sistema de archivos spiffs.
+                                Estos archivos están en formato PEM como lo requiere mbedtls_x509_crt_parse().
