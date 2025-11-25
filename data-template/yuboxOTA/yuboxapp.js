@@ -153,7 +153,7 @@ function setupYuboxOTATab()
 
             // Formatos especiales para algunos campos
             data.ARDUINO_ESP32_GIT_VER = data.ARDUINO_ESP32_GIT_VER.toString(16);
-            data.EFUSE_MAC = data.EFUSE_MAC.toString(16);
+            data.EFUSE_MAC = data.EFUSE_MAC.toString(16).match(/(.{1,2})/g).toReversed().join('');
             data.CPU_MHZ = data.CPU_MHZ + ' MHz';
             data.FLASH_SPEED = (data.FLASH_SPEED / 1000000) + ' MHz';
             data.boot_elapsed_msec = (new Date(dt_now.valueOf() - data.boot_elapsed_msec)).toLocaleString();
