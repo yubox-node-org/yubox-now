@@ -11,6 +11,10 @@
 
 #include <ArduinoJson.h>
 
+#if ESP_IDF_VERSION_MAJOR < 5
+#include "lwip/apps/sntp.h"
+#endif
+
 // Requerido para arrastrar definición de sntp_set_time_sync_notification_cb en arduino-esp32 v2.0.0-rc1
 #include "esp_sntp.h"
 
@@ -64,7 +68,11 @@ void YuboxNTPConfigClass::_loadSavedCredentialsFromNVRAM(void)
 {
   Preferences nvram;
 
+#if ESP_IDF_VERSION_MAJOR >= 5
   if (esp_sntp_enabled()) esp_sntp_stop();
+#else
+  if (sntp_enabled()) sntp_stop();
+#endif
 
   // Para cada una de las preferencias, si no está seteada se obtendrá cadena vacía
   nvram.begin(_ns_nvram_yuboxframework_ntpclient, true);
