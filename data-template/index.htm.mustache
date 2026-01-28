@@ -89,6 +89,11 @@ function _yubox_serialized_loadone()
     //console.log('DEBUG: cargado!');
     _yubox_serialized_loadone();
   };
+  fref.onerror = function (ev) {
+    console.error(`Al cargar componente ${f.src}:`, ev);
+    console.warn(`Componente ${f.src} no pudo cargarse. Alguna funcionalidad de la interfaz no funcionará correctamente. Se intentará cargar siguientes componentes...`);
+    _yubox_serialized_loadone();
+  };
   document.getElementsByTagName('head')[0].appendChild(fref);
 }
 
