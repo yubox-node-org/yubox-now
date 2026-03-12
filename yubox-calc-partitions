@@ -26,30 +26,34 @@ if args.total < parttable[2]['Offset'] + 3 * blocksize:
     exit(1)
 
 max_libre = args.total - parttable[2]['Offset']
+appsize = 0
+spiffssize = 0
 if args.app:
     # Caso de especificar primero total para APP
-    args.app = args.app & (~(blocksize - 1))
-    if args.app < blocksize:
-        sys.stderr.write('FATAL: reserva APP insuficiente!')
+    appsize = ((args.app + blocksize - 1) // blocksize) * blocksize
+    sys.stderr.write('app0: Se requieren {0} bytes, se reservan {1} bytes\n\n'.format(args.app, appsize))
+    if appsize < blocksize:
+        sys.stderr.write('FATAL: reserva APP insuficiente!\n')
         exit(1)
-    args.spiffs = (max_libre - (2 * args.app)) & (~(blocksize - 1))
-    if args.spiffs < blocksize:
-        sys.stderr.write('FATAL: SPIFFS muy pequeño luego de reservar APP!')
+    spiffssize = (max_libre - (2 * appsize)) & (~(blocksize - 1))
+    if spiffssize < blocksize:
+        sys.stderr.write('FATAL: SPIFFS muy pequeño luego de reservar APP!\n')
         exit(1)
 else:
     # Caso de especificar reserva para SPIFFS
-    args.spiffs = args.spiffs & (~(blocksize - 1))
-    if args.spiffs < blocksize:
-        sys.stderr.write('FATAL: reserva SPIFFS insuficiente!')
+    spiffssize = ((args.spiffs + blocksize - 1) // blocksize) * blocksize
+    sys.stderr.write('spiffs: Se requieren {0} bytes, se reservan {1} bytes\n\n'.format(args.spiffs, spiffssize))
+    if spiffssize < blocksize:
+        sys.stderr.write('FATAL: reserva SPIFFS insuficiente!\n')
         exit(1)
-    args.app = ((max_libre - args.spiffs) >> 1) & (~(blocksize - 1))
-    if args.app < blocksize:
-        sys.stderr.write('FATAL: APP muy pequeño luego de reservar SPIFFS')
+    appsize = ((max_libre - spiffssize) >> 1) & (~(blocksize - 1))
+    if appsize < blocksize:
+        sys.stderr.write('FATAL: APP muy pequeño luego de reservar SPIFFS\n')
         exit(1)
 
-parttable[2]['Size'] = args.app
+parttable[2]['Size'] = appsize
 parttable[3]['Offset'] = parttable[2]['Offset'] + parttable[2]['Size']
-parttable[3]['Size'] = args.app
+parttable[3]['Size'] = appsize
 parttable[4]['Offset'] = parttable[3]['Offset'] + parttable[3]['Size']
 parttable[4]['Size'] = args.total - parttable[4]['Offset']
 
