@@ -113,9 +113,79 @@ def loadAvailableModules(template_dirs):
 
     return content, modules
 
+# Cargar macros de compilación desde el archivo build_opt.h del sketch (directorio actual),
+# si existe. Cada token -DNOMBRE define NOMBRE con valor "1", y -DNOMBRE=VALOR define
+# NOMBRE con ese valor. Las mismas definiciones pueden pasarse como argumentos -D al
+# script, y tienen prioridad sobre build_opt.h.
+def loadBuildMacros(path):
+    macros = {}
+    if not os.path.isfile(path):
+        return macros
+    with open(path, 'r') as f:
+        for line in f:
+            for tok in line.split():
+                if tok.startswith('-D'):
+                    addBuildMacro(macros, tok[2:])
+    return macros
+
+def addBuildMacro(macros, definition):
+    if '=' in definition:
+        k, v = definition.split('=', 1)
+    else:
+        k, v = definition, '1'
+    k = k.strip()
+    if k != '':
+        macros[k] = v.strip()
+
+# Un valor de macro cuenta como activo si es numérico distinto de 0, o si es una cadena
+# no numérica y no vacía (p.ej. una constante simbólica).
+def isMacroValueTrue(v):
+    try:
+        return (int(v, 0) != 0)
+    except ValueError:
+        return (v != '')
+
+# Interpretar un token de módulo de la forma [+]modulo[?[!]MACRO[=default]] y evaluar su
+# condición contra las macros conocidas. Devuelve (nombre, es_activo, habilitado, detalle).
+# - modulo?MACRO           habilitado si MACRO está definida con valor activo
+# - modulo?!MACRO          habilitado si MACRO no está definida o su valor es 0
+# - modulo?MACRO=1         igual, pero si MACRO no está definida se asume el valor indicado
+# Sin condición, el módulo siempre está habilitado.
+def parseModuleToken(tok, macros):
+    is_active = False
+    if tok.startswith('+'):
+        tok = tok[1:]
+        is_active = True
+    if not '?' in tok:
+        return tok, is_active, True, None
+
+    name, cond = tok.split('?', 1)
+    negate = False
+    if cond.startswith('!'):
+        negate = True
+        cond = cond[1:]
+    if '=' in cond:
+        macro, default = cond.split('=', 1)
+    else:
+        macro, default = cond, '0'
+    if macro == '':
+        sys.stderr.write('\nFATAL: condición vacía en token de módulo %s!\n' % (tok,))
+        exit(1)
+
+    value = macros.get(macro, default)
+    enabled = isMacroValueTrue(value)
+    if negate:
+        enabled = not enabled
+    detalle = '%s%s=%s%s' % ('!' if negate else '', macro, value, '' if macro in macros else ' (por omisión)')
+    return name, is_active, enabled, detalle
+
 if len(sys.argv) < 3:
-    sys.stderr.write('Uso: %s /data/template/dir1:/data/template/dir2:(...) module1 (module2 ...)\n' % (sys.argv[0],))
+    sys.stderr.write('Uso: %s /data/template/dir1:/data/template/dir2:(...) [-DMACRO[=valor] ...] module1 (module2 ...)\n' % (sys.argv[0],))
+    sys.stderr.write('  Cada módulo admite una condición: modulo?MACRO, modulo?!MACRO, modulo?MACRO=default.\n')
+    sys.stderr.write('  Las macros se leen de ./build_opt.h (-DMACRO o -DMACRO=valor) y de los argumentos -D.\n')
     exit(1)
+
+build_macros = loadBuildMacros('build_opt.h')
 
 template_dirs = buildDataTemplateDirList(sys.argv[1])
 print ('Se buscará contenido para ensamblar en los siguientes directorios:')
@@ -149,15 +219,31 @@ for t in content:
         print ('\tTipo: archivo copiado')
         print ('\tRuta: %s' % (content[t]['source_path'],))
 
+# Las definiciones -D de la línea de comando tienen prioridad sobre build_opt.h
+for i in range(2, len(sys.argv)):
+    if sys.argv[i].startswith('-D'):
+        addBuildMacro(build_macros, sys.argv[i][2:])
+if len(build_macros) > 0:
+    print ('\nINFO: macros de compilación conocidas para condiciones de módulos:')
+    for k in sorted(build_macros):
+        print ('\t%s=%s' % (k, build_macros[k]))
+
 # Leer lista del resto de parámetros para habilitar módulos
 for i in range(2, len(sys.argv)):
-    mod = sys.argv[i]
-    if mod.startswith('+'):
-        mod = mod[1:]
-        module_active = mod
+    tok = sys.argv[i]
+    if tok.startswith('-D'):
+        continue
+    mod, is_active, enabled, detalle = parseModuleToken(tok, build_macros)
     if not mod in modules:
         sys.stderr.write('\nFATAL: módulo %s no existe en lista de módulos!\n' % (mod,))
         exit(1)
+    if not enabled:
+        print ('INFO: módulo %s EXCLUIDO por condición %s' % (mod, detalle))
+        continue
+    if detalle is not None:
+        print ('INFO: módulo %s incluido por condición %s' % (mod, detalle))
+    if is_active:
+        module_active = mod
     modules_enabled.append(mod)
 if len(modules_enabled) <= 0:
     sys.stderr.write('\nFATAL: no hay módulos habilitados para proyecto!\n')

@@ -334,6 +334,21 @@ crearse la siguiente estructura de archivos y directorios:
   respectivas entradas de menú en la interfaz. Exactamente uno de los identificadores debe estar precedido de un signo más (+). Este identificador
   será el módulo que se mostrará por omisión al cargar la interfaz web.
 
+  Un identificador puede llevar una condición para incluirse o excluirse según macros de compilación, de modo que la interfaz web coincida con
+  las variantes del firmware (por ejemplo, con o sin soporte LoRaWAN, o MQTT sobre WiFi frente a MQTT sobre GSM):
+  ```
+  +lector modbus lorawan?YUBOX_LORAWAN_ENABLE=1 wifi mqtt?!YUBOX_MQTT_GSM mqttgsm?YUBOX_MQTT_GSM webauth yuboxOTA
+  ```
+  - `modulo?MACRO`: el módulo se incluye si `MACRO` está definida con un valor distinto de 0 (o con una cadena no numérica).
+  - `modulo?!MACRO`: el módulo se incluye si `MACRO` no está definida o vale 0.
+  - `modulo?MACRO=valor` y `modulo?!MACRO=valor`: igual que las anteriores, pero si `MACRO` no está definida se asume `valor`. Esto permite
+    que la condición refleje el valor por omisión que el firmware asume en su propio código.
+
+  Las macros se leen del archivo `build_opt.h` del directorio del sketch, si existe, interpretando sus tokens `-DMACRO` (valor 1) y
+  `-DMACRO=valor`, que es el mismo archivo que el core ESP32 pasa al compilador. También pueden darse como argumentos `-DMACRO[=valor]` a
+  `yubox-framework-assemble`, con prioridad sobre `build_opt.h`. Si el módulo marcado con `+` queda excluido, el primer módulo incluido pasa
+  a ser el inicial.
+
   Los módulos provistos por el YUBOX Framework son los siguientes:
   - `wifi`: módulo que provee la funcionalidad de configuración de WiFi y escaneo de redes. Este módulo es casi siempre necesario.
   - `webauth`: módulo que permite administrar la contraseña de administración del dispositivo. A menos que se deje el equipo enteramente sin
