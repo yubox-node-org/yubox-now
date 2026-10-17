@@ -153,7 +153,21 @@ function yuboxFetchMethodURL(method, url, postData = null)
         method: method
     };
     if (postData != null) init['body'] = postData;
-    return fetch(url, init)
+
+    // Un 503 indica que el dispositivo está momentáneamente ocupado (p.ej. leyendo
+    // sensores Modbus con timeout). Se reintenta unas pocas veces antes de fallar.
+    const MAX_RETRIES_503 = 4;
+    const RETRY_503_MS = 750;
+    const fetchConReintento = (intento) => fetch(url, init)
+    .then(response => {
+        if (response.status == 503 && intento < MAX_RETRIES_503) {
+            return new Promise(resolve => setTimeout(resolve, RETRY_503_MS))
+            .then(() => fetchConReintento(intento + 1));
+        }
+        return response;
+    });
+
+    return fetchConReintento(0)
     .then(response => {
         let p;
 
